@@ -1,0 +1,13 @@
+# Ignorar archivos y carpetas específicos
+node_modules
+npm-debug.log
+mysql-data
+yarn-error.log
+# Ignorar archivos de desarrollo
+*.spec.ts
+*.test.ts
+*.config.ts
+
+# Ignorar archivos de control de versiones
+.git
+.gitignore

@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+
+  psqele:
+    image: 'postgres:16.1'
+    environment:
+      POSTGRES_HOST: psqele
+      POSTGRES_DB: pickmeup_dev
+      POSTGRES_USER: picker
+      POSTGRES_PASSWORD: 1234
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./post_data:/var/lib/postgresql/data
+    restart: always
+    networks:
+      - default
+
+  pickmeapi:
+    image: 'pickme-api:2'
+    ports:
+      - "3000:3000"
+    networks:
+      - default
+    depends_on:
+      - psqele
+
+  pgadmine:
+    image: dpage/pgadmin4
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@pgadmin.com
+      - PGADMIN_DEFAULT_PASSWORD=password
+    ports:
+      - "80:80"
+    depends_on:
+      - psqele
+
+  # en caso de que falle psql probemos con mysql 
+  mysqldb:
+    image: 'mysql:5.7'
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: pickmeup_dev
+      MYSQL_USER: picker
+      MYSQL_PASSWORD: 1234
+      MYSQL_HOST: mysqldb
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql-data:/var/lib/mysql
+    networks:
+      - default
+
+  phpmyadmin:
+    image: phpmyadmin:5.2.0
+    container_name: phpmyadmin
+    links:
+      - mysqldb
+    environment:
+      PMA_HOST: mysqldb
+      PMA_PORT: 3306
+      PMA_USER: rootsuper
+      PMA_PASSWORD: root
+    ports:
+      - "8081:80"
+    networks:
+      - default
