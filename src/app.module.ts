@@ -5,6 +5,8 @@ import { ConfigModule } from '@nestjs/config';
 import config from './config';
 import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
+import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { MenuModule } from './menu/menu.module';
 
 @Module({
   imports: [
@@ -16,6 +18,8 @@ import { AuthModule } from './auth/auth.module';
     AuthModule,
     UserModule,
     DatabaseModule,
+    CloudinaryModule,
+    MenuModule,
   ],
 })
 export class AppModule { }
