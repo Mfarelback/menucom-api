@@ -15,6 +15,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
+import { ChangePasswordDto } from './dto/password.dto';
 // import { PasswordService } from '../services/password/password.service';
 // import { RecoveryPasswordDto } from '../dto/recovery-pass';
 // import { ChangePasswordDto } from '../dto/change-password';
@@ -22,12 +23,11 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
 @ApiTags('user')
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   @UseGuards(JwtAuthGuard)
   @Get('/me')
   async getProfile(@Req() req: Request) {
-    console.log(req['user']['userId']);
     return this.userService.findOne(req['user']['userId']);
   }
 
@@ -35,22 +35,24 @@ export class UserController {
   async getProfileUser(@Param('id') id: string) {
     return this.userService.findOne(id);
   }
+
   @Post('admin/:email')
   async getAdminUseremail(@Param('email') email: string) {
     return this.userService.getadminUser(email);
   }
 
-  // TODO:implemetar recuperar contraseña;
 
-  // @Post('password')
-  // async recoveryPassword(@Body() recoveryInfo: RecoveryPasswordDto) {
-  //   return this.passService.recoveryEmail(recoveryInfo);
-  // }
+  @Post('password')
+  async recoveryPassword(@Body() recoveryInfo: any) {
+    return '';
+  }
 
-  // @Post('change-password')
-  // async changePassword(@Body() recoveryInfo: ChangePasswordDto) {
-  //   return this.passService.changePassword(recoveryInfo);
-  // }
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  async changePassword(@Req() req: Request, @Body() password: ChangePasswordDto) {
+    const user = req['user']['userId'];
+    return this.userService.changePasswordByUser(user, password);
+  }
 
   @UseGuards(JwtAuthGuard)
   @Patch('/update/:id')

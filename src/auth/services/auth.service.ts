@@ -8,6 +8,7 @@ import * as bcrypt from 'bcrypt';
 import { UserService } from 'src/user/user.service';
 import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from 'src/user/dto/create-user.dto';
+import { classToPlain } from 'class-transformer';
 
 @Injectable()
 export class AuthService {
@@ -34,13 +35,15 @@ export class AuthService {
   }
 
   async login(user: any) {
-    let neededCommerce = true;
     const payload = {
       username: user['user']['role'],
       sub: user['user']['id'],
     };
+
+    const userLog = await this.usersService.findOne(payload.sub);
     return {
       access_token: this.jwtService.sign(payload),
+      needToChangePassword: userLog.needToChangepassword,
     };
   }
 
@@ -53,6 +56,7 @@ export class AuthService {
       };
       return {
         access_token: this.jwtService.sign(payload),
+        needToChangePassword: userRegister.needToChangepassword,
       };
     } catch (error) {
       throw new HttpException(error.message, error.status);

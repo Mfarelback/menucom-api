@@ -11,10 +11,11 @@ import { User } from './entities/user.entity';
 
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
+import { ChangePasswordDto } from './dto/password.dto';
 
 @Injectable()
 export class UserService {
-  constructor(@InjectRepository(User) private userRepo: Repository<User>) {}
+  constructor(@InjectRepository(User) private userRepo: Repository<User>) { }
 
   async create(data: CreateUserDto) {
     if (data.email.length == 0) {
@@ -101,5 +102,14 @@ export class UserService {
   async deleteAllusers() {
     const users = await this.userRepo.clear();
     return users;
+  }
+
+  async changePasswordByUser(userId: string, newPassword: ChangePasswordDto) {
+    const userFind = await this.userRepo.findOne({ where: { id: userId } });
+    const passhash = await bcrypt.hash(newPassword.newPassword, 10);
+    userFind.password = passhash;
+    userFind.needToChangepassword = false;
+    const newUser = await this.userRepo.save(userFind);
+    return true;
   }
 }

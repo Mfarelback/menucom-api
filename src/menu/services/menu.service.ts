@@ -6,8 +6,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MenuItem } from '../entities/menu-item.entity';
 import { CreateMenuItemDto } from '../dtos/menu-item.dto';
-import { ExceptionsHandler } from '@nestjs/core/exceptions/exceptions-handler';
-import { throws } from 'assert';
 
 
 @Injectable()
