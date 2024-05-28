@@ -2,14 +2,14 @@ version: '3.8'
 
 services:
 
-  pickmeapi:
-    image: 'pickme-api:2'
-    ports:
-      - "3000:3000"
-    networks:
-      - default
-    depends_on:
-      - mysqldb
+  # pickmeapi:
+  #   image: 'pickme-api:2'
+  #   ports:
+  #     - "3000:3000"
+  #   networks:
+  #     - default
+  #   depends_on:
+  #     - mysqldb
 
   # en caso de que falle psql probemos con mysql 
   mysqldb:
