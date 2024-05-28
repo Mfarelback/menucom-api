@@ -3,6 +3,10 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsNotEmpty, IsString, IsNumber } from 'class-validator';
 
 export class CreateMenuItemDto {
+    @IsString()
+    @ApiProperty({ description: 'ID en caso de edicion', nullable: true })
+    id: string;
+
     @IsNotEmpty()
     @IsString()
     @ApiProperty({ description: 'Nombre del plato' })

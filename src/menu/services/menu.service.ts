@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
+import { ConflictException, HttpException, HttpStatus, Injectable, NotFoundException, UnprocessableEntityException } from '@nestjs/common';
 import { CreateMenuDto } from '../dtos/menu.dto';
 import { Menu } from '../entities/menu.entity';
 import { v4 as uuidv4 } from 'uuid';
@@ -18,28 +18,57 @@ export class MenuService {
     ) { }
 
     async createMenu(createMenuDto: CreateMenuDto, userId: string): Promise<any> {
-        // Creamos el menu
-        const menu = new Menu();
-        menu.id = uuidv4();
-        menu.idOwner = userId;
-        menu.description = createMenuDto.description;
-        const menuNewCreated = await this.menuRepository.save(menu)
+
+        if (createMenuDto.idMenuDirect.length <= 0 || createMenuDto.idMenuDirect == null) {
+            const menu = new Menu();
+            menu.id = uuidv4();
+            menu.idOwner = userId;
+            menu.description = createMenuDto.description;
+            const menuNewCreated = await this.menuRepository.save(menu)
+            // Creamos el item del menu
+            const menuItem = new MenuItem();
+            menuItem.id = uuidv4();
+            menuItem.photoURL = createMenuDto.menuItems[0].photoURL;
+            menuItem.name = createMenuDto.menuItems[0].name;
+            menuItem.price = createMenuDto.menuItems[0].price;
+            menuItem.deliveryTime = createMenuDto.menuItems[0].deliveryTime;
+            menuItem.menu = menuNewCreated;
+
+            const menuItemSave = await this.menuItemRepository.save(menuItem);
+
+            return {
+                ...menuNewCreated,
+                ...menuItemSave,
+            }
+        }
+        const menuExist = await this.menuRepository.findOne({ where: { id: createMenuDto.idMenuDirect, } });
+        const itemsFinded = await this.menuItemRepository.find({ where: { menu: menuExist } })
         // Creamos el item del menu
+
         const menuItem = new MenuItem();
         menuItem.id = uuidv4();
         menuItem.photoURL = createMenuDto.menuItems[0].photoURL;
         menuItem.name = createMenuDto.menuItems[0].name;
         menuItem.price = createMenuDto.menuItems[0].price;
         menuItem.deliveryTime = createMenuDto.menuItems[0].deliveryTime;
-        menuItem.menu = menuNewCreated;
+        menuItem.menu = menuExist;
 
         const menuItemSave = await this.menuItemRepository.save(menuItem);
-        console.log(menu);
-        console.log(menuItem);
-
         return {
-            ...menuNewCreated,
-            ...menuItemSave,
+            ...menuExist,
+            item: menuItemSave,
+        }
+
+    }
+
+    async editItemsFromMenu(newItem: CreateMenuItemDto) {
+        try {
+            const itemOfMenu = await this.menuItemRepository.findOne({ where: { id: newItem.id } });
+            if (itemOfMenu == null) throw new NotFoundException();
+            const mergeItem = await this.menuItemRepository.merge(itemOfMenu, newItem);
+            return await this.menuItemRepository.save(mergeItem);
+        } catch (error) {
+            throw new HttpException('Error: ' + error, HttpStatus.CONFLICT);
         }
     }
 
@@ -83,7 +112,7 @@ export class MenuService {
 
             return menu;
         } catch (error) {
-            throw new ConflictException(error);
+            throw error;
         }
     }
 }

@@ -7,7 +7,7 @@ import { Exclude } from 'class-transformer';
 export class Menu {
 
     @PrimaryColumn({ type: 'varchar', nullable: false })
-    id: number;
+    id: string;
 
     @Column({ type: 'varchar', nullable: false })
     idOwner: string;

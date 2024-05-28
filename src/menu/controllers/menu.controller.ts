@@ -26,6 +26,6 @@ export class MenuController {
     @Put('/edit/')
     async editMenuwithItem(@Req() req: Request, @Body() item: CreateMenuItemDto) {
         var userID = req['user']['userId'];
-        return this.menuService.addMenuItemByUserID(userID, item);
+        return this.menuService.editItemsFromMenu(item);
     }
 }

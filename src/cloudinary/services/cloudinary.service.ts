@@ -8,14 +8,23 @@ export class CloudinaryService {
   async uploadImage(
     file: Express.Multer.File,
   ): Promise<string | UploadApiErrorResponse> {
-    return new Promise((resolve, reject) => {
-      const upload = v2.uploader.upload_stream((error, result) => {
-        if (error) return reject(error);
-        resolve(result.url);
+    try {
+      return new Promise((resolve, reject) => {
+        const upload = v2.uploader.upload_stream((error, result) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(result.url);
+          }
+        });
+
+        toStream(file.buffer).pipe(upload);
       });
 
-      toStream(file.buffer).pipe(upload);
-    });
+    } catch (error) {
+      console.log(Date.now() + 'Error en el Throw:' + error)
+      throw error;
+    }
   }
 
   async uploadImages(files: Array<Express.Multer.File>): Promise<string[]> {

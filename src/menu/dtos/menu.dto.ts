@@ -6,11 +6,11 @@ import { ApiProperty } from '@nestjs/swagger';
 export class CreateMenuDto {
     @IsNotEmpty()
     @IsString()
-    @ApiProperty({ description: 'Id del comedor' })
-    idOwner: string;
+    @ApiProperty({ description: 'Id del menu, si viene vacio se crea un nuevo menu' })
+    idMenuDirect: string;
 
     @IsString()
-    @ApiProperty({ description: 'Por si se personaliza alguna descripcion general del menú' })
+    @ApiProperty({ description: 'Se toma como nombre de menú' })
     description: string;
 
     @Type(() => CreateMenuItemDto)
