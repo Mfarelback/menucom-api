@@ -16,8 +16,8 @@ services:
     image: 'mysql:5.7'
     environment:
       MYSQL_ROOT_PASSWORD: 1234
-      MYSQL_DATABASE: pickmeup_dev
-      MYSQL_USER: picker
+      MYSQL_DATABASE: menucom_dev
+      MYSQL_USER: menucom
       MYSQL_PASSWORD: 1234
       MYSQL_HOST: mysqldb
     ports:

@@ -25,6 +25,7 @@ lerna-debug.log*
 /.idea
 .project
 .classpath
+
 .c9/
 *.launch
 .settings/
@@ -42,6 +43,7 @@ lerna-debug.log*
 .env.test.local
 .env.production.local
 .env.local
+.env
 
 # temp directory
 .temp
