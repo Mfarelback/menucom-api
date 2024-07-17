@@ -23,7 +23,7 @@ import { ChangePasswordDto } from './dto/password.dto';
 @ApiTags('user')
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) { }
+  constructor(private readonly userService: UserService) {}
 
   @UseGuards(JwtAuthGuard)
   @Get('/me')
@@ -41,15 +41,17 @@ export class UserController {
     return this.userService.getadminUser(email);
   }
 
-
   @Post('password')
-  async recoveryPassword(@Body() recoveryInfo: any) {
+  async recoveryPassword() {
     return '';
   }
 
   @UseGuards(JwtAuthGuard)
   @Post('change-password')
-  async changePassword(@Req() req: Request, @Body() password: ChangePasswordDto) {
+  async changePassword(
+    @Req() req: Request,
+    @Body() password: ChangePasswordDto,
+  ) {
     const user = req['user']['userId'];
     return this.userService.changePasswordByUser(user, password);
   }
