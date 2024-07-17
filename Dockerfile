@@ -20,6 +20,7 @@ COPY package*.json ./
 USER root
 RUN sudo npm install
 COPY . .
+RUN npm install -g @nestjs/cli
 RUN npm run build
 
 USER usuariofiel
