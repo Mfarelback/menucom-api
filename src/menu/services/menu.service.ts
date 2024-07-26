@@ -54,10 +54,8 @@ export class MenuService {
     const menuExist = await this.menuRepository.findOne({
       where: { id: createMenuDto.idMenuDirect },
     });
-    // const itemsFinded = await this.menuItemRepository.find({
-    //   where: { menu: menuExist },
-    // });
-    // Creamos el item del menu
+    console.log('El menu existe');
+    console.log(menuExist);
 
     const menuItem = new MenuItem();
     menuItem.id = uuidv4();
@@ -68,6 +66,8 @@ export class MenuService {
     menuItem.menu = menuExist;
 
     const menuItemSave = await this.menuItemRepository.save(menuItem);
+    console.log('El item del menu guardado en el menu');
+    console.log(menuItemSave);
     return {
       ...menuExist,
       item: menuItemSave,
@@ -118,7 +118,7 @@ export class MenuService {
 
       if (!menu || menu.length === 0) {
         throw new NotFoundException(
-          'No se encontró ningún menú para el usuario especificado.',
+          `No se encontró un menu ${userOwn[0].name} con el ID ${userId}`,
         );
       }
 
