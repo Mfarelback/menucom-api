@@ -41,19 +41,9 @@ export class UserController {
     return this.userService.getadminUser(email);
   }
 
-  @Post('password')
-  async recoveryPassword() {
-    return '';
-  }
-
-  @UseGuards(JwtAuthGuard)
   @Post('change-password')
-  async changePassword(
-    @Req() req: Request,
-    @Body() password: ChangePasswordDto,
-  ) {
-    const user = req['user']['userId'];
-    return this.userService.changePasswordByUser(user, password);
+  async changePassword(@Body() password: ChangePasswordDto) {
+    return this.userService.changePasswordByUser(password);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -62,8 +52,6 @@ export class UserController {
     try {
       return await this.userService.update(id, updateUserDto);
     } catch (error) {
-      // Handle the error here
-      console.error(error);
       throw new InternalServerErrorException('Failed to update user');
     }
   }

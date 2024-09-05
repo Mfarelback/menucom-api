@@ -5,22 +5,25 @@ import { Exclude } from 'class-transformer';
 
 @Entity()
 export class MenuItem {
-    @PrimaryColumn()
-    id: string;
+  @PrimaryColumn()
+  id: string;
 
-    @Column()
-    name: string;
+  @Column()
+  name: string;
 
-    @Column()
-    photoURL: string;
+  @Column()
+  photoURL: string;
 
-    @Column()
-    price: number;
+  @Column()
+  price: number;
 
-    @Column()
-    deliveryTime: number;
+  @Column('simple-array')
+  ingredients: string[]; // List of ingredients
 
-    @Exclude()
-    @ManyToOne(() => Menu, menu => menu.id)
-    menu: Menu;
+  @Column()
+  deliveryTime: number;
+
+  @Exclude()
+  @ManyToOne(() => Menu, (menu) => menu.id)
+  menu: Menu;
 }

@@ -3,7 +3,6 @@ import {
   HttpStatus,
   Injectable,
   NotFoundException,
-  UnprocessableEntityException,
 } from '@nestjs/common';
 import { CreateMenuDto } from '../dtos/menu.dto';
 import { Menu } from '../entities/menu.entity';
@@ -25,59 +24,30 @@ export class MenuService {
     private readonly userRepository: Repository<User>,
   ) {}
 
+  //menu functions
   async createMenu(createMenuDto: CreateMenuDto, userId: string): Promise<any> {
-    if (
-      createMenuDto.idMenuDirect.length <= 0 ||
-      createMenuDto.idMenuDirect == null
-    ) {
-      const menu = new Menu();
-      menu.id = uuidv4();
-      menu.idOwner = userId;
-      menu.description = createMenuDto.description;
-      const menuNewCreated = await this.menuRepository.save(menu);
-      // Creamos el item del menu
-      const menuItem = new MenuItem();
-      menuItem.id = uuidv4();
-      menuItem.photoURL = createMenuDto.menuItems[0].photoURL;
-      menuItem.name = createMenuDto.menuItems[0].name;
-      menuItem.price = createMenuDto.menuItems[0].price;
-      menuItem.deliveryTime = createMenuDto.menuItems[0].deliveryTime;
-      menuItem.menu = menuNewCreated;
+    const menu = new Menu();
+    menu.id = uuidv4();
+    menu.idOwner = userId;
+    menu.description = createMenuDto.description;
+    menu.capacity = 15;
+    const menuNewCreated = await this.menuRepository.save(menu);
 
-      const menuItemSave = await this.menuItemRepository.save(menuItem);
-
-      return {
-        ...menuNewCreated,
-        ...menuItemSave,
-      };
-    }
-    const menuExist = await this.menuRepository.findOne({
-      where: { id: createMenuDto.idMenuDirect },
-    });
-    console.log('El menu existe');
-    console.log(menuExist);
-
-    const menuItem = new MenuItem();
-    menuItem.id = uuidv4();
-    menuItem.photoURL = createMenuDto.menuItems[0].photoURL;
-    menuItem.name = createMenuDto.menuItems[0].name;
-    menuItem.price = createMenuDto.menuItems[0].price;
-    menuItem.deliveryTime = createMenuDto.menuItems[0].deliveryTime;
-    menuItem.menu = menuExist;
-
-    const menuItemSave = await this.menuItemRepository.save(menuItem);
-    console.log('El item del menu guardado en el menu');
-    console.log(menuItemSave);
     return {
-      ...menuExist,
-      item: menuItemSave,
+      ...menuNewCreated,
     };
   }
 
+  async editMenu(newMenuDto: CreateMenuDto, userId: string) {
+    const menuFInd = this.menuRepository.find({ where: { idOwner: userId } });
+    console.log(menuFInd);
+  }
+
+  //Items functions
   async editItemsFromMenu(newItem: CreateMenuItemDto) {
     try {
       const itemOfMenu = await this.menuItemRepository.findOne({
-        where: { id: newItem.id },
+        where: { id: newItem.idMenu },
       });
       if (itemOfMenu == null) throw new NotFoundException();
       const mergeItem = await this.menuItemRepository.merge(
@@ -90,35 +60,34 @@ export class MenuService {
     }
   }
 
-  async addMenuItemByUserID(userId: string, item: CreateMenuItemDto) {
+  async addMenuItemByMenuID(item: CreateMenuItemDto) {
     const menu = await this.menuRepository.findOne({
-      where: { idOwner: userId },
+      where: { id: item.idMenu },
     });
-
+    if (menu == null)
+      throw new NotFoundException('No se encontró un menu al que asociar');
     const newItem = new MenuItem();
 
     newItem.id = uuidv4();
     newItem.name = item.name;
     newItem.photoURL = item.photoURL;
     newItem.price = item.price;
+    newItem.ingredients = item.ingredients;
     newItem.deliveryTime = item.deliveryTime;
     newItem.menu = menu;
 
     return this.menuItemRepository.save(newItem);
   }
 
-  async findMenuItemsByMenuId(userId: string): Promise<Menu[]> {
+  async findMenuItemsByMenuId(menuId: string): Promise<Menu[]> {
     try {
-      const userOwn = await this.userRepository.find({
-        where: { id: userId },
-      });
       const menu = await this.menuRepository.find({
-        where: { idOwner: userId },
+        where: { id: menuId },
       });
 
       if (!menu || menu.length === 0) {
         throw new NotFoundException(
-          `No se encontró un menu ${userOwn[0].name} con el ID ${userId}`,
+          `No se encontró un menu con el ID ${menuId}`,
         );
       }
 
@@ -129,17 +98,26 @@ export class MenuService {
             where: { menu: e },
           });
           if (items.length === 0) {
-            throw new UnprocessableEntityException(
+            throw new NotFoundException(
               'El menú no tiene elementos asociados.',
             );
           }
           e.items = items;
         }),
       );
-      menu[0].idOwner = userOwn[0].name;
+      // menu[0].idOwner = userOwn[0].name;
       return menu;
     } catch (error) {
       throw error;
     }
+  }
+
+  async findAllMenusbyUser(userId: string) {
+    const userOwn = await this.userRepository.findOne({
+      where: { id: userId },
+    });
+
+    const menus = this.menuRepository.find({ where: { idOwner: userOwn.id } });
+    return menus;
   }
 }

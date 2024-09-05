@@ -6,12 +6,10 @@ import * as mysql from 'mysql2/promise';
 @Global()
 @Module({
   imports: [
-
     TypeOrmModule.forRootAsync({
       inject: [config.KEY],
       useFactory: (configService: ConfigType<typeof config>) => {
         try {
-
           return {
             type: 'mysql',
             database: configService.mysql.dbName,
@@ -23,7 +21,6 @@ import * as mysql from 'mysql2/promise';
             autoLoadEntities: true,
             ssl: false,
           };
-
         } catch (e) {
           throw new UnauthorizedException({
             message: 'Hubo un error de integración de datos',
@@ -37,7 +34,6 @@ import * as mysql from 'mysql2/promise';
       provide: 'DATABASE_CONNECTION',
       useFactory: (configService: ConfigType<typeof config>) => {
         try {
-
           const connection = mysql.createConnection({
             host: configService.mysql.host,
             user: configService.mysql.user,
@@ -46,7 +42,6 @@ import * as mysql from 'mysql2/promise';
           });
 
           return connection;
-
         } catch (e) {
           console.error(`Falló ${e}`);
           throw new UnauthorizedException({
@@ -59,4 +54,4 @@ import * as mysql from 'mysql2/promise';
   ],
   exports: [TypeOrmModule],
 })
-export class DatabaseModule { }
+export class DatabaseModule {}

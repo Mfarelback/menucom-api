@@ -7,6 +7,7 @@ import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
 import { MenuModule } from './menu/menu.module';
+import { WardrobesModule } from './wardrobes/wardrobes.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { MenuModule } from './menu/menu.module';
     DatabaseModule,
     CloudinaryModule,
     MenuModule,
+    WardrobesModule,
   ],
 })
-export class AppModule { }
+export class AppModule {}

@@ -1,10 +1,8 @@
-// menu.entity.ts
-import { Entity, Column, OneToMany, PrimaryColumn } from 'typeorm';
-import { MenuItem } from './menu-item.entity';
 import { Exclude } from 'class-transformer';
-
+import { Entity, Column, OneToMany, PrimaryColumn } from 'typeorm';
+import { ClothingItem } from './clothing_item.entity';
 @Entity()
-export class Menu {
+export class Wardrobes {
   @PrimaryColumn({ type: 'varchar', nullable: false })
   id: string;
 
@@ -18,6 +16,6 @@ export class Menu {
   capacity: number;
 
   @Exclude()
-  @OneToMany(() => MenuItem, (menuItem) => menuItem.menu.id)
-  items: MenuItem[];
+  @OneToMany(() => ClothingItem, (ClothingItem) => ClothingItem.wardrobe)
+  items: ClothingItem[];
 }
