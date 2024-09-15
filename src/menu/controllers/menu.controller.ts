@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -43,6 +44,12 @@ export class MenuController {
   async editMenu(@Req() req: Request, @Body() menu: EditMenuDto) {
     const userID = req['user']['userId'];
     return this.menuService.editMenu(menu, userID);
+  }
+  @UseGuards(JwtAuthGuard)
+  @Delete('/delete/')
+  async deleteMenu(@Req() req: Request, @Body() menu: EditMenuDto) {
+    const userID = req['user']['userId'];
+    return this.menuService.deleteMenuByUser(menu.id, userID);
   }
 
   @UseGuards(JwtAuthGuard)

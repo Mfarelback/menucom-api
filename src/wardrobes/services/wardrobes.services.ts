@@ -127,17 +127,9 @@ export class WardrobeServices {
       where: { idOwner: userOwn.id },
     });
 
-    await Promise.all(
-      wards.map(async (e) => {
-        const itemsWar = await this.wardItemRepository.find({
-          where: { wardrobe: e },
-        });
-        // if (itemsWar.length === 0) {
-        //   throw new NotFoundException('El menú no tiene elementos asociados.');
-        // }
-        e.items = itemsWar;
-      }),
-    );
+    if (wards.length === 0) {
+      throw new NotFoundException('El menú no tiene elementos asociados.');
+    }
 
     return wards;
   }
