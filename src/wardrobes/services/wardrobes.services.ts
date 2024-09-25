@@ -11,6 +11,7 @@ import { User } from 'src/user/entities/user.entity';
 import { Wardrobes } from '../entities/wardrobes.entity';
 import { ClothingItem } from '../entities/clothing_item.entity';
 import { WardrobeDto } from '../dtos/create-ward.dto';
+import { CreateClothingItemDto } from '../dtos/create_clothing.dto';
 
 @Injectable()
 export class WardrobeServices {
@@ -66,57 +67,31 @@ export class WardrobeServices {
     return menuFind[0];
   }
 
-  //   async addMenuItemByMenuID(item: CreateMenuItemDto) {
-  //     const menu = await this.menuRepository.findOne({
-  //       where: { id: item.idMenu },
-  //     });
-  //     if (menu == null)
-  //       throw new NotFoundException('No se encontró un menu al que asociar');
-  //     const newItem = new MenuItem();
+  async addWardItemByMenuID(item: CreateClothingItemDto) {
+    const ward = await this.wardRepository.findOne({
+      where: { id: item.idWard },
+    });
+    if (ward == null) {
+      throw new NotFoundException('No se encontró un menu al que asociar');
+    }
+    console.log(ward);
+    console.log('Waaaaard');
+    const newItem = new ClothingItem();
 
-  //     newItem.id = uuidv4();
-  //     newItem.name = item.name;
-  //     newItem.photoURL = item.photoURL;
-  //     newItem.price = item.price;
-  //     newItem.ingredients = item.ingredients;
-  //     newItem.deliveryTime = item.deliveryTime;
-  //     newItem.menu = menu;
+    newItem.id = uuidv4();
+    newItem.name = item.name;
+    newItem.photoURL = item.photoURL;
+    newItem.price = item.price;
+    newItem.sizes = item.sizes;
+    newItem.brand = item.brand;
+    newItem.color = '';
+    newItem.quantity = item.quantity;
+    newItem.wardrobe = ward;
+    console.log(newItem);
+    console.log('Menuuuuuuuuuuuuu');
 
-  //     return this.menuItemRepository.save(newItem);
-  //   }
-
-  //   async findMenuItemsByMenuId(menuId: string): Promise<Menu[]> {
-  //     try {
-  //       const menu = await this.menuRepository.find({
-  //         where: { id: menuId },
-  //       });
-
-  //       if (!menu || menu.length === 0) {
-  //         throw new NotFoundException(
-  //           `No se encontró un menu con el ID ${menuId}`,
-  //         );
-  //       }
-
-  //       // Utiliza Promise.all para esperar a que todas las consultas de ítems se completen
-  //       await Promise.all(
-  //         menu.map(async (e) => {
-  //           const items = await this.menuItemRepository.find({
-  //             where: { menu: e },
-  //           });
-  //           if (items.length === 0) {
-  //             throw new NotFoundException(
-  //               'El menú no tiene elementos asociados.',
-  //             );
-  //           }
-  //           e.items = items;
-  //         }),
-  //       );
-  //       // menu[0].idOwner = userOwn[0].name;
-  //       return menu;
-  //     } catch (error) {
-  //       throw error;
-  //     }
-  //   }
+    return this.wardItemRepository.save(newItem);
+  }
 
   async findAllWardsByUser(userId: string) {
     const userOwn = await this.userRepository.findOne({
@@ -130,7 +105,49 @@ export class WardrobeServices {
     if (wards.length === 0) {
       throw new NotFoundException('El menú no tiene elementos asociados.');
     }
-
+    console.log(wards);
     return wards;
+  }
+
+  async findClothingItemsByWardId(menuId: string): Promise<any> {
+    try {
+      if (menuId.length === 0) {
+        throw new NotFoundException(`No se encontró un menu con el ID vacio`);
+      }
+      const menu = await this.wardRepository.find({
+        where: { idOwner: menuId },
+      });
+
+      if (!menu || menu.length === 0) {
+        throw new NotFoundException(
+          `No se encontró un menu con el ID ${menuId}`,
+        );
+      }
+
+      // Utiliza Promise.all para esperar a que todas las consultas de ítems se completen
+      await Promise.all(
+        menu.map(async (e) => {
+          const items = await this.wardItemRepository.find({
+            where: { wardrobe: e },
+          });
+          // if (items.length === 0) {
+          //   throw new NotFoundException(
+          //     'El menú no tiene elementos asociados.',
+          //   );
+          // }
+          e.items = items;
+        }),
+      );
+      // menu[0].idOwner = userOwn[0].name;
+      const userOwn = await this.userRepository.findOne({
+        where: { id: menu[0].idOwner },
+      });
+      return {
+        owner: userOwn.name,
+        listmenu: menu,
+      };
+    } catch (error) {
+      throw error;
+    }
   }
 }

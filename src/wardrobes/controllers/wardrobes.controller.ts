@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Param,
   Post,
   Put,
   Req,
@@ -12,6 +13,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
 import { WardrobeServices } from '../services/wardrobes.services';
 import { WardrobeDto } from '../dtos/create-ward.dto';
+import { CreateClothingItemDto } from '../dtos/create_clothing.dto';
 
 @ApiTags('Wardrobe')
 @Controller('wardrobe')
@@ -26,8 +28,8 @@ export class WardrobesController {
   }
 
   @Get('/bydining/:id')
-  async getMenuByDining() {
-    // return this.menuService.findMenuItemsByMenuId(id);
+  async getMenuByDining(@Param('id') id: string) {
+    return this.wardServices.findClothingItemsByWardId(id);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -49,5 +51,11 @@ export class WardrobesController {
   async deleteWardrobem(@Req() req: Request, @Body() ward: WardrobeDto) {
     const userID = req['user']['userId'];
     return this.wardServices.deleteWardrobeByUser(ward.id, userID);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('/add-item/')
+  async additemWardrobe(@Body() ward: CreateClothingItemDto) {
+    return this.wardServices.addWardItemByMenuID(ward);
   }
 }
