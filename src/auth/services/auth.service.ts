@@ -8,14 +8,13 @@ import * as bcrypt from 'bcrypt';
 import { UserService } from 'src/user/user.service';
 import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from 'src/user/dto/create-user.dto';
-import { classToPlain } from 'class-transformer';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UserService,
     private jwtService: JwtService,
-  ) { }
+  ) {}
 
   async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.usersService.findByEmail(email);
@@ -58,16 +57,6 @@ export class AuthService {
         access_token: this.jwtService.sign(payload),
         needToChangePassword: userRegister.needToChangepassword,
       };
-    } catch (error) {
-      throw new HttpException(error.message, error.status);
-    }
-  }
-
-  async registerClient(userData: CreateUserDto, ownerId: string) {
-    try {
-      const userClientCreated = await this.usersService.create(userData);
-
-
     } catch (error) {
       throw new HttpException(error.message, error.status);
     }

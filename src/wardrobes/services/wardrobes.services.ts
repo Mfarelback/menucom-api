@@ -54,17 +54,27 @@ export class WardrobeServices {
   }
 
   async deleteWardrobeByUser(wardrobeId: string, userId: string) {
-    const menuFind = await this.wardRepository.find({
+    const wardfind = await this.wardRepository.find({
       where: { idOwner: userId, id: wardrobeId },
     });
-    console.log(menuFind);
+    console.log(wardfind);
 
-    if (menuFind.length === 0) {
+    if (wardfind.length === 0) {
       throw new NotFoundException();
     }
 
-    await this.wardRepository.remove(menuFind[0]);
-    return menuFind[0];
+    // Encuentra todos los items del menú relacionados
+    const findItemsMenu = await this.wardItemRepository.find({
+      where: { wardrobe: wardfind[0] },
+    });
+
+    // Elimina todos los items del menú relacionados
+    if (wardfind.length > 0) {
+      await this.wardItemRepository.remove(findItemsMenu);
+    }
+
+    await this.wardRepository.remove(wardfind[0]);
+    return wardfind[0];
   }
 
   async addWardItemByMenuID(item: CreateClothingItemDto) {
@@ -112,7 +122,9 @@ export class WardrobeServices {
   async findClothingItemsByWardId(menuId: string): Promise<any> {
     try {
       if (menuId.length === 0) {
-        throw new NotFoundException(`No se encontró un menu con el ID vacio`);
+        throw new NotFoundException(
+          `No se encontró un guardarropas con el ID vacio`,
+        );
       }
       const menu = await this.wardRepository.find({
         where: { idOwner: menuId },
@@ -120,7 +132,7 @@ export class WardrobeServices {
 
       if (!menu || menu.length === 0) {
         throw new NotFoundException(
-          `No se encontró un menu con el ID ${menuId}`,
+          `No se encontró un guardarropas con el ID ${menuId}`,
         );
       }
 
