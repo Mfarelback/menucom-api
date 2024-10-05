@@ -101,13 +101,25 @@ import { DataSource } from 'typeorm';
       provide: 'DATABASE_CONNECTION',
       useFactory: async (configService: ConfigType<typeof config>) => {
         try {
-          const connection = new DataSource({
-            type: 'postgres',
-            url: configService.postgresql.dev, // Usando la URL completa de PostgreSQL
-            ssl: false,
-          });
+          if (configService.env == 'dev') {
+            const connection = new DataSource({
+              type: 'postgres',
+              url: configService.postgresql.dev, // Usando la URL completa de PostgreSQL
+              ssl: false,
+            });
 
-          return connection;
+            return connection;
+          } else {
+            const connection = new DataSource({
+              type: 'postgres',
+              url: configService.postgresql.qa, // Usando la URL completa de PostgreSQL
+              ssl: {
+                rejectUnauthorized: false,
+              },
+            });
+
+            return connection;
+          }
         } catch (e) {
           console.error(`Falló ${e}`);
           throw new UnauthorizedException({
