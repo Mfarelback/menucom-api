@@ -27,22 +27,24 @@ export class UserService {
 
   async create(data: CreateUserDto) {
     // Verifica si la tabla 'user' existe
-    const tableExists = await this.userRepo.query("SHOW TABLES LIKE 'user';");
+    const tableExists = await this.userRepo.query(`
+      SELECT to_regclass('public.user');
+    `);
 
     // Si la tabla no existe, créala
-    if (tableExists.length === 0) {
+    if (!tableExists[0].to_regclass) {
       await this.userRepo.query(`
-        CREATE TABLE user (
-          id VARCHAR(36) NOT NULL PRIMARY KEY,
-          photoURL VARCHAR(255),
+        CREATE TABLE "user" (
+          id UUID NOT NULL PRIMARY KEY,
+          "photoURL" VARCHAR(255),
           name VARCHAR(255),
           email VARCHAR(255) UNIQUE,
           phone VARCHAR(255),
           password VARCHAR(255),
-          needToChangepassword BOOLEAN DEFAULT true,
+          "needToChangepassword" BOOLEAN DEFAULT true,
           role VARCHAR(100),
-          createAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updateAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          "createAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          "updateAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
       `);
     }

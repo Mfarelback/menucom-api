@@ -9,6 +9,11 @@ export default registerAs('config', () => {
       user: process.env.MYSQL_USER,
       host: process.env.MYSQL_HOST,
     },
+    postgresql: {
+      qa: process.env.POSTGRESQL_URL,
+      dev: process.env.POSTGRESQL_URL,
+    },
     jwtsecret: process.env.JWT_SECRET,
+    env: process.env.ENV,
   };
 });
