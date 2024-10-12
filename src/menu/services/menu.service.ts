@@ -94,6 +94,19 @@ export class MenuService {
     }
   }
 
+  async deleteItemFromMenu(item: CreateMenuItemDto) {
+    try {
+      const itemToDelete = await this.menuItemRepository.findOne({
+        where: { id: item.idMenu },
+      });
+      if (itemToDelete == null) throw new NotFoundException('Item not found');
+      await this.menuItemRepository.remove(itemToDelete);
+      return { message: 'Item deleted successfully' };
+    } catch (error) {
+      throw new HttpException('Error: ' + error, HttpStatus.CONFLICT);
+    }
+  }
+
   async addMenuItemByMenuID(item: CreateMenuItemDto) {
     const menu = await this.menuRepository.findOne({
       where: { id: item.idMenu },

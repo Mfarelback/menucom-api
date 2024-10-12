@@ -63,4 +63,10 @@ export class MenuController {
   async editMenuwithItem(@Body() item: CreateMenuItemDto) {
     return this.menuService.editItemsFromMenu(item);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('/delete-item/')
+  async deleteItemMenu(@Body() item: CreateMenuItemDto) {
+    return this.menuService.deleteItemFromMenu(item);
+  }
 }
