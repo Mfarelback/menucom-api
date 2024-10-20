@@ -1,4 +1,6 @@
 import {
+  HttpException,
+  HttpStatus,
   //   HttpException,
   //   HttpStatus,
   Injectable,
@@ -101,6 +103,32 @@ export class WardrobeServices {
     console.log('Menuuuuuuuuuuuuu');
 
     return this.wardItemRepository.save(newItem);
+  }
+
+  async editItemsFromWardrobe(item: CreateClothingItemDto) {
+    try {
+      const itemClothing = await this.wardItemRepository.findOne({
+        where: { id: item.idWard },
+      });
+      if (itemClothing == null) throw new NotFoundException();
+      const mergeItem = this.wardItemRepository.merge(itemClothing, item);
+      return await this.wardItemRepository.save(mergeItem);
+    } catch (error) {
+      throw new HttpException('Error: ' + error, HttpStatus.CONFLICT);
+    }
+  }
+
+  async deleteClothingItemFromWardrobe(item: CreateClothingItemDto) {
+    try {
+      const itemToDelete = await this.wardItemRepository.findOne({
+        where: { id: item.idWard },
+      });
+      if (itemToDelete == null) throw new NotFoundException('Item not found');
+      await this.wardItemRepository.remove(itemToDelete);
+      return { message: 'Item deleted successfully' };
+    } catch (error) {
+      throw new HttpException('Error: ' + error, HttpStatus.CONFLICT);
+    }
   }
 
   async findAllWardsByUser(userId: string) {

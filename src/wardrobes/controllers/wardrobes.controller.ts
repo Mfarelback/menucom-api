@@ -58,4 +58,16 @@ export class WardrobesController {
   async additemWardrobe(@Body() ward: CreateClothingItemDto) {
     return this.wardServices.addWardItemByMenuID(ward);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('/edit-item/')
+  async editClothingItem(@Body() item: CreateClothingItemDto) {
+    return this.wardServices.editItemsFromWardrobe(item);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('/delete-item/')
+  async deleteClothingItemWardrobe(@Body() item: CreateClothingItemDto) {
+    return this.wardServices.deleteClothingItemFromWardrobe(item);
+  }
 }
