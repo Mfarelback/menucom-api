@@ -20,9 +20,8 @@ export class CloudinaryService {
 
         toStream(file.buffer).pipe(upload);
       });
-
     } catch (error) {
-      console.log(Date.now() + 'Error en el Throw:' + error)
+      console.log(Date.now() + 'Error en el Throw:' + error);
       throw error;
     }
   }

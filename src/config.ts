@@ -17,3 +17,20 @@ export default registerAs('config', () => {
     env: process.env.ENV,
   };
 });
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+enum OrderStatus {
+  pending = 'pending',
+  confirmed = 'confirmed',
+  shipped = 'shipped',
+  cancelled = 'cancelled',
+}
+
+export enum PaymentStatusType {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  IN_PROCESS = 'in_process',
+  REJECTED = 'rejected',
+  REFUNDED = 'refunded',
+  CANCELLED = 'cancelled',
+}
