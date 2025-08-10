@@ -56,9 +56,28 @@ export class PaymentsController {
     let orderId: string | null = null;
     // Caso 1: Notificación con body (tipo payment)
     if (payload && payload.data && payload.type === 'payment') {
-      orderId =
-        payload.data.external_reference || payload.data.order_id || null;
-      console.log('[MP Webhook] Detectado payment con body. orderId:', orderId);
+      // Si el body trae external_reference, úsalo. Si no, busca el payment por ID.
+      if (payload.data.external_reference) {
+        orderId = payload.data.external_reference;
+        console.log(
+          '[MP Webhook] Detectado payment con body. orderId:',
+          orderId,
+        );
+      } else if (payload.data.id) {
+        const paymentId = payload.data.id;
+        console.log(
+          '[MP Webhook] Detectado payment con body, sin external_reference. Buscando por paymentId:',
+          paymentId,
+        );
+        orderId =
+          await this.mercadoPagoService.getOrderIdByPaymentId(paymentId);
+        console.log('[MP Webhook] orderId obtenido desde MP:', orderId);
+      } else {
+        orderId = null;
+        console.log(
+          '[MP Webhook] Detectado payment con body, pero sin id ni external_reference.',
+        );
+      }
     } else if (
       req.query &&
       req.query['data.id'] &&
@@ -76,12 +95,18 @@ export class PaymentsController {
       (req.query && req.query.topic === 'merchant_order' && req.query.id)
     ) {
       // merchant_order puede venir en el body o en los query params
-      const merchantOrderId = payload.resource
+      let merchantOrderId = payload.resource
         ? payload.resource.split('/').pop()
         : req.query.id;
+      // Asegurarse de que sea número
+      if (typeof merchantOrderId === 'string') {
+        merchantOrderId = Number(merchantOrderId);
+      }
       console.log(
         '[MP Webhook] Detectado merchant_order. merchantOrderId:',
         merchantOrderId,
+        'typeof:',
+        typeof merchantOrderId,
       );
       orderId =
         await this.mercadoPagoService.getOrderIdByMerchantOrderId(
