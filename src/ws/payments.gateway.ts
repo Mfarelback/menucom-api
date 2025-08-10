@@ -3,6 +3,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
   MessageBody,
+  ConnectedSocket,
   OnGatewayConnection,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
@@ -71,7 +72,10 @@ export class PaymentsGateway
    * @param orderId ID de la orden a escuchar
    */
   @SubscribeMessage('subscribeToOrder')
-  handleSubscribe(@MessageBody() orderId: string, client: Socket) {
+  handleSubscribe(
+    @MessageBody() orderId: string,
+    @ConnectedSocket() client: Socket,
+  ) {
     try {
       if (!orderId || typeof orderId !== 'string' || orderId.trim() === '') {
         this.logger.warn(
