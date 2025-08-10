@@ -51,22 +51,38 @@ export class PaymentsController {
     @Req() req: any,
   ) {
     // Soportar notificaciones con body y con query params
+    console.log('[MP Webhook] Payload recibido:', JSON.stringify(payload));
+    console.log('[MP Webhook] Query params:', JSON.stringify(req.query));
     let orderId: string | null = null;
     // Caso 1: Notificación con body (tipo payment)
     if (payload && payload.data && payload.type === 'payment') {
       orderId =
         payload.data.external_reference || payload.data.order_id || null;
+      console.log('[MP Webhook] Detectado payment con body. orderId:', orderId);
     } else if (
       req.query &&
       req.query['data.id'] &&
       req.query.type === 'payment'
     ) {
       const paymentId = req.query['data.id'];
+      console.log(
+        '[MP Webhook] Detectado payment con query param. paymentId:',
+        paymentId,
+      );
       orderId = await this.mercadoPagoService.getOrderIdByPaymentId(paymentId);
+      console.log('[MP Webhook] orderId obtenido desde MP:', orderId);
     }
     // Emitir evento por websocket si tenemos orderId
     if (orderId) {
+      console.log(
+        '[MP Webhook] Emitiendo evento WebSocket paymentSuccess para orderId:',
+        orderId,
+      );
       this.paymentsGateway.emitPaymentSuccess(orderId);
+    } else {
+      console.warn(
+        '[MP Webhook] No se pudo determinar orderId, no se emite evento WebSocket',
+      );
     }
     return 'Get capture of payment' + JSON.stringify(payload) + idempotencyKey;
   }
