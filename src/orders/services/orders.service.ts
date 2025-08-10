@@ -18,7 +18,27 @@ export class OrdersService {
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
     try {
-      const { items, ...orderData } = createOrderDto;
+      // Asignar datos falsos si no se proveen y corregir si el email es un teléfono
+      const fakeEmail = 'anon@fake.com';
+      const fakePhone = '0000000000';
+      let { customerEmail, customerPhone } = createOrderDto;
+      const { items, ...rest } = createOrderDto;
+
+      // Detectar si customerEmail es un número de teléfono (solo dígitos, 8-15 caracteres)
+      const phoneRegex = /^\d{8,15}$/;
+      if (customerEmail && phoneRegex.test(customerEmail)) {
+        customerPhone = customerEmail;
+        customerEmail = fakeEmail;
+      }
+
+      customerEmail = customerEmail || fakeEmail;
+      customerPhone = customerPhone || fakePhone;
+
+      const orderData = {
+        ...rest,
+        customerEmail,
+        customerPhone,
+      };
 
       // Crear instancia de Order (TypeORM generará automáticamente el ID)
       const order = this.orderRepository.create(orderData);
