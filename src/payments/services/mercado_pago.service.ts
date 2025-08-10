@@ -23,6 +23,21 @@ import {
 
 @Injectable()
 export class MercadopagoService {
+  /**
+   * Obtiene el external_reference (orderId) de una merchant_order de Mercado Pago por merchantOrderId
+   */
+  async getOrderIdByMerchantOrderId(
+    merchantOrderId: string,
+  ): Promise<string | null> {
+    try {
+      const merchantOrder = new (MercadoPago as any).MerchantOrder(this.client);
+      const result = await merchantOrder.get({ id: merchantOrderId });
+      return result.external_reference || null;
+    } catch (e) {
+      this.logger.error('Error fetching Mercado Pago merchant_order:', e);
+      return null;
+    }
+  }
   private readonly logger = new Logger(MercadopagoService.name);
 
   constructor(

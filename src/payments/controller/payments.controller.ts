@@ -71,6 +71,26 @@ export class PaymentsController {
       );
       orderId = await this.mercadoPagoService.getOrderIdByPaymentId(paymentId);
       console.log('[MP Webhook] orderId obtenido desde MP:', orderId);
+    } else if (
+      (payload && payload.topic === 'merchant_order' && payload.resource) ||
+      (req.query && req.query.topic === 'merchant_order' && req.query.id)
+    ) {
+      // merchant_order puede venir en el body o en los query params
+      const merchantOrderId = payload.resource
+        ? payload.resource.split('/').pop()
+        : req.query.id;
+      console.log(
+        '[MP Webhook] Detectado merchant_order. merchantOrderId:',
+        merchantOrderId,
+      );
+      orderId =
+        await this.mercadoPagoService.getOrderIdByMerchantOrderId(
+          merchantOrderId,
+        );
+      console.log(
+        '[MP Webhook] orderId obtenido desde merchant_order:',
+        orderId,
+      );
     }
     // Emitir evento por websocket si tenemos orderId
     if (orderId) {
