@@ -22,6 +22,9 @@ export class Order {
   @Column({ nullable: true })
   operationID: string;
 
+  @Column({ nullable: true })
+  paymentUrl?: string;
+
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
   items: OrderItem[];
 

@@ -115,12 +115,30 @@ export class MercadopagoService {
   async createSimplePreference(
     external_id: string,
     items: MercadoPagoItem[],
-    payer?: MercadoPagoPayer,
+    payer?: MercadoPagoPayer | { email?: string; phone?: string }, // Allow email or phone
   ): Promise<string> {
+    let payerInfo: MercadoPagoPayer | undefined;
+
+    if (payer) {
+      if (typeof payer === 'object' && (payer.email || payer.phone)) {
+        // Create a minimal payer object
+        payerInfo = {
+          email: payer.email,
+          phone: payer.phone,
+          // Add other minimal required fields if necessary based on MP documentation
+        } as MercadoPagoPayer;
+      } else {
+        payerInfo = payer as MercadoPagoPayer; // Use the provided payer object directly
+      }
+    }
+
     const options: CreatePreferenceOptions = {
       items,
       external_reference: external_id,
-      ...(payer && { payer }),
+      ...(payerInfo && { payer: payerInfo }),
+      notification_url:
+        process.env.MP_NOTIFICATION_URL ||
+        'https://tu-dominio.com/payments/webhooks',
     };
 
     return this.createPreference(options);
@@ -323,10 +341,15 @@ export class MercadopagoService {
       }
       if (item.unit_price <= 0) {
         throw new BadRequestException(
-          `El precio debe ser mayor a 0 para el item ${index + 1}`,
+          `El precio unitario debe ser mayor a 0 para el item ${index + 1}`,
         );
       }
     });
+
+    // Eliminar la validación estricta del payer
+    // if (!options.payer) {
+    //   throw new BadRequestException('La información del pagador es requerida');
+    // }
   }
 
   // Métodos de compatibilidad hacia atrás (deprecated)

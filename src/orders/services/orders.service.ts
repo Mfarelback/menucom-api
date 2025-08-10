@@ -20,15 +20,21 @@ export class OrdersService {
     try {
       const { items, ...orderData } = createOrderDto;
 
-      //   orderData.customerId = userId;
       // Crear instancia de Order (TypeORM generará automáticamente el ID)
       const order = this.orderRepository.create(orderData);
 
+      // Crear el pago y obtener el intent
       const paymentIntent = await this.paymentService.createPayment(
         orderData.customerEmail,
         orderData.total,
       );
       order.operationID = paymentIntent.id; // Asignar el ID del pago a la orden
+
+      // Generar la URL de checkout de Mercado Pago usando el transaction_id
+      if (paymentIntent.transaction_id) {
+        order.paymentUrl = `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${paymentIntent.transaction_id}`;
+      }
+
       // Guardar la orden primero para obtener el ID
       const savedOrder = await this.orderRepository.save(order);
 

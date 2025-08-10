@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PaymentsGateway } from '../ws/payments.gateway';
 import { MercadopagoService } from './services/mercado_pago.service';
 import { PaymentsController } from './controller/payments.controller';
 import { PaymentsService } from './services/payments.service';
@@ -33,12 +34,14 @@ import { PaymentsRepository } from './repository/payment_repository';
     MercadoPagoHelperService,
     PaymentsService,
     PaymentsRepository,
+    PaymentsGateway,
   ],
   exports: [
     'MERCADOPAGO_CLIENT',
     MercadopagoService,
     MercadoPagoHelperService,
     PaymentsService,
+    PaymentsGateway,
   ],
 })
 export class PaymentsModule {}

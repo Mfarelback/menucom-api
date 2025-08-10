@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PaymentsGateway } from './ws/payments.gateway';
 import { environment } from './enviroment';
 import { DatabaseModule } from './database/database.module';
 import { ConfigModule } from '@nestjs/config';
@@ -27,5 +28,6 @@ import { PaymentsModule } from './payments/payments.module';
     OrdersModule,
     PaymentsModule,
   ],
+  providers: [PaymentsGateway],
 })
 export class AppModule {}
