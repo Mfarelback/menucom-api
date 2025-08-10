@@ -49,7 +49,6 @@ export class MercadopagoService {
 
       // Configurar URLs de retorno por defecto si no se proporcionan
       const backUrls = this.buildBackUrls(options.back_urls);
-
       const preferenceBody = {
         items: itemsWithIds,
         external_reference: options.external_reference,
@@ -105,6 +104,19 @@ export class MercadopagoService {
     }
   }
 
+  /**
+   * Obtiene el external_reference (orderId) de un pago de Mercado Pago por paymentId
+   */
+  async getOrderIdByPaymentId(paymentId: string): Promise<string | null> {
+    try {
+      const payment = new (MercadoPago as any).Payment(this.client);
+      const result = await payment.get({ id: paymentId });
+      return result.external_reference || result.order_id || null;
+    } catch (e) {
+      this.logger.error('Error fetching Mercado Pago payment:', e);
+      return null;
+    }
+  }
   /**
    * Método de conveniencia para crear una preferencia simple
    * @param external_id Referencia externa

@@ -12,6 +12,7 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
 import { PaymentsService } from '../services/payments.service';
 import { PaymentsGateway } from '../../ws/payments.gateway';
+import { MercadopagoService } from '../services/mercado_pago.service';
 
 @ApiTags('Payments')
 @Controller('payments')
@@ -19,6 +20,7 @@ export class PaymentsController {
   constructor(
     private readonly paymentsService: PaymentsService,
     private readonly paymentsGateway: PaymentsGateway,
+    private readonly mercadoPagoService: MercadopagoService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -46,19 +48,25 @@ export class PaymentsController {
   async recibeNotification(
     @Body() payload: any,
     @Headers('x-idempotency-key') idempotencyKey: string,
+    @Req() req: any,
   ) {
-    // Aquí deberías validar el estado del pago según la estructura de payload de Mercado Pago
-    // Por ejemplo, si el pago fue aprobado:
+    // Soportar notificaciones con body y con query params
+    let orderId: string | null = null;
+    // Caso 1: Notificación con body (tipo payment)
     if (payload && payload.data && payload.type === 'payment') {
-      // Aquí deberías buscar la orderId asociada al payment, por ejemplo usando el external_reference
-      // Suponiendo que external_reference es el orderId:
-
-      const orderId =
+      orderId =
         payload.data.external_reference || payload.data.order_id || null;
-
-      if (orderId) {
-        this.paymentsGateway.emitPaymentSuccess(orderId);
-      }
+    } else if (
+      req.query &&
+      req.query['data.id'] &&
+      req.query.type === 'payment'
+    ) {
+      const paymentId = req.query['data.id'];
+      orderId = await this.mercadoPagoService.getOrderIdByPaymentId(paymentId);
+    }
+    // Emitir evento por websocket si tenemos orderId
+    if (orderId) {
+      this.paymentsGateway.emitPaymentSuccess(orderId);
     }
     return 'Get capture of payment' + JSON.stringify(payload) + idempotencyKey;
   }
