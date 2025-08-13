@@ -64,18 +64,53 @@ export class MercadopagoService {
 
       // Configurar URLs de retorno por defecto si no se proporcionan
       const backUrls = this.buildBackUrls(options.back_urls);
-      const preferenceBody = {
+
+      // Limpiar payment_methods si los arrays de exclusión están vacíos
+      let paymentMethods = options.payment_methods;
+      if (paymentMethods) {
+        if (
+          Array.isArray(paymentMethods.excluded_payment_methods) &&
+          paymentMethods.excluded_payment_methods.length === 0
+        ) {
+          delete paymentMethods.excluded_payment_methods;
+        }
+        if (
+          Array.isArray(paymentMethods.excluded_payment_types) &&
+          paymentMethods.excluded_payment_types.length === 0
+        ) {
+          delete paymentMethods.excluded_payment_types;
+        }
+        // Si quedó vacío, eliminar todo el objeto
+        if (Object.keys(paymentMethods).length === 0) {
+          paymentMethods = undefined;
+        }
+      }
+
+      // Limpiar redirect_urls si está vacío
+      let redirectUrls = (options as any).redirect_urls;
+      if (redirectUrls && Object.keys(redirectUrls).length === 0) {
+        redirectUrls = undefined;
+      }
+
+      // Asegurar auto_return siempre en 'approved'
+      const autoReturn = 'approved';
+
+      // Asegurar payer.email ficticio si no hay uno real
+      let payer = options.payer;
+      if (payer && (!payer.email || payer.email.trim() === '')) {
+        payer = { ...payer, email: 'test_user@test.com' };
+      }
+
+      const preferenceBody: any = {
         items: itemsWithIds,
         external_reference: options.external_reference,
-        ...(options.payer && { payer: options.payer }),
+        ...(payer && { payer }),
         ...(backUrls && { back_urls: backUrls }),
         ...(options.notification_url && {
           notification_url: options.notification_url,
         }),
-        ...(options.auto_return && { auto_return: options.auto_return }),
-        ...(options.payment_methods && {
-          payment_methods: options.payment_methods,
-        }),
+        auto_return: autoReturn,
+        ...(paymentMethods && { payment_methods: paymentMethods }),
         ...(options.shipments && { shipments: options.shipments }),
         ...(options.expires !== undefined && { expires: options.expires }),
         ...(options.expiration_date_from && {
@@ -87,6 +122,7 @@ export class MercadopagoService {
         ...(options.statement_descriptor && {
           statement_descriptor: options.statement_descriptor,
         }),
+        ...(redirectUrls && { redirect_urls: redirectUrls }),
       };
 
       this.logger.debug(
