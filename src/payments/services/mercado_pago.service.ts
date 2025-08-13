@@ -65,25 +65,27 @@ export class MercadopagoService {
       // Configurar URLs de retorno por defecto si no se proporcionan
       const backUrls = this.buildBackUrls(options.back_urls);
 
-      // Limpiar payment_methods si los arrays de exclusión están vacíos
+      // Limpiar payment_methods: si no hay exclusiones, eliminar todo el objeto
       let paymentMethods = options.payment_methods;
       if (paymentMethods) {
-        if (
+        const hasExcludedMethods =
           Array.isArray(paymentMethods.excluded_payment_methods) &&
-          paymentMethods.excluded_payment_methods.length === 0
-        ) {
-          delete paymentMethods.excluded_payment_methods;
-        }
-        if (
+          paymentMethods.excluded_payment_methods.length > 0;
+        const hasExcludedTypes =
           Array.isArray(paymentMethods.excluded_payment_types) &&
-          paymentMethods.excluded_payment_types.length === 0
-        ) {
-          delete paymentMethods.excluded_payment_types;
-        }
-        // Si quedó vacío, eliminar todo el objeto
-        if (Object.keys(paymentMethods).length === 0) {
+          paymentMethods.excluded_payment_types.length > 0;
+        if (!hasExcludedMethods && !hasExcludedTypes) {
           paymentMethods = undefined;
         }
+      }
+
+      // Asegurar que total_amount nunca sea null si hay items definidos
+      let totalAmount = (options as any).total_amount;
+      if ((!totalAmount || isNaN(totalAmount)) && itemsWithIds.length > 0) {
+        totalAmount = itemsWithIds.reduce(
+          (sum, item) => sum + item.unit_price * item.quantity,
+          0,
+        );
       }
 
       // Limpiar redirect_urls si está vacío
@@ -123,6 +125,7 @@ export class MercadopagoService {
           statement_descriptor: options.statement_descriptor,
         }),
         ...(redirectUrls && { redirect_urls: redirectUrls }),
+        ...(totalAmount && { total_amount: totalAmount }),
       };
 
       this.logger.debug(
