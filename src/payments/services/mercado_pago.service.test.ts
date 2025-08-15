@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { MercadopagoService } from './mercado_pago.service';
+import { MercadoPagoRepository } from './repository/mercado-pago.repository';
 
 import {
   CreatePreferenceOptions,
@@ -14,26 +15,23 @@ import {
 
 describe('MercadopagoService', () => {
   let service: MercadopagoService;
-  const mockMercadoPagoClient = {
-    preference: {
-      create: jest.fn(),
-      get: jest.fn(),
-    },
-    payment: {
-      search: jest.fn(),
-    },
-    merchantOrder: {
-      search: jest.fn(),
-    },
-  };
+  const mockMercadoPagoRepository = {
+    createPreference: jest.fn(),
+    getPreference: jest.fn(),
+    searchPayments: jest.fn(),
+    getPayment: jest.fn(),
+    searchMerchantOrders: jest.fn(),
+    getMerchantOrder: jest.fn(),
+  } as any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         MercadopagoService,
+        { provide: 'MERCADOPAGO_CLIENT', useValue: {} },
         {
-          provide: 'MERCADOPAGO_CLIENT',
-          useValue: mockMercadoPagoClient,
+          provide: MercadoPagoRepository,
+          useValue: mockMercadoPagoRepository,
         },
         Logger,
       ],
@@ -49,7 +47,7 @@ describe('MercadopagoService', () => {
   describe('createPreference', () => {
     it('should create a preference successfully and return the ID', async () => {
       const mockPreferenceId = 'test-preference-id';
-      (mockMercadoPagoClient.preference.create as jest.Mock).mockResolvedValue({
+      mockMercadoPagoRepository.createPreference.mockResolvedValue({
         id: mockPreferenceId,
       });
 
@@ -67,7 +65,7 @@ describe('MercadopagoService', () => {
 
       const preferenceId = await service.createPreference(options);
       expect(preferenceId).toBe(mockPreferenceId);
-      expect(mockMercadoPagoClient.preference.create).toHaveBeenCalled();
+      expect(mockMercadoPagoRepository.createPreference).toHaveBeenCalled();
     });
 
     it('should throw BadRequestException if options are invalid', async () => {
@@ -82,7 +80,7 @@ describe('MercadopagoService', () => {
     });
 
     it('should handle MercadoPago errors and throw InternalServerErrorException', async () => {
-      (mockMercadoPagoClient.preference.create as jest.Mock).mockRejectedValue(
+      mockMercadoPagoRepository.createPreference.mockRejectedValue(
         new Error('MercadoPago error'),
       );
 
@@ -105,7 +103,7 @@ describe('MercadopagoService', () => {
 
     it('should generate unique IDs for items without IDs', async () => {
       const mockPreferenceId = 'test-preference-id';
-      (mockMercadoPagoClient.preference.create as jest.Mock).mockResolvedValue({
+      mockMercadoPagoRepository.createPreference.mockResolvedValue({
         id: mockPreferenceId,
       });
 
@@ -124,8 +122,7 @@ describe('MercadopagoService', () => {
       await service.createPreference(options);
 
       expect(
-        (mockMercadoPagoClient.preference.create as jest.Mock).mock.calls[0][0]
-          .body.items[0].id,
+        mockMercadoPagoRepository.createPreference.mock.calls[0][0].items[0].id,
       ).toBeDefined();
     });
 
@@ -134,7 +131,7 @@ describe('MercadopagoService', () => {
       process.env.MP_CHECKOUT_PATH = '/checkout';
 
       const mockPreferenceId = 'test-preference-id';
-      (mockMercadoPagoClient.preference.create as jest.Mock).mockResolvedValue({
+      mockMercadoPagoRepository.createPreference.mockResolvedValue({
         id: mockPreferenceId,
       });
 
@@ -159,8 +156,7 @@ describe('MercadopagoService', () => {
       };
 
       expect(
-        (mockMercadoPagoClient.preference.create as jest.Mock).mock.calls[0][0]
-          .body.back_urls,
+        mockMercadoPagoRepository.createPreference.mock.calls[0][0].back_urls,
       ).toEqual(expectedBackUrls);
 
       delete process.env.MP_BACK_URL;
@@ -171,7 +167,7 @@ describe('MercadopagoService', () => {
   describe('createSimplePreference', () => {
     it('should call createPreference with correct options', async () => {
       const mockPreferenceId = 'test-preference-id';
-      (mockMercadoPagoClient.preference.create as jest.Mock).mockResolvedValue({
+      mockMercadoPagoRepository.createPreference.mockResolvedValue({
         id: mockPreferenceId,
       });
 
@@ -191,14 +187,14 @@ describe('MercadopagoService', () => {
       );
 
       expect(preferenceId).toBe(mockPreferenceId);
-      expect(mockMercadoPagoClient.preference.create).toHaveBeenCalled();
+      expect(mockMercadoPagoRepository.createPreference).toHaveBeenCalled();
     });
   });
 
   describe('searchPayments', () => {
     it('should search payments successfully and return the results', async () => {
       const mockSearchResults = [{ id: 'test-payment-id' }];
-      (mockMercadoPagoClient.payment.search as jest.Mock).mockResolvedValue({
+      mockMercadoPagoRepository.searchPayments.mockResolvedValue({
         results: mockSearchResults,
       });
 
@@ -206,9 +202,9 @@ describe('MercadopagoService', () => {
       const searchResults = await service.searchPayments(searchOptions);
 
       expect(searchResults).toEqual(mockSearchResults);
-      expect(mockMercadoPagoClient.payment.search).toHaveBeenCalledWith({
-        options: searchOptions,
-      });
+      expect(mockMercadoPagoRepository.searchPayments).toHaveBeenCalledWith(
+        searchOptions,
+      );
     });
 
     it('should throw BadRequestException if search options are empty', async () => {
@@ -218,7 +214,7 @@ describe('MercadopagoService', () => {
     });
 
     it('should handle MercadoPago errors and throw InternalServerErrorException', async () => {
-      (mockMercadoPagoClient.payment.search as jest.Mock).mockRejectedValue(
+      mockMercadoPagoRepository.searchPayments.mockRejectedValue(
         new Error('MercadoPago error'),
       );
 
@@ -233,7 +229,7 @@ describe('MercadopagoService', () => {
   describe('getPaymentsByExternalReference', () => {
     it('should call searchPayments with the correct external reference', async () => {
       const mockSearchResults = [{ id: 'test-payment-id' }];
-      (mockMercadoPagoClient.payment.search as jest.Mock).mockResolvedValue({
+      mockMercadoPagoRepository.searchPayments.mockResolvedValue({
         results: mockSearchResults,
       });
 
@@ -242,8 +238,8 @@ describe('MercadopagoService', () => {
         await service.getPaymentsByExternalReference(externalReference);
 
       expect(searchResults).toEqual(mockSearchResults);
-      expect(mockMercadoPagoClient.payment.search).toHaveBeenCalledWith({
-        options: { external_reference: externalReference },
+      expect(mockMercadoPagoRepository.searchPayments).toHaveBeenCalledWith({
+        external_reference: externalReference,
       });
     });
 
@@ -257,9 +253,7 @@ describe('MercadopagoService', () => {
   describe('searchMerchantOrders', () => {
     it('should search merchant orders successfully and return the results', async () => {
       const mockSearchResults = [{ id: 'test-merchant-order-id' }];
-      (
-        mockMercadoPagoClient.merchantOrder.search as jest.Mock
-      ).mockResolvedValue({
+      mockMercadoPagoRepository.searchMerchantOrders.mockResolvedValue({
         elements: mockSearchResults,
       });
 
@@ -267,9 +261,9 @@ describe('MercadopagoService', () => {
       const searchResults = await service.searchMerchantOrders(searchOptions);
 
       expect(searchResults).toEqual(mockSearchResults);
-      expect(mockMercadoPagoClient.merchantOrder.search).toHaveBeenCalledWith({
-        options: searchOptions,
-      });
+      expect(
+        mockMercadoPagoRepository.searchMerchantOrders,
+      ).toHaveBeenCalledWith(searchOptions);
     });
 
     it('should throw BadRequestException if search options are empty', async () => {
@@ -279,9 +273,9 @@ describe('MercadopagoService', () => {
     });
 
     it('should handle MercadoPago errors and throw InternalServerErrorException', async () => {
-      (
-        mockMercadoPagoClient.merchantOrder.search as jest.Mock
-      ).mockRejectedValue(new Error('MercadoPago error'));
+      mockMercadoPagoRepository.searchMerchantOrders.mockRejectedValue(
+        new Error('MercadoPago error'),
+      );
 
       const searchOptions = { preference_id: 'test-preference-id' };
 
@@ -294,9 +288,7 @@ describe('MercadopagoService', () => {
   describe('getMerchantOrdersByPreferenceId', () => {
     it('should call searchMerchantOrders with the correct preference ID', async () => {
       const mockSearchResults = [{ id: 'test-merchant-order-id' }];
-      (
-        mockMercadoPagoClient.merchantOrder.search as jest.Mock
-      ).mockResolvedValue({
+      mockMercadoPagoRepository.searchMerchantOrders.mockResolvedValue({
         elements: mockSearchResults,
       });
 
@@ -305,8 +297,10 @@ describe('MercadopagoService', () => {
         await service.getMerchantOrdersByPreferenceId(preferenceId);
 
       expect(searchResults).toEqual(mockSearchResults);
-      expect(mockMercadoPagoClient.merchantOrder.search).toHaveBeenCalledWith({
-        options: { preference_id: preferenceId },
+      expect(
+        mockMercadoPagoRepository.searchMerchantOrders,
+      ).toHaveBeenCalledWith({
+        preference_id: preferenceId,
       });
     });
 
@@ -320,17 +314,15 @@ describe('MercadopagoService', () => {
   describe('getPreferenceById', () => {
     it('should get a preference by ID successfully', async () => {
       const mockPreference = { id: 'test-preference-id', items: [] };
-      (mockMercadoPagoClient.preference.get as jest.Mock).mockResolvedValue(
-        mockPreference,
-      );
+      mockMercadoPagoRepository.getPreference.mockResolvedValue(mockPreference);
 
       const preferenceId = 'test-preference-id';
       const preference = await service.getPreferenceById(preferenceId);
 
       expect(preference).toEqual(mockPreference);
-      expect(mockMercadoPagoClient.preference.get).toHaveBeenCalledWith({
-        preferenceId: preferenceId,
-      });
+      expect(mockMercadoPagoRepository.getPreference).toHaveBeenCalledWith(
+        preferenceId,
+      );
     });
 
     it('should throw BadRequestException if preference ID is empty', async () => {
@@ -340,7 +332,7 @@ describe('MercadopagoService', () => {
     });
 
     it('should handle MercadoPago errors and throw InternalServerErrorException', async () => {
-      (mockMercadoPagoClient.preference.get as jest.Mock).mockRejectedValue(
+      mockMercadoPagoRepository.getPreference.mockRejectedValue(
         new Error('MercadoPago error'),
       );
 

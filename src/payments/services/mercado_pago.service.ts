@@ -6,7 +6,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import * as MercadoPago from 'mercadopago';
-import { v4 as uuidv4 } from 'uuid';
+// import { v4 as uuidv4 } from 'uuid';
 
 import { PaymentSearchResult } from 'mercadopago/dist/clients/payment/search/types';
 import { MerchantOrderResponse } from 'mercadopago/dist/clients/merchantOrder/commonTypes';
@@ -18,8 +18,10 @@ import {
   MerchantOrderSearchOptions,
   MercadoPagoItem,
   MercadoPagoPayer,
-  MercadoPagoBackUrls,
+  // MercadoPagoBackUrls,
 } from '../interfaces/mercado-pago.interfaces';
+import { MercadoPagoHelpers } from './helpers/mercado-pago.helpers';
+import { MercadoPagoRepository } from './repository/mercado-pago.repository';
 
 @Injectable()
 export class MercadopagoService {
@@ -43,6 +45,7 @@ export class MercadopagoService {
   constructor(
     @Inject('MERCADOPAGO_CLIENT')
     private readonly client: MercadoPago.MercadoPagoConfig,
+    private readonly mpRepo: MercadoPagoRepository,
   ) {}
 
   /**
@@ -52,18 +55,13 @@ export class MercadopagoService {
    */
   async createPreference(options: CreatePreferenceOptions): Promise<string> {
     try {
-      this.validateCreatePreferenceOptions(options);
-
-      const paymentOrder = new MercadoPago.Preference(this.client);
+      MercadoPagoHelpers.validateCreatePreferenceOptions(options);
 
       // Generar IDs únicos para items que no los tengan
-      const itemsWithIds = options.items.map((item) => ({
-        ...item,
-        id: item.id || uuidv4(),
-      }));
+      const itemsWithIds = MercadoPagoHelpers.ensureItemsHaveIds(options.items);
 
       // Configurar URLs de retorno por defecto si no se proporcionan
-      const backUrls = this.buildBackUrls(options.back_urls);
+      const backUrls = MercadoPagoHelpers.buildBackUrls(options.back_urls);
 
       // Limpiar payment_methods y excluir IDs vacíos. Si se envían, incluir arrays vacíos [] en vez de IDs vacíos.
       let paymentMethods = options.payment_methods as
@@ -96,25 +94,31 @@ export class MercadopagoService {
       }
 
       // Asegurar que total_amount nunca sea null si hay items definidos
-      let totalAmount = (options as any).total_amount;
-      if ((!totalAmount || isNaN(totalAmount)) && itemsWithIds.length > 0) {
-        totalAmount = itemsWithIds.reduce(
-          (sum, item) => sum + item.unit_price * item.quantity,
-          0,
-        );
-      }
+      const totalAmount = MercadoPagoHelpers.computeTotalAmount(
+        itemsWithIds,
+        (options as any).total_amount,
+      );
       // Asegurar auto_return siempre en 'approved'
       const autoReturn = 'approved';
 
       // Sanitizar payer y completar con datos por defecto si faltan.
       // Nota: Según doc de MP, email es obligatorio y se recomienda DNI + nombre/apellido para mejorar scoring.
-      const payer = this.sanitizePayer(options.payer);
+      let payer = MercadoPagoHelpers.sanitizePayer(options.payer);
+      // Si no llega payer o llega vacío, usamos uno por defecto para sandbox/tests
+      if (
+        !payer ||
+        (typeof payer === 'object' && Object.keys(payer).length === 0)
+      ) {
+        payer = {
+          email: process.env.MP_TEST_PAYER_EMAIL || 'test_user@test.com',
+        } as MercadoPagoPayer;
+      }
 
       const preferenceBody: any = {
         items: itemsWithIds,
         external_reference: options.external_reference,
         // Siempre enviamos payer válido; si no vienen datos, usamos default de sandbox.
-        ...(payer && { payer }),
+        payer,
         ...(backUrls && { back_urls: backUrls }),
         ...(options.notification_url && {
           notification_url: options.notification_url,
@@ -141,19 +145,19 @@ export class MercadopagoService {
       };
 
       // Sanitizar el payload quitando claves vacías/null/"" no requeridas
-      const sanitizedPreferenceBody = this.removeEmptyDeep(preferenceBody, [
-        'items',
-        'external_reference',
-      ]);
+      const sanitizedPreferenceBody = MercadoPagoHelpers.removeEmptyDeep(
+        preferenceBody,
+        ['items', 'external_reference'],
+      );
 
       this.logger.debug(
         'Creating preference with body:',
         JSON.stringify(sanitizedPreferenceBody, null, 2),
       );
 
-      const orderGenerated = await paymentOrder.create({
-        body: sanitizedPreferenceBody,
-      });
+      const orderGenerated = await this.mpRepo.createPreference(
+        sanitizedPreferenceBody,
+      );
 
       if (!orderGenerated.id) {
         throw new InternalServerErrorException(
@@ -181,8 +185,7 @@ export class MercadopagoService {
    */
   async getOrderIdByPaymentId(paymentId: string): Promise<string | null> {
     try {
-      const payment = new (MercadoPago as any).Payment(this.client);
-      const result = await payment.get({ id: paymentId });
+      const result = await this.mpRepo.getPayment(paymentId);
       return result.external_reference || result.order_id || null;
     } catch (e) {
       this.logger.error('Error fetching Mercado Pago payment:', e);
@@ -243,10 +246,7 @@ export class MercadopagoService {
         );
       }
 
-      const payment = new MercadoPago.Payment(this.client);
-      const searchResult = await payment.search({
-        options: searchOptions,
-      });
+      const searchResult = await this.mpRepo.searchPayments(searchOptions);
 
       this.logger.debug(`Found ${searchResult.results?.length || 0} payments`);
       return searchResult.results || [];
@@ -294,10 +294,8 @@ export class MercadopagoService {
         );
       }
 
-      const merchantOrder = new MercadoPago.MerchantOrder(this.client);
-      const searchResult = await merchantOrder.search({
-        options: searchOptions,
-      });
+      const searchResult =
+        await this.mpRepo.searchMerchantOrders(searchOptions);
 
       this.logger.debug(
         `Found ${searchResult.elements?.length || 0} merchant orders`,
@@ -345,8 +343,7 @@ export class MercadopagoService {
         );
       }
 
-      const preference = new MercadoPago.Preference(this.client);
-      const result = await preference.get({ preferenceId });
+      const result = await this.mpRepo.getPreference(preferenceId);
 
       this.logger.debug(`Retrieved preference: ${preferenceId}`);
       return result;
@@ -358,228 +355,14 @@ export class MercadopagoService {
     }
   }
 
-  /**
-   * Construye las URLs de retorno usando configuración por defecto si no se proporcionan
-   * @param customBackUrls URLs personalizadas (opcional)
-   * @returns URLs de retorno configuradas
-   */
-  private buildBackUrls(
-    customBackUrls?: MercadoPagoBackUrls,
-  ): MercadoPagoBackUrls | undefined {
-    if (customBackUrls) {
-      return customBackUrls;
-    }
-
-    const baseBackUrl = process.env.MP_BACK_URL;
-    if (!baseBackUrl) {
-      this.logger.warn('MP_BACK_URL not configured, back URLs will not be set');
-      return undefined;
-    }
-
-    const checkoutPath = process.env.MP_CHECKOUT_PATH || '/#/checkout/status';
-
-    return {
-      success: `${baseBackUrl}${checkoutPath}?status=success`,
-      failure: `${baseBackUrl}${checkoutPath}?status=failure`,
-      pending: `${baseBackUrl}${checkoutPath}?status=pending`,
-    };
-  }
-
-  /**
-   * Valida las opciones para crear una preferencia
-   * @param options Opciones a validar
-   */
-  private validateCreatePreferenceOptions(
-    options: CreatePreferenceOptions,
-  ): void {
-    if (!options) {
-      throw new BadRequestException(
-        'Las opciones de preferencia son requeridas',
-      );
-    }
-
-    if (!options.external_reference) {
-      throw new BadRequestException('La referencia externa es requerida');
-    }
-
-    if (!options.items || options.items.length === 0) {
-      throw new BadRequestException('Debe proporcionar al menos un item');
-    }
-
-    // Validar cada item
-    options.items.forEach((item, index) => {
-      if (!item.title) {
-        throw new BadRequestException(
-          `El título es requerido para el item ${index + 1}`,
-        );
-      }
-      if (!item.currency_id) {
-        throw new BadRequestException(
-          `La moneda es requerida para el item ${index + 1}`,
-        );
-      }
-      if (item.quantity <= 0) {
-        throw new BadRequestException(
-          `La cantidad debe ser mayor a 0 para el item ${index + 1}`,
-        );
-      }
-      if (item.unit_price <= 0) {
-        throw new BadRequestException(
-          `El precio unitario debe ser mayor a 0 para el item ${index + 1}`,
-        );
-      }
-    });
-
-    // Eliminar la validación estricta del payer
-    // if (!options.payer) {
-    //   throw new BadRequestException('La información del pagador es requerida');
-    // }
-  }
-
-  // Helpers de sanitización
-  private isValidEmail(email?: string): boolean {
-    if (!email) return false;
-    // Regex simple y suficiente para validación básica
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
-    return re.test(email.trim());
-  }
-
-  private digitsOnly(value?: string | number): string | undefined {
-    if (value === undefined || value === null) return undefined;
-    const str = String(value).replace(/\D+/g, '');
-    return str.length > 0 ? str : undefined;
-  }
-
-  private sanitizePayer(
-    payer?: MercadoPagoPayer,
-  ): MercadoPagoPayer | undefined {
-    if (!payer) return undefined;
-    const sanitized: any = {};
-
-    if (typeof payer.name === 'string' && payer.name.trim() !== '') {
-      sanitized.name = payer.name.trim();
-    }
-    if (typeof payer.surname === 'string' && payer.surname.trim() !== '') {
-      sanitized.surname = payer.surname.trim();
-    }
-    if (typeof (payer as any).email === 'string') {
-      const email = (payer as any).email.trim();
-      if (email) sanitized.email = email;
-    }
-
-    if ((payer as any).phone) {
-      const phone = (payer as any).phone as any;
-      const area = this.digitsOnly(phone.area_code);
-      let number = this.digitsOnly(phone.number);
-      if (number && number.length > 19) number = number.slice(0, 19);
-      if (number) {
-        sanitized.phone = {
-          ...(area && { area_code: area }),
-          number,
-        };
-      }
-    }
-
-    if ((payer as any).identification) {
-      const id = (payer as any).identification as any;
-      const type = typeof id.type === 'string' ? id.type.trim() : '';
-      const number = typeof id.number === 'string' ? id.number.trim() : '';
-      if (type && number) {
-        sanitized.identification = { type, number };
-      }
-    }
-
-    // Retornar undefined si quedó vacío para no enviar un payer incompleto
-    return Object.keys(sanitized).length > 0
-      ? (sanitized as MercadoPagoPayer)
-      : undefined;
-  }
-
-  private removeEmptyDeep<T extends Record<string, any>>(
-    obj: T,
-    preserve: string[] = [],
-  ): T {
-    const isObject = (v: any) =>
-      v && typeof v === 'object' && !Array.isArray(v);
-    const clean = (input: any): any => {
-      if (Array.isArray(input)) {
-        const arr = input.map(clean).filter((v) => v !== undefined);
-        return arr.length > 0 ? arr : undefined;
-      }
-      if (isObject(input)) {
-        const out: Record<string, any> = {};
-        for (const [k, v] of Object.entries(input)) {
-          const cleaned = clean(v);
-          if (
-            cleaned !== undefined &&
-            !(typeof cleaned === 'string' && cleaned.trim() === '')
-          ) {
-            out[k] = cleaned;
-          }
-        }
-        if (Object.keys(out).length === 0) return undefined;
-        return out;
-      }
-      if (input === null || input === undefined) return undefined;
-      if (typeof input === 'string') {
-        const t = input.trim();
-        return t === '' ? undefined : t;
-      }
-      return input;
-    };
-
-    // Preservar claves requeridas si existen
-    const cleaned = clean(obj) || {};
-    for (const key of preserve) {
-      if (obj[key] !== undefined && cleaned[key] === undefined) {
-        (cleaned as any)[key] = obj[key];
-      }
-    }
-    return cleaned as T;
-  }
-
-  // Métodos de compatibilidad hacia atrás (deprecated)
-  /**
-   * @deprecated Use createSimplePreference or createPreference instead
-   */
-  async createPreferenceOld(external_id: string): Promise<string> {
-    this.logger.warn(
-      'Using deprecated createPreferenceOld method. Consider migrating to createPreference or createSimplePreference.',
-    );
-
-    const defaultItems: MercadoPagoItem[] = [
-      {
-        id: uuidv4(),
-        title: 'Producto/Servicio',
-        description: 'Descripción del producto o servicio',
-        quantity: 1,
-        currency_id: 'ARS',
-        unit_price: 100,
-      },
-    ];
-
-    const defaultPayer: MercadoPagoPayer = {
-      name: 'Usuario',
-      surname: 'Ejemplo',
-      email: 'usuario@ejemplo.com',
-      identification: {
-        type: 'DNI',
-        number: '12345678',
-      },
-    };
-
-    return this.createSimplePreference(external_id, defaultItems, defaultPayer);
-  }
-
-  /**
-   * @deprecated Use getPaymentsByExternalReference instead
-   */
-  async getPreferenceByPaymentIntentID(
-    externalID: string,
-  ): Promise<PaymentSearchResult[]> {
-    this.logger.warn(
-      'Using deprecated getPreferenceByPaymentIntentID method. Use getPaymentsByExternalReference instead.',
-    );
-    return this.getPaymentsByExternalReference(externalID);
-  }
+  // /**
+  //  * Construye las URLs de retorno usando configuración por defecto si no se proporcionan
+  //  * @param customBackUrls URLs personalizadas (opcional)
+  //  * @returns URLs de retorno configuradas
+  //  */
+  // private buildBackUrls(
+  //   customBackUrls?: MercadoPagoBackUrls,
+  // ): MercadoPagoBackUrls | undefined {
+  //   return MercadoPagoHelpers.buildBackUrls(customBackUrls);
+  // }
 }

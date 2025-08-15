@@ -51,16 +51,16 @@ export class PaymentsService {
       ];
 
       // Información básica del pagador
-      const payer = {
-        phone: {
-          number: phone,
-        },
-      };
+      // const payer = {
+      //   phone: {
+      //     number: phone,
+      //   },
+      // };
 
       const paymentMpID = await this.mercadoPagoService.createSimplePreference(
         paymentCreated.id,
         items,
-        payer,
+        // payer,
       );
       paymentCreated.transaction_id = paymentMpID;
 

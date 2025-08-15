@@ -9,6 +9,7 @@ import * as MercadoPago from 'mercadopago';
 import { PaymentIntent } from './entities/payment_intent_entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PaymentsRepository } from './repository/payment_repository';
+import { MercadoPagoRepository } from './services/repository/mercado-pago.repository';
 
 @Module({
   imports: [TypeOrmModule.forFeature([PaymentIntent])],
@@ -33,6 +34,7 @@ import { PaymentsRepository } from './repository/payment_repository';
     MercadopagoService,
     MercadoPagoHelperService,
     PaymentsService,
+    MercadoPagoRepository,
     PaymentsRepository,
     PaymentsGateway,
   ],
