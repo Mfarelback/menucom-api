@@ -101,6 +101,25 @@ export class MercadoPagoHelpers {
     );
   }
 
+  /**
+   * Formatea el statement_descriptor según las reglas de MP:
+   * - Máximo 22 caracteres
+   * - Sin caracteres especiales no permitidos
+   * - Retorna undefined si no hay un valor útil
+   */
+  static formatStatementDescriptor(input?: string): string | undefined {
+    const source = (
+      input ||
+      process.env.MP_STATEMENT_DESCRIPTOR ||
+      'menucom_buy'
+    ).trim();
+    if (!source) return undefined;
+    // Permitir letras, números, espacio y algunos separadores comunes
+    const cleaned = source.replace(/[^A-Za-z0-9 .,_-]/g, '').trim();
+    if (!cleaned) return undefined;
+    return cleaned.slice(0, 22);
+  }
+
   private static digitsOnly(value?: string | number): string | undefined {
     if (value === undefined || value === null) return undefined;
     const str = String(value).replace(/\D+/g, '');

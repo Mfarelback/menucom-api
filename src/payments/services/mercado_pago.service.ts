@@ -239,6 +239,7 @@ export class MercadopagoService {
     external_id: string,
     items: MercadoPagoItem[],
     payer?: MercadoPagoPayer | { email?: string; phone?: string }, // Allow email or phone
+    statementDescriptor?: string,
   ): Promise<PreferenceResponse> {
     let payerInfo: MercadoPagoPayer | undefined;
 
@@ -262,6 +263,14 @@ export class MercadopagoService {
       notification_url:
         process.env.MP_NOTIFICATION_URL ||
         'https://tu-dominio.com/payments/webhooks',
+      // Prefer explicit param, then env, then fallback to first item title
+      ...(MercadoPagoHelpers.formatStatementDescriptor(
+        statementDescriptor || items?.[0]?.title,
+      ) && {
+        statement_descriptor: MercadoPagoHelpers.formatStatementDescriptor(
+          statementDescriptor || items?.[0]?.title,
+        ),
+      }),
     };
 
     return this.createPreference(options);
