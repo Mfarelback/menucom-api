@@ -95,13 +95,13 @@ export class PaymentsController {
       (req.query && req.query.topic === 'merchant_order' && req.query.id)
     ) {
       // merchant_order puede venir en el body o en los query params
-      let merchantOrderId = payload.resource
+      const merchantOrderId = payload.resource
         ? payload.resource.split('/').pop()
         : req.query.id;
       // Asegurarse de que sea número
-      if (typeof merchantOrderId === 'string') {
-        merchantOrderId = Number(merchantOrderId);
-      }
+      // if (typeof merchantOrderId === 'string') {
+      //   merchantOrderId = Number(merchantOrderId);
+      // }
       console.log(
         '[MP Webhook] Detectado merchant_order. merchantOrderId:',
         merchantOrderId,

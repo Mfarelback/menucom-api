@@ -36,7 +36,12 @@ export class MercadopagoService {
       const result = await merchantOrder.get({ id: merchantOrderId });
       return result.external_reference || null;
     } catch (e) {
-      this.logger.error('Error fetching Mercado Pago merchant_order:', e);
+      this.logger.error(
+        'Error fetching Mercado Pago merchant_order:',
+        e,
+        ' With ID merch:',
+        merchantOrderId,
+      );
       return null;
     }
   }
