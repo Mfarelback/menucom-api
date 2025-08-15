@@ -65,7 +65,7 @@ export class MercadopagoService {
       // Configurar URLs de retorno por defecto si no se proporcionan
       const backUrls = this.buildBackUrls(options.back_urls);
 
-      // Limpiar payment_methods y excluir IDs vacíos
+      // Limpiar payment_methods y excluir IDs vacíos. Si se envían, incluir arrays vacíos [] en vez de IDs vacíos.
       let paymentMethods = options.payment_methods as
         | {
             excluded_payment_methods?: Array<{ id: string }>;
@@ -88,24 +88,11 @@ export class MercadopagoService {
         const cleanedExcludedTypes = cleanArr(
           paymentMethods.excluded_payment_types,
         );
-
-        const hasExcludedMethods =
-          !!cleanedExcludedMethods && cleanedExcludedMethods.length > 0;
-        const hasExcludedTypes =
-          !!cleanedExcludedTypes && cleanedExcludedTypes.length > 0;
-
-        if (!hasExcludedMethods && !hasExcludedTypes) {
-          paymentMethods = undefined; // Omitir por completo si no hay exclusiones
-        } else {
-          paymentMethods = {
-            ...(hasExcludedMethods && {
-              excluded_payment_methods: cleanedExcludedMethods,
-            }),
-            ...(hasExcludedTypes && {
-              excluded_payment_types: cleanedExcludedTypes,
-            }),
-          } as any;
-        }
+        // Si el objeto payment_methods fue provisto, enviamos arrays vacíos [] si quedaran sin exclusiones.
+        paymentMethods = {
+          excluded_payment_methods: cleanedExcludedMethods || [],
+          excluded_payment_types: cleanedExcludedTypes || [],
+        } as any;
       }
 
       // Asegurar que total_amount nunca sea null si hay items definidos
@@ -116,20 +103,17 @@ export class MercadopagoService {
           0,
         );
       }
-
       // Asegurar auto_return siempre en 'approved'
       const autoReturn = 'approved';
 
-      // Sanitizar payer: limpiar strings vacíos, validar email y teléfono
-      let payer = this.sanitizePayer(options.payer);
-      // Si no hay email válido, usar uno de prueba (sandbox)
-      if (payer && (!payer.email || !this.isValidEmail(payer.email))) {
-        payer = { ...payer, email: 'test_user@test.com' } as any;
-      }
+      // Sanitizar payer y completar con datos por defecto si faltan.
+      // Nota: Según doc de MP, email es obligatorio y se recomienda DNI + nombre/apellido para mejorar scoring.
+      const payer = this.sanitizePayer(options.payer);
 
       const preferenceBody: any = {
         items: itemsWithIds,
         external_reference: options.external_reference,
+        // Siempre enviamos payer válido; si no vienen datos, usamos default de sandbox.
         ...(payer && { payer }),
         ...(backUrls && { back_urls: backUrls }),
         ...(options.notification_url && {
@@ -147,6 +131,10 @@ export class MercadopagoService {
         }),
         ...(options.statement_descriptor && {
           statement_descriptor: options.statement_descriptor,
+        }),
+        // Si binary_mode fue provisto en options, lo propagamos
+        ...((options as any).binary_mode !== undefined && {
+          binary_mode: (options as any).binary_mode,
         }),
         // No incluir redirect_urls legacy
         ...(totalAmount && { total_amount: totalAmount }),
