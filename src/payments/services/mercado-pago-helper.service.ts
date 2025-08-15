@@ -5,6 +5,7 @@ import {
   MercadoPagoPayer,
   CreatePreferenceOptions,
 } from '../interfaces/mercado-pago.interfaces';
+import { PreferenceResponse } from 'mercadopago/dist/clients/preference/commonTypes';
 
 /**
  * Servicio helper que proporciona métodos de conveniencia para casos de uso comunes
@@ -31,7 +32,7 @@ export class MercadoPagoHelperService {
     externalReference: string,
     userEmail?: string,
     userPhone?: string,
-  ): Promise<string> {
+  ): Promise<PreferenceResponse> {
     const items: MercadoPagoItem[] = [
       {
         title: productName,
@@ -75,7 +76,7 @@ export class MercadoPagoHelperService {
       documentType?: string;
       documentNumber?: string;
     },
-  ): Promise<string> {
+  ): Promise<PreferenceResponse> {
     const items: MercadoPagoItem[] = products.map((product) => ({
       title: product.name,
       description: product.description,
@@ -132,7 +133,7 @@ export class MercadoPagoHelperService {
       failure?: string;
       pending?: string;
     },
-  ): Promise<string> {
+  ): Promise<PreferenceResponse> {
     const items: MercadoPagoItem[] = [
       {
         title: `Suscripción - ${serviceName}`,
@@ -204,7 +205,7 @@ export class MercadoPagoHelperService {
       pending?: string;
     };
     notificationUrl?: string;
-  }): Promise<string> {
+  }): Promise<PreferenceResponse> {
     const items: MercadoPagoItem[] = orderData.items.map((item) => ({
       title: item.name,
       description: item.description,
