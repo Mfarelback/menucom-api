@@ -7,6 +7,7 @@ import {
   Req,
   UseGuards,
   Headers,
+  HttpCode,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
@@ -45,6 +46,7 @@ export class PaymentsController {
       'Webhook de Mercado Pago para notificaciones de pago (no requiere auth)',
   })
   @Post('webhooks')
+  @HttpCode(200)
   async recibeNotification(
     @Body() payload: any,
     @Headers('x-idempotency-key') idempotencyKey: string,
@@ -95,23 +97,22 @@ export class PaymentsController {
       (req.query && req.query.topic === 'merchant_order' && req.query.id)
     ) {
       // merchant_order puede venir en el body o en los query params
-      const merchantOrderId = payload.resource
+      const merchantOrderIdRaw = payload.resource
         ? payload.resource.split('/').pop()
         : req.query.id;
-      // Asegurarse de que sea número
-      // if (typeof merchantOrderId === 'string') {
-      //   merchantOrderId = Number(merchantOrderId);
-      // }
+      // Asegurarse de convertir a número si viene como string
+      const merchantOrderIdNum = Number(merchantOrderIdRaw);
       console.log(
         '[MP Webhook] Detectado merchant_order. merchantOrderId:',
-        merchantOrderId,
+        merchantOrderIdRaw,
         'typeof:',
-        typeof merchantOrderId,
+        typeof merchantOrderIdRaw,
       );
-      orderId =
-        await this.mercadoPagoService.getOrderIdByMerchantOrderId(
-          merchantOrderId,
-        );
+      orderId = await this.mercadoPagoService.getOrderIdByMerchantOrderId(
+        Number.isFinite(merchantOrderIdNum)
+          ? merchantOrderIdNum
+          : (merchantOrderIdRaw as string),
+      );
       console.log(
         '[MP Webhook] orderId obtenido desde merchant_order:',
         orderId,

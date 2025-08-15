@@ -36,7 +36,8 @@ export class MercadoPagoRepository {
   }
 
   async getMerchantOrder(id: string) {
-    const merchantOrder = new (MercadoPago as any).MerchantOrder(this.client);
-    return merchantOrder.get({ id });
+    const merchantOrder = new MercadoPago.MerchantOrder(this.client);
+    // SDK v2 espera la propiedad merchantOrderId
+    return (merchantOrder as any).get({ merchantOrderId: id });
   }
 }

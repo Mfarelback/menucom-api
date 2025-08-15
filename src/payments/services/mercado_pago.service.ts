@@ -29,19 +29,36 @@ export class MercadopagoService {
    * Obtiene el external_reference (orderId) de una merchant_order de Mercado Pago por merchantOrderId
    */
   async getOrderIdByMerchantOrderId(
-    merchantOrderId: string,
+    merchantOrderId: string | number,
   ): Promise<string | null> {
     try {
-      const merchantOrder = new (MercadoPago as any).MerchantOrder(this.client);
-      const result = await merchantOrder.get({ id: merchantOrderId });
-      return result.external_reference || null;
-    } catch (e) {
+      // El SDK de MP puede requerir número; convertir si llega como string numérica
+      const idNum =
+        typeof merchantOrderId === 'string'
+          ? Number(merchantOrderId)
+          : merchantOrderId;
+      if (!Number.isFinite(idNum)) {
+        this.logger.warn(
+          `merchantOrderId no numérico recibido: ${merchantOrderId}`,
+        );
+        return null;
+      }
+
+      // Usar el repositorio centralizado
+      const result = await this.mpRepo.getMerchantOrder(String(idNum));
+      return (result as any)?.external_reference || null;
+    } catch (e: any) {
+      // Log estructurado para depurar mejor errores del SDK/HTTP
       this.logger.error(
         'Error fetching Mercado Pago merchant_order:',
-        e,
-        ' With ID merch:',
-        merchantOrderId,
+        e?.message || e,
       );
+      if (e && typeof e === 'object') {
+        try {
+          this.logger.error('Object:', JSON.stringify(e));
+        } catch {}
+      }
+      this.logger.error(' With ID merch:\n' + merchantOrderId);
       return null;
     }
   }
