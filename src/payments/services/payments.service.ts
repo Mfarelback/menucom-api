@@ -50,13 +50,6 @@ export class PaymentsService {
         },
       ];
 
-      // Información básica del pagador
-      // const payer = {
-      //   phone: {
-      //     number: phone,
-      //   },
-      // };
-
       const paymentMpID = await this.mercadoPagoService.createSimplePreference(
         paymentCreated.id,
         items,
@@ -64,7 +57,7 @@ export class PaymentsService {
       );
       paymentCreated.transaction_id = paymentMpID.id;
       paymentCreated.init_point =
-        process.env.NODE_ENV === 'qa'
+        process.env.ENV === 'qa'
           ? paymentMpID.init_point
           : paymentMpID.sandbox_init_point;
 
