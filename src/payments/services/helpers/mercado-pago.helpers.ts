@@ -130,12 +130,36 @@ export class MercadoPagoHelpers {
     if (!payer) return undefined;
     const sanitized: any = {};
 
+    // Handle both name/surname (legacy) and first_name/last_name (MP preferred)
     if (typeof payer.name === 'string' && payer.name.trim() !== '') {
       sanitized.name = payer.name.trim();
+      // Also set first_name if not explicitly provided
+      if (!payer.first_name) {
+        sanitized.first_name = payer.name.trim();
+      }
     }
     if (typeof payer.surname === 'string' && payer.surname.trim() !== '') {
       sanitized.surname = payer.surname.trim();
+      // Also set last_name if not explicitly provided
+      if (!payer.last_name) {
+        sanitized.last_name = payer.surname.trim();
+      }
     }
+
+    // Handle first_name and last_name explicitly (MP preferred fields)
+    if (
+      typeof (payer as any).first_name === 'string' &&
+      (payer as any).first_name.trim() !== ''
+    ) {
+      sanitized.first_name = (payer as any).first_name.trim();
+    }
+    if (
+      typeof (payer as any).last_name === 'string' &&
+      (payer as any).last_name.trim() !== ''
+    ) {
+      sanitized.last_name = (payer as any).last_name.trim();
+    }
+
     if (typeof (payer as any).email === 'string') {
       const email = (payer as any).email.trim();
       if (email) sanitized.email = email;

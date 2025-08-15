@@ -77,6 +77,8 @@ async createAdvancedPayment() {
     payer: {
       name: 'María',
       surname: 'González',
+      first_name: 'María',    // Campo preferido por MP para mejor tasa de aprobación
+      last_name: 'González',  // Campo preferido por MP para mejor tasa de aprobación
       email: 'maria.gonzalez@email.com',
       phone: {
         area_code: '11',
@@ -239,6 +241,12 @@ MP_ACCESS_TOKEN=your_mercadopago_access_token
 # Opcionales (para URLs de retorno automáticas)
 MP_BACK_URL=https://your-app.com
 MP_CHECKOUT_PATH=/#/checkout/status
+
+# Opcionales (para datos de pagador por defecto - mejora tasas de aprobación)
+MP_TEST_PAYER_EMAIL=test_user@test.com
+MP_TEST_PAYER_FIRST_NAME=Test
+MP_TEST_PAYER_LAST_NAME=User
+MP_STATEMENT_DESCRIPTOR=MI TIENDA
 ```
 
 ## Migración desde la Versión Anterior
@@ -282,6 +290,17 @@ const preferenceId = await this.mercadoPagoService.createSimplePreference(
 6. **Helpers**: Métodos de conveniencia para casos comunes
 7. **Compatibilidad**: Mantiene compatibilidad hacia atrás
 8. **Configuración**: URLs y configuraciones más flexibles
+9. **Mejor Aprobación**: Incluye automáticamente `first_name`, `last_name` y `statement_descriptor` para mejorar tasas de aprobación
+
+## Campos para Mejorar Tasas de Aprobación
+
+MercadoPago recomienda incluir los siguientes campos para reducir rechazos por el motor de prevención de fraude:
+
+- **`payer.first_name`**: Nombre del comprador (preferido sobre `payer.name`)
+- **`payer.last_name`**: Apellido del comprador (preferido sobre `payer.surname`)
+- **`statement_descriptor`**: Descripción que aparece en el resumen de tarjeta (máximo 22 caracteres)
+
+El servicio ahora incluye automáticamente estos campos con valores por defecto configurables via variables de entorno.
 
 ## Casos de Uso Comunes
 

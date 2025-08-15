@@ -68,6 +68,35 @@ describe('MercadopagoService', () => {
       expect(mockMercadoPagoRepository.createPreference).toHaveBeenCalled();
     });
 
+    it('should include default first_name and last_name for better approval rates', async () => {
+      const mockPreferenceId = 'test-preference-id';
+      mockMercadoPagoRepository.createPreference.mockResolvedValue({
+        id: mockPreferenceId,
+      });
+
+      const options: CreatePreferenceOptions = {
+        items: [
+          {
+            title: 'Test Item',
+            quantity: 1,
+            unit_price: 100,
+            currency_id: 'ARS',
+          },
+        ],
+        external_reference: 'test-external-reference',
+        // No payer provided - should use default with first_name and last_name
+      };
+
+      await service.createPreference(options);
+
+      const createCall =
+        mockMercadoPagoRepository.createPreference.mock.calls[0][0];
+      expect(createCall.payer).toBeDefined();
+      expect(createCall.payer.email).toBe('test_user@test.com');
+      expect(createCall.payer.first_name).toBe('Test');
+      expect(createCall.payer.last_name).toBe('User');
+    });
+
     it('should throw BadRequestException if options are invalid', async () => {
       const options: CreatePreferenceOptions = {
         items: [],

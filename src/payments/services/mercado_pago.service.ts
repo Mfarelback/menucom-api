@@ -147,6 +147,8 @@ export class MercadopagoService {
       ) {
         payer = {
           email: process.env.MP_TEST_PAYER_EMAIL || 'test_user@test.com',
+          first_name: process.env.MP_TEST_PAYER_FIRST_NAME || 'Test',
+          last_name: process.env.MP_TEST_PAYER_LAST_NAME || 'User',
         } as MercadoPagoPayer;
       }
 

@@ -12,6 +12,8 @@ export interface MercadoPagoItem {
 export interface MercadoPagoPayer {
   name?: string;
   surname?: string;
+  first_name?: string; // MP preferred field for better approval rates
+  last_name?: string; // MP preferred field for better approval rates
   email?: string;
   phone?: {
     area_code?: string;

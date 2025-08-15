@@ -46,6 +46,14 @@ export class MercadoPagoHelperService {
     if (userEmail) payer.email = userEmail;
     if (userPhone) payer.phone = { number: userPhone };
 
+    // Add default names for better approval rates if not provided
+    if (!payer.first_name && !payer.name) {
+      payer.first_name = process.env.MP_TEST_PAYER_FIRST_NAME || 'Usuario';
+    }
+    if (!payer.last_name && !payer.surname) {
+      payer.last_name = process.env.MP_TEST_PAYER_LAST_NAME || 'Test';
+    }
+
     return this.mercadoPagoService.createSimplePreference(
       externalReference,
       items,

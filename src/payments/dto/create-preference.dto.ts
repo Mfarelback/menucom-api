@@ -109,6 +109,20 @@ export class MercadoPagoPayerDto {
   @IsString()
   surname?: string;
 
+  @ApiPropertyOptional({
+    description: 'Nombre del pagador (campo preferido por MP)',
+  })
+  @IsOptional()
+  @IsString()
+  first_name?: string;
+
+  @ApiPropertyOptional({
+    description: 'Apellido del pagador (campo preferido por MP)',
+  })
+  @IsOptional()
+  @IsString()
+  last_name?: string;
+
   @ApiPropertyOptional({ description: 'Email del pagador' })
   @IsOptional()
   @IsEmail()
