@@ -59,6 +59,12 @@ export class MercadopagoService {
 
       // Generar IDs únicos para items que no los tengan
       const itemsWithIds = MercadoPagoHelpers.ensureItemsHaveIds(options.items);
+      // Asignar category_id por defecto para reducir placeholders en la respuesta
+      const defaultCategory = process.env.MP_ITEM_CATEGORY_ID || 'services';
+      const itemsFinal = itemsWithIds.map((item) => ({
+        ...item,
+        category_id: item.category_id ?? (defaultCategory as any),
+      }));
 
       // Configurar URLs de retorno por defecto si no se proporcionan
       const backUrls = MercadoPagoHelpers.buildBackUrls(options.back_urls);
@@ -91,6 +97,12 @@ export class MercadopagoService {
           excluded_payment_methods: cleanedExcludedMethods || [],
           excluded_payment_types: cleanedExcludedTypes || [],
         } as any;
+      } else {
+        // Incluir payment_methods vacío para evitar placeholders con ids vacíos en la respuesta
+        paymentMethods = {
+          excluded_payment_methods: [],
+          excluded_payment_types: [],
+        } as any;
       }
 
       // Asegurar que total_amount nunca sea null si hay items definidos
@@ -115,7 +127,7 @@ export class MercadopagoService {
       }
 
       const preferenceBody: any = {
-        items: itemsWithIds,
+        items: itemsFinal,
         external_reference: options.external_reference,
         // Siempre enviamos payer válido; si no vienen datos, usamos default de sandbox.
         payer,
