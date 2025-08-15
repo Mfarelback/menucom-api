@@ -65,17 +65,46 @@ export class MercadopagoService {
       // Configurar URLs de retorno por defecto si no se proporcionan
       const backUrls = this.buildBackUrls(options.back_urls);
 
-      // Limpiar payment_methods: si no hay exclusiones, eliminar todo el objeto
-      let paymentMethods = options.payment_methods;
+      // Limpiar payment_methods y excluir IDs vacíos
+      let paymentMethods = options.payment_methods as
+        | {
+            excluded_payment_methods?: Array<{ id: string }>;
+            excluded_payment_types?: Array<{ id: string }>;
+          }
+        | undefined;
       if (paymentMethods) {
+        const cleanArr = (arr?: Array<{ id: string }>) =>
+          Array.isArray(arr)
+            ? arr
+                .filter(
+                  (m) => m && typeof m.id === 'string' && m.id.trim() !== '',
+                )
+                .map((m) => ({ id: m.id.trim() }))
+            : undefined;
+
+        const cleanedExcludedMethods = cleanArr(
+          paymentMethods.excluded_payment_methods,
+        );
+        const cleanedExcludedTypes = cleanArr(
+          paymentMethods.excluded_payment_types,
+        );
+
         const hasExcludedMethods =
-          Array.isArray(paymentMethods.excluded_payment_methods) &&
-          paymentMethods.excluded_payment_methods.length > 0;
+          !!cleanedExcludedMethods && cleanedExcludedMethods.length > 0;
         const hasExcludedTypes =
-          Array.isArray(paymentMethods.excluded_payment_types) &&
-          paymentMethods.excluded_payment_types.length > 0;
+          !!cleanedExcludedTypes && cleanedExcludedTypes.length > 0;
+
         if (!hasExcludedMethods && !hasExcludedTypes) {
-          paymentMethods = undefined;
+          paymentMethods = undefined; // Omitir por completo si no hay exclusiones
+        } else {
+          paymentMethods = {
+            ...(hasExcludedMethods && {
+              excluded_payment_methods: cleanedExcludedMethods,
+            }),
+            ...(hasExcludedTypes && {
+              excluded_payment_types: cleanedExcludedTypes,
+            }),
+          } as any;
         }
       }
 
@@ -88,19 +117,14 @@ export class MercadopagoService {
         );
       }
 
-      // Limpiar redirect_urls si está vacío
-      let redirectUrls = (options as any).redirect_urls;
-      if (redirectUrls && Object.keys(redirectUrls).length === 0) {
-        redirectUrls = undefined;
-      }
-
       // Asegurar auto_return siempre en 'approved'
       const autoReturn = 'approved';
 
-      // Asegurar payer.email ficticio si no hay uno real
-      let payer = options.payer;
-      if (payer && (!payer.email || payer.email.trim() === '')) {
-        payer = { ...payer, email: 'test_user@test.com' };
+      // Sanitizar payer: limpiar strings vacíos, validar email y teléfono
+      let payer = this.sanitizePayer(options.payer);
+      // Si no hay email válido, usar uno de prueba (sandbox)
+      if (payer && (!payer.email || !this.isValidEmail(payer.email))) {
+        payer = { ...payer, email: 'test_user@test.com' } as any;
       }
 
       const preferenceBody: any = {
@@ -124,17 +148,23 @@ export class MercadopagoService {
         ...(options.statement_descriptor && {
           statement_descriptor: options.statement_descriptor,
         }),
-        ...(redirectUrls && { redirect_urls: redirectUrls }),
+        // No incluir redirect_urls legacy
         ...(totalAmount && { total_amount: totalAmount }),
       };
 
+      // Sanitizar el payload quitando claves vacías/null/"" no requeridas
+      const sanitizedPreferenceBody = this.removeEmptyDeep(preferenceBody, [
+        'items',
+        'external_reference',
+      ]);
+
       this.logger.debug(
         'Creating preference with body:',
-        JSON.stringify(preferenceBody, null, 2),
+        JSON.stringify(sanitizedPreferenceBody, null, 2),
       );
 
       const orderGenerated = await paymentOrder.create({
-        body: preferenceBody,
+        body: sanitizedPreferenceBody,
       });
 
       if (!orderGenerated.id) {
@@ -416,6 +446,108 @@ export class MercadopagoService {
     // if (!options.payer) {
     //   throw new BadRequestException('La información del pagador es requerida');
     // }
+  }
+
+  // Helpers de sanitización
+  private isValidEmail(email?: string): boolean {
+    if (!email) return false;
+    // Regex simple y suficiente para validación básica
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+    return re.test(email.trim());
+  }
+
+  private digitsOnly(value?: string | number): string | undefined {
+    if (value === undefined || value === null) return undefined;
+    const str = String(value).replace(/\D+/g, '');
+    return str.length > 0 ? str : undefined;
+  }
+
+  private sanitizePayer(
+    payer?: MercadoPagoPayer,
+  ): MercadoPagoPayer | undefined {
+    if (!payer) return undefined;
+    const sanitized: any = {};
+
+    if (typeof payer.name === 'string' && payer.name.trim() !== '') {
+      sanitized.name = payer.name.trim();
+    }
+    if (typeof payer.surname === 'string' && payer.surname.trim() !== '') {
+      sanitized.surname = payer.surname.trim();
+    }
+    if (typeof (payer as any).email === 'string') {
+      const email = (payer as any).email.trim();
+      if (email) sanitized.email = email;
+    }
+
+    if ((payer as any).phone) {
+      const phone = (payer as any).phone as any;
+      const area = this.digitsOnly(phone.area_code);
+      let number = this.digitsOnly(phone.number);
+      if (number && number.length > 19) number = number.slice(0, 19);
+      if (number) {
+        sanitized.phone = {
+          ...(area && { area_code: area }),
+          number,
+        };
+      }
+    }
+
+    if ((payer as any).identification) {
+      const id = (payer as any).identification as any;
+      const type = typeof id.type === 'string' ? id.type.trim() : '';
+      const number = typeof id.number === 'string' ? id.number.trim() : '';
+      if (type && number) {
+        sanitized.identification = { type, number };
+      }
+    }
+
+    // Retornar undefined si quedó vacío para no enviar un payer incompleto
+    return Object.keys(sanitized).length > 0
+      ? (sanitized as MercadoPagoPayer)
+      : undefined;
+  }
+
+  private removeEmptyDeep<T extends Record<string, any>>(
+    obj: T,
+    preserve: string[] = [],
+  ): T {
+    const isObject = (v: any) =>
+      v && typeof v === 'object' && !Array.isArray(v);
+    const clean = (input: any): any => {
+      if (Array.isArray(input)) {
+        const arr = input.map(clean).filter((v) => v !== undefined);
+        return arr.length > 0 ? arr : undefined;
+      }
+      if (isObject(input)) {
+        const out: Record<string, any> = {};
+        for (const [k, v] of Object.entries(input)) {
+          const cleaned = clean(v);
+          if (
+            cleaned !== undefined &&
+            !(typeof cleaned === 'string' && cleaned.trim() === '')
+          ) {
+            out[k] = cleaned;
+          }
+        }
+        if (Object.keys(out).length === 0) return undefined;
+        return out;
+      }
+      if (input === null || input === undefined) return undefined;
+      if (typeof input === 'string') {
+        const t = input.trim();
+        return t === '' ? undefined : t;
+      }
+      return input;
+    };
+
+    // Preservar claves requeridas si existen
+    const cleaned = clean(obj) || {};
+    for (const key of preserve) {
+      if (obj[key] !== undefined && cleaned[key] === undefined) {
+        (cleaned as any)[key] = obj[key];
+      }
+    }
+    return cleaned as T;
   }
 
   // Métodos de compatibilidad hacia atrás (deprecated)
