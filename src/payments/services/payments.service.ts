@@ -63,7 +63,10 @@ export class PaymentsService {
         // payer,
       );
       paymentCreated.transaction_id = paymentMpID.id;
-      paymentCreated.init_point = paymentMpID.sandbox_init_point;
+      paymentCreated.init_point =
+        process.env.NODE_ENV === 'qa'
+          ? paymentMpID.init_point
+          : paymentMpID.sandbox_init_point;
 
       const payment =
         await this.paymentIntentRepository.createPayment(paymentCreated);
