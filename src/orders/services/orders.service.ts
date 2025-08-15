@@ -5,6 +5,7 @@ import { Order } from '../entities/order.entity';
 import { OrderItem } from '../entities/order.item.entity';
 import { CreateOrderDto } from '../dtos/create.order.dto';
 import { PaymentsService } from 'src/payments/services/payments.service';
+import { UserService } from 'src/user/user.service';
 
 @Injectable()
 export class OrdersService {
@@ -14,6 +15,7 @@ export class OrdersService {
     @InjectRepository(OrderItem)
     private readonly orderItemRepository: Repository<OrderItem>,
     private paymentService: PaymentsService,
+    private userService: UserService,
   ) {}
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
@@ -94,6 +96,33 @@ export class OrdersService {
       return await this.orderRepository.find({ relations: ['items'] });
     } catch (error) {
       throw new Error(`Error finding orders: ${error.message}`);
+    }
+  }
+
+  async findByOwner(customerEmail: string): Promise<Order[]> {
+    try {
+      return await this.orderRepository.find({
+        where: { customerEmail },
+        relations: ['items'],
+        order: { createdAt: 'DESC' },
+      });
+    } catch (error) {
+      throw new Error(`Error finding orders by owner: ${error.message}`);
+    }
+  }
+
+  async findByUserId(userId: string): Promise<Order[]> {
+    try {
+      // Get user's email
+      const user = await this.userService.findOne(userId);
+      if (!user) {
+        throw new Error(`User with id ${userId} not found`);
+      }
+      console.log(user);
+      // Find orders by user's email
+      return await this.findByOwner(user.email);
+    } catch (error) {
+      throw new Error(`Error finding orders by user ID: ${error.message}`);
     }
   }
 
