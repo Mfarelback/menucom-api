@@ -53,7 +53,9 @@ export class MercadopagoService {
    * @param options Opciones para crear la preferencia
    * @returns ID de la preferencia creada
    */
-  async createPreference(options: CreatePreferenceOptions): Promise<string> {
+  async createPreference(
+    options: CreatePreferenceOptions,
+  ): Promise<PreferenceResponse> {
     try {
       MercadoPagoHelpers.validateCreatePreferenceOptions(options);
 
@@ -180,7 +182,7 @@ export class MercadopagoService {
       this.logger.log(
         `Preference created successfully with ID: ${orderGenerated.id}`,
       );
-      return orderGenerated.id;
+      return orderGenerated;
     } catch (error) {
       this.logger.error('Error creating preference:', error);
       if (error instanceof BadRequestException) {
@@ -215,7 +217,7 @@ export class MercadopagoService {
     external_id: string,
     items: MercadoPagoItem[],
     payer?: MercadoPagoPayer | { email?: string; phone?: string }, // Allow email or phone
-  ): Promise<string> {
+  ): Promise<PreferenceResponse> {
     let payerInfo: MercadoPagoPayer | undefined;
 
     if (payer) {

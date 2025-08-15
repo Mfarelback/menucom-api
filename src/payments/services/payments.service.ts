@@ -62,7 +62,8 @@ export class PaymentsService {
         items,
         // payer,
       );
-      paymentCreated.transaction_id = paymentMpID;
+      paymentCreated.transaction_id = paymentMpID.id;
+      paymentCreated.init_point = paymentMpID.init_point;
 
       const payment =
         await this.paymentIntentRepository.createPayment(paymentCreated);

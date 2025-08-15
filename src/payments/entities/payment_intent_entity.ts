@@ -16,4 +16,7 @@ export class PaymentIntent {
 
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   amount: number;
+
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  init_point: string | null;
 }

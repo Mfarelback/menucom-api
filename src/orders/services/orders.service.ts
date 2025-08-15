@@ -52,7 +52,7 @@ export class OrdersService {
 
       // Generar la URL de checkout de Mercado Pago usando el transaction_id
       if (paymentIntent.transaction_id) {
-        order.paymentUrl = `https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=${paymentIntent.transaction_id}`;
+        order.paymentUrl = paymentIntent.init_point;
       }
 
       // Guardar la orden primero para obtener el ID
