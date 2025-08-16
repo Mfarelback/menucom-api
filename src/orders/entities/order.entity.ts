@@ -18,6 +18,10 @@ export class Order {
 
   @Column({ nullable: true })
   customerPhone: string;
+
+  @Column({ nullable: true })
+  createdBy: string; // ID del creador de la orden (x-anonymous-id)
+
   // esto seria el preference de mp
   @Column({ nullable: true })
   operationID: string;

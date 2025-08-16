@@ -21,6 +21,11 @@ export class CreateOrderDto {
   @IsString()
   customerPhone?: string;
 
+  @ApiProperty({ example: 'anonymous-user-123', required: false })
+  @IsOptional()
+  @IsString()
+  createdBy?: string;
+
   @ApiProperty({ example: 1300.5 })
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()

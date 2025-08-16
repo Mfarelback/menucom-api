@@ -126,6 +126,18 @@ export class OrdersService {
     }
   }
 
+  async findByCreator(createdBy: string): Promise<Order[]> {
+    try {
+      return await this.orderRepository.find({
+        where: { createdBy },
+        relations: ['items'],
+        order: { createdAt: 'DESC' },
+      });
+    } catch (error) {
+      throw new Error(`Error finding orders by creator: ${error.message}`);
+    }
+  }
+
   async update(
     id: string,
     updateOrderDto: Partial<CreateOrderDto>,

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Param,
@@ -33,11 +34,33 @@ export class OrdersController {
     return this.orderService.findByUserId(userId);
   }
 
+  @Get('byAnonymous')
+  @ApiOperation({
+    summary: 'Obtener todas las órdenes creadas por un usuario anónimo',
+  })
+  async findByAnonymous(
+    @Headers('x-anonymous-id') anonymousId: string,
+  ): Promise<Order[]> {
+    if (!anonymousId) {
+      throw new Error('x-anonymous-id header is required');
+    }
+    return this.orderService.findByCreator(anonymousId);
+  }
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear una nueva orden con ítems' })
-  async create(@Body() createOrderDto: CreateOrderDto): Promise<Order> {
-    return this.orderService.create(createOrderDto);
+  async create(
+    @Body() createOrderDto: CreateOrderDto,
+    @Headers('x-anonymous-id') anonymousId?: string,
+  ): Promise<Order> {
+    // Agregar el ID del creador al DTO si está presente en el header
+    const orderWithCreator = {
+      ...createOrderDto,
+      createdBy: anonymousId,
+    };
+
+    return this.orderService.create(orderWithCreator);
   }
 
   @Put(':id')
