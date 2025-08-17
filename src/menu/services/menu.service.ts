@@ -136,6 +136,7 @@ export class MenuService {
       if (menuId.length === 0) {
         throw new NotFoundException(`No se encontró un menu con el ID vacio`);
       }
+
       const menu = await this.menuRepository.find({
         where: { idOwner: menuId },
       });
@@ -152,20 +153,18 @@ export class MenuService {
           const items = await this.menuItemRepository.find({
             where: { menu: e },
           });
-          // if (items.length === 0) {
-          //   throw new NotFoundException(
-          //     'El menú no tiene elementos asociados.',
-          //   );
-          // }
           e.items = items;
         }),
       );
-      // menu[0].idOwner = userOwn[0].name;
       const userOwn = await this.userRepository.findOne({
-        where: { id: menu[0].idOwner },
+        where: { id: menuId },
       });
+      if (userOwn) {
+        delete userOwn.password;
+        delete userOwn.needToChangepassword;
+      }
       return {
-        owner: userOwn.name,
+        owner: userOwn,
         listmenu: menu,
       };
     } catch (error) {
