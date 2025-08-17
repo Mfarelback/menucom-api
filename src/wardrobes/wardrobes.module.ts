@@ -5,9 +5,13 @@ import { ClothingItem } from './entities/clothing_item.entity';
 import { WardrobesController } from './controllers/wardrobes.controller';
 import { WardrobeServices } from './services/wardrobes.services';
 import { User } from 'src/user/entities/user.entity';
+import { ImageProxyModule } from 'src/image-proxy/image-proxy.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Wardrobes, ClothingItem, User])],
+  imports: [
+    TypeOrmModule.forFeature([Wardrobes, ClothingItem, User]),
+    ImageProxyModule,
+  ],
   controllers: [WardrobesController],
   providers: [WardrobeServices],
 })

@@ -26,6 +26,15 @@ export class CreateOrderDto {
   @IsString()
   createdBy?: string;
 
+  @ApiProperty({
+    example: 'owner-uuid-123',
+    description: 'ID del propietario del menú/wardrobe',
+    required: true,
+  })
+  @IsOptional()
+  @IsString()
+  ownerId?: string;
+
   @ApiProperty({ example: 1300.5 })
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()

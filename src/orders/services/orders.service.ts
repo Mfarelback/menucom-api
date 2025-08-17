@@ -6,6 +6,8 @@ import { OrderItem } from '../entities/order.item.entity';
 import { CreateOrderDto } from '../dtos/create.order.dto';
 import { PaymentsService } from 'src/payments/services/payments.service';
 import { UserService } from 'src/user/user.service';
+import { Menu } from 'src/menu/entities/menu.entity';
+import { Wardrobes } from 'src/wardrobes/entities/wardrobes.entity';
 
 @Injectable()
 export class OrdersService {
@@ -14,16 +16,54 @@ export class OrdersService {
     private readonly orderRepository: Repository<Order>,
     @InjectRepository(OrderItem)
     private readonly orderItemRepository: Repository<OrderItem>,
+    @InjectRepository(Menu)
+    private readonly menuRepository: Repository<Menu>,
+    @InjectRepository(Wardrobes)
+    private readonly wardrobesRepository: Repository<Wardrobes>,
     private paymentService: PaymentsService,
     private userService: UserService,
   ) {}
+
+  /**
+   * Determina automáticamente el ownerId basado en los items de la orden
+   */
+  private async determineOwnerId(
+    items: CreateOrderDto['items'],
+  ): Promise<string | null> {
+    try {
+      // Buscar el primer item que tenga sourceId y sourceType definidos
+      for (const item of items) {
+        if (item.sourceId && item.sourceType) {
+          if (item.sourceType === 'menu') {
+            const menu = await this.menuRepository.findOne({
+              where: { id: item.sourceId },
+            });
+            if (menu) {
+              return menu.idOwner;
+            }
+          } else if (item.sourceType === 'wardrobe') {
+            const wardrobe = await this.wardrobesRepository.findOne({
+              where: { id: item.sourceId },
+            });
+            if (wardrobe) {
+              return wardrobe.idOwner;
+            }
+          }
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Error determining owner ID:', error);
+      return null;
+    }
+  }
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
     try {
       // Asignar datos falsos si no se proveen y corregir si el email es un teléfono
       const fakeEmail = 'anon@fake.com';
       const fakePhone = '0000000000';
-      let { customerEmail, customerPhone } = createOrderDto;
+      let { customerEmail, customerPhone, ownerId } = createOrderDto;
       const { items, ...rest } = createOrderDto;
 
       // Detectar si customerEmail es un número de teléfono (solo dígitos, 8-15 caracteres)
@@ -36,10 +76,16 @@ export class OrdersService {
       customerEmail = customerEmail || fakeEmail;
       customerPhone = customerPhone || fakePhone;
 
+      // Determinar automáticamente el ownerId si no se proporciona
+      if (!ownerId) {
+        ownerId = await this.determineOwnerId(items);
+      }
+
       const orderData = {
         ...rest,
         customerEmail,
         customerPhone,
+        ownerId,
       };
 
       // Crear instancia de Order (TypeORM generará automáticamente el ID)
@@ -135,6 +181,21 @@ export class OrdersService {
       });
     } catch (error) {
       throw new Error(`Error finding orders by creator: ${error.message}`);
+    }
+  }
+
+  async findByOwnerId(ownerId: string): Promise<Order[]> {
+    try {
+      if (!ownerId) {
+        throw new Error('Owner ID is required');
+      }
+      return await this.orderRepository.find({
+        where: { ownerId },
+        relations: ['items'],
+        order: { createdAt: 'DESC' },
+      });
+    } catch (error) {
+      throw new Error(`Error finding orders by owner ID: ${error.message}`);
     }
   }
 

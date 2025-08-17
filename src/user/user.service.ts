@@ -16,6 +16,7 @@ import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { ChangePasswordDto } from './dto/password.dto';
 import { RecoveryPassword } from './entities/recovery-password.entity';
+import { UrlTransformService } from 'src/image-proxy/services/url-transform.service';
 
 @Injectable()
 export class UserService {
@@ -23,6 +24,7 @@ export class UserService {
     @InjectRepository(User) private userRepo: Repository<User>,
     @InjectRepository(RecoveryPassword)
     private restoreRepo: Repository<RecoveryPassword>,
+    private readonly urlTransformService: UrlTransformService,
   ) {}
 
   async create(data: CreateUserDto) {
@@ -91,7 +93,9 @@ export class UserService {
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...result } = user;
-    return result;
+
+    // Transformar las URLs de imágenes usando el proxy
+    return this.urlTransformService.transformDataUrls(result);
   }
 
   async findByEmail(email: string) {

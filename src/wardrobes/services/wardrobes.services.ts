@@ -14,6 +14,7 @@ import { Wardrobes } from '../entities/wardrobes.entity';
 import { ClothingItem } from '../entities/clothing_item.entity';
 import { WardrobeDto } from '../dtos/create-ward.dto';
 import { CreateClothingItemDto } from '../dtos/create_clothing.dto';
+import { UrlTransformService } from 'src/image-proxy/services/url-transform.service';
 
 @Injectable()
 export class WardrobeServices {
@@ -24,6 +25,7 @@ export class WardrobeServices {
     private readonly wardItemRepository: Repository<ClothingItem>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly urlTransformService: UrlTransformService,
   ) {}
 
   //menu functions
@@ -182,10 +184,14 @@ export class WardrobeServices {
       const userOwn = await this.userRepository.findOne({
         where: { id: menu[0].idOwner },
       });
-      return {
+
+      // Transformar las URLs de imágenes usando el proxy
+      const responseData = {
         owner: userOwn.name,
         listmenu: menu,
       };
+
+      return this.urlTransformService.transformDataUrls(responseData);
     } catch (error) {
       throw error;
     }

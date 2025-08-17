@@ -22,6 +22,9 @@ export class Order {
   @Column({ nullable: true })
   createdBy: string; // ID del creador de la orden (x-anonymous-id)
 
+  @Column({ nullable: true })
+  ownerId: string; // ID del propietario del menú/wardrobe al que se le está comprando
+
   // esto seria el preference de mp
   @Column({ nullable: true })
   operationID: string;

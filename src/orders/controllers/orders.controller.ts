@@ -47,6 +47,15 @@ export class OrdersController {
     return this.orderService.findByCreator(anonymousId);
   }
 
+  @Get('byBusinessOwner/:ownerId')
+  @ApiOperation({
+    summary:
+      'Obtener todas las órdenes recibidas por un propietario de negocio',
+  })
+  async findByOwnerId(@Param('ownerId') ownerId: string): Promise<Order[]> {
+    return this.orderService.findByOwnerId(ownerId);
+  }
+
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear una nueva orden con ítems' })

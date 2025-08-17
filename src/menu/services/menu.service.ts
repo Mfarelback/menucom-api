@@ -13,6 +13,7 @@ import { MenuItem } from '../entities/menu-item.entity';
 import { CreateMenuItemDto } from '../dtos/menu-item.dto';
 import { User } from 'src/user/entities/user.entity';
 import { EditMenuDto } from '../dtos/menu-edit.dto';
+import { UrlTransformService } from 'src/image-proxy/services/url-transform.service';
 
 @Injectable()
 export class MenuService {
@@ -23,6 +24,7 @@ export class MenuService {
     private readonly menuItemRepository: Repository<MenuItem>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly urlTransformService: UrlTransformService,
   ) {}
 
   //menu functions
@@ -156,6 +158,7 @@ export class MenuService {
           e.items = items;
         }),
       );
+
       const userOwn = await this.userRepository.findOne({
         where: { id: menuId },
       });
@@ -163,10 +166,14 @@ export class MenuService {
         delete userOwn.password;
         delete userOwn.needToChangepassword;
       }
-      return {
+
+      // Transformar las URLs de imágenes usando el proxy
+      const responseData = {
         owner: userOwn,
         listmenu: menu,
       };
+
+      return this.urlTransformService.transformDataUrls(responseData);
     } catch (error) {
       throw error;
     }

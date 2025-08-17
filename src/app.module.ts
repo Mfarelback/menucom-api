@@ -11,6 +11,7 @@ import { MenuModule } from './menu/menu.module';
 import { WardrobesModule } from './wardrobes/wardrobes.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
+import { ImageProxyModule } from './image-proxy/image-proxy.module';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { PaymentsModule } from './payments/payments.module';
     UserModule,
     DatabaseModule,
     CloudinaryModule,
+    ImageProxyModule,
     MenuModule,
     WardrobesModule,
     OrdersModule,
