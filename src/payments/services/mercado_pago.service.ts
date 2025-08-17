@@ -230,6 +230,18 @@ export class MercadopagoService {
       return null;
     }
   }
+
+  /**
+   * Obtiene información completa de un pago de MercadoPago
+   */
+  async getPaymentInfo(paymentId: string): Promise<any> {
+    try {
+      return await this.mpRepo.getPayment(paymentId);
+    } catch (e) {
+      this.logger.error('Error fetching Mercado Pago payment info:', e);
+      throw e;
+    }
+  }
   /**
    * Método de conveniencia para crear una preferencia simple
    * @param external_id Referencia externa

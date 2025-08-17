@@ -52,85 +52,86 @@ export class PaymentsController {
     @Headers('x-idempotency-key') idempotencyKey: string,
     @Req() req: any,
   ) {
-    // Soportar notificaciones con body y con query params
-    console.log('[MP Webhook] Payload recibido:', JSON.stringify(payload));
-    console.log('[MP Webhook] Query params:', JSON.stringify(req.query));
-    let orderId: string | null = null;
-    // Caso 1: Notificación con body (tipo payment)
-    if (payload && payload.data && payload.type === 'payment') {
-      // Si el body trae external_reference, úsalo. Si no, busca el payment por ID.
-      if (payload.data.external_reference) {
-        orderId = payload.data.external_reference;
+    try {
+      console.log('[MP Webhook] Payload recibido:', JSON.stringify(payload));
+      console.log('[MP Webhook] Query params:', JSON.stringify(req.query));
+
+      let paymentId: string | null = null;
+      let merchantOrderId: string | number | null = null;
+
+      // Extraer información de notificación de payment
+      if (payload && payload.data && payload.type === 'payment') {
+        paymentId = payload.data.id;
         console.log(
-          '[MP Webhook] Detectado payment con body. orderId:',
-          orderId,
-        );
-      } else if (payload.data.id) {
-        const paymentId = payload.data.id;
-        console.log(
-          '[MP Webhook] Detectado payment con body, sin external_reference. Buscando por paymentId:',
+          '[MP Webhook] Detectado payment con body. paymentId:',
           paymentId,
         );
-        orderId =
-          await this.mercadoPagoService.getOrderIdByPaymentId(paymentId);
-        console.log('[MP Webhook] orderId obtenido desde MP:', orderId);
-      } else {
-        orderId = null;
+      } else if (
+        req.query &&
+        req.query['data.id'] &&
+        req.query.type === 'payment'
+      ) {
+        paymentId = req.query['data.id'];
         console.log(
-          '[MP Webhook] Detectado payment con body, pero sin id ni external_reference.',
+          '[MP Webhook] Detectado payment con query param. paymentId:',
+          paymentId,
         );
       }
-    } else if (
-      req.query &&
-      req.query['data.id'] &&
-      req.query.type === 'payment'
-    ) {
-      const paymentId = req.query['data.id'];
-      console.log(
-        '[MP Webhook] Detectado payment con query param. paymentId:',
+
+      // Extraer información de notificación de merchant_order
+      if (
+        (payload && payload.topic === 'merchant_order' && payload.resource) ||
+        (req.query && req.query.topic === 'merchant_order' && req.query.id)
+      ) {
+        const merchantOrderIdRaw = payload.resource
+          ? payload.resource.split('/').pop()
+          : req.query.id;
+        merchantOrderId = Number(merchantOrderIdRaw);
+
+        // Si no es un número válido, usar como string
+        if (!Number.isFinite(merchantOrderId)) {
+          merchantOrderId = merchantOrderIdRaw as string;
+        }
+
+        console.log(
+          '[MP Webhook] Detectado merchant_order. merchantOrderId:',
+          merchantOrderId,
+        );
+      }
+
+      // Procesar la notificación y actualizar estados
+      const result = await this.paymentsService.processWebhookNotification(
         paymentId,
+        merchantOrderId,
       );
-      orderId = await this.mercadoPagoService.getOrderIdByPaymentId(paymentId);
-      console.log('[MP Webhook] orderId obtenido desde MP:', orderId);
-    } else if (
-      (payload && payload.topic === 'merchant_order' && payload.resource) ||
-      (req.query && req.query.topic === 'merchant_order' && req.query.id)
-    ) {
-      // merchant_order puede venir en el body o en los query params
-      const merchantOrderIdRaw = payload.resource
-        ? payload.resource.split('/').pop()
-        : req.query.id;
-      // Asegurarse de convertir a número si viene como string
-      const merchantOrderIdNum = Number(merchantOrderIdRaw);
-      console.log(
-        '[MP Webhook] Detectado merchant_order. merchantOrderId:',
-        merchantOrderIdRaw,
-        'typeof:',
-        typeof merchantOrderIdRaw,
-      );
-      orderId = await this.mercadoPagoService.getOrderIdByMerchantOrderId(
-        Number.isFinite(merchantOrderIdNum)
-          ? merchantOrderIdNum
-          : (merchantOrderIdRaw as string),
-      );
-      console.log(
-        '[MP Webhook] orderId obtenido desde merchant_order:',
-        orderId,
-      );
+
+      // Emitir evento por websocket si tenemos orderId
+      if (result.orderId) {
+        console.log(
+          '[MP Webhook] Emitiendo evento WebSocket paymentSuccess para orderId:',
+          result.orderId,
+        );
+        this.paymentsGateway.emitPaymentSuccess(result.orderId);
+      } else {
+        console.warn(
+          '[MP Webhook] No se pudo determinar orderId, no se emite evento WebSocket',
+        );
+      }
+
+      return {
+        message: 'Notificación procesada correctamente',
+        orderId: result.orderId,
+        paymentStatus: result.paymentStatus,
+        idempotencyKey,
+      };
+    } catch (error) {
+      console.error('[MP Webhook] Error procesando notificación:', error);
+      return {
+        message: 'Error procesando notificación',
+        error: error.message,
+        idempotencyKey,
+      };
     }
-    // Emitir evento por websocket si tenemos orderId
-    if (orderId) {
-      console.log(
-        '[MP Webhook] Emitiendo evento WebSocket paymentSuccess para orderId:',
-        orderId,
-      );
-      this.paymentsGateway.emitPaymentSuccess(orderId);
-    } else {
-      console.warn(
-        '[MP Webhook] No se pudo determinar orderId, no se emite evento WebSocket',
-      );
-    }
-    return 'Get capture of payment' + JSON.stringify(payload) + idempotencyKey;
   }
 
   @UseGuards(JwtAuthGuard)

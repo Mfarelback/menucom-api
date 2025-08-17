@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { PaymentsGateway } from '../ws/payments.gateway';
 import { MercadopagoService } from './services/mercado_pago.service';
 import { PaymentsController } from './controller/payments.controller';
@@ -10,9 +10,13 @@ import { PaymentIntent } from './entities/payment_intent_entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PaymentsRepository } from './repository/payment_repository';
 import { MercadoPagoRepository } from './services/repository/mercado-pago.repository';
+import { OrdersModule } from 'src/orders/orders.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PaymentIntent])],
+  imports: [
+    TypeOrmModule.forFeature([PaymentIntent]),
+    forwardRef(() => OrdersModule),
+  ],
   controllers: [PaymentsController],
   providers: [
     {

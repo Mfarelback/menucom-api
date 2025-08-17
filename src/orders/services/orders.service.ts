@@ -189,4 +189,43 @@ export class OrdersService {
       throw new Error(`Error deleting order: ${error.message}`);
     }
   }
+
+  /**
+   * Actualiza el estado de una orden
+   */
+  async updateOrderStatus(orderId: string, status: string): Promise<Order> {
+    try {
+      const order = await this.orderRepository.findOne({
+        where: { id: orderId },
+      });
+
+      if (!order) {
+        throw new Error(`Order with id ${orderId} not found`);
+      }
+
+      order.status = status;
+      await this.orderRepository.save(order);
+
+      return await this.orderRepository.findOne({
+        where: { id: orderId },
+        relations: ['items'],
+      });
+    } catch (error) {
+      throw new Error(`Error updating order status: ${error.message}`);
+    }
+  }
+
+  /**
+   * Busca una orden por operationID (PaymentIntent ID)
+   */
+  async findByOperationId(operationId: string): Promise<Order | null> {
+    try {
+      return await this.orderRepository.findOne({
+        where: { operationID: operationId },
+        relations: ['items'],
+      });
+    } catch (error) {
+      throw new Error(`Error finding order by operation ID: ${error.message}`);
+    }
+  }
 }

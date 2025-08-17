@@ -2,6 +2,8 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { MercadopagoService } from './mercado_pago.service';
 import { PaymentsRepository } from '../repository/payment_repository';
@@ -10,6 +12,7 @@ import { v4 as uuidv4 } from 'uuid';
 // import { PaymentStatusType } from 'src/core/constants';
 import { MerchantOrderResponse } from 'mercadopago/dist/clients/merchantOrder/commonTypes';
 import { PaymentStatusType } from 'src/config';
+import { OrdersService } from 'src/orders/services/orders.service';
 // import { PaymentSearchResult } from 'mercadopago/dist/clients/payment/search/types';
 
 @Injectable()
@@ -17,6 +20,8 @@ export class PaymentsService {
   constructor(
     private readonly mercadoPagoService: MercadopagoService,
     private readonly paymentIntentRepository: PaymentsRepository,
+    @Inject(forwardRef(() => OrdersService))
+    private readonly ordersService: OrdersService,
   ) {}
 
   async createPayment(
@@ -221,6 +226,216 @@ export class PaymentsService {
         throw error;
       }
       throw new BadRequestException('Error al aprobar el pago: ' + error);
+    }
+  }
+
+  /**
+   * Actualiza el estado del PaymentIntent basado en el estado del pago de MercadoPago
+   */
+  async updatePaymentIntentStatus(
+    paymentIntentId: string,
+    mpPaymentStatus: string,
+  ): Promise<PaymentIntent> {
+    try {
+      let newStatus: string;
+
+      // Mapear estados de MercadoPago a nuestros estados
+      switch (mpPaymentStatus) {
+        case 'approved':
+          newStatus = PaymentStatusType.APPROVED;
+          break;
+        case 'pending':
+        case 'in_process':
+          newStatus = PaymentStatusType.IN_PROCESS;
+          break;
+        case 'rejected':
+        case 'cancelled':
+          newStatus = PaymentStatusType.REJECTED;
+          break;
+        case 'refunded':
+          newStatus = PaymentStatusType.REFUNDED;
+          break;
+        default:
+          newStatus = PaymentStatusType.PENDING;
+      }
+
+      return await this.paymentIntentRepository.changeStatusPayment(
+        paymentIntentId,
+        newStatus,
+      );
+    } catch (error) {
+      throw new BadRequestException(
+        `Error al actualizar el estado del PaymentIntent: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Procesa las notificaciones del webhook de MercadoPago y actualiza los estados correspondientes
+   */
+  async processWebhookNotification(
+    paymentId?: string,
+    merchantOrderId?: string | number,
+  ): Promise<{
+    orderId: string | null;
+    paymentIntent?: PaymentIntent;
+    order?: any;
+    paymentStatus?: string;
+  }> {
+    try {
+      let orderId: string | null = null;
+      let paymentStatus: string | null = null;
+      let updatedPaymentIntent: PaymentIntent | undefined = undefined;
+      let updatedOrder: any = undefined;
+
+      // Caso 1: Notificación de payment
+      if (paymentId) {
+        console.log('[Webhook Processor] Procesando payment ID:', paymentId);
+
+        // Obtener información del pago desde MercadoPago
+        const paymentInfo =
+          await this.mercadoPagoService.getPaymentInfo(paymentId);
+        orderId =
+          paymentInfo.external_reference || paymentInfo.order_id || null;
+        paymentStatus = paymentInfo.status;
+
+        console.log(
+          '[Webhook Processor] Payment status:',
+          paymentStatus,
+          'OrderId:',
+          orderId,
+        );
+
+        if (orderId && paymentStatus) {
+          // Actualizar el PaymentIntent
+          try {
+            updatedPaymentIntent = await this.updatePaymentIntentStatus(
+              orderId,
+              paymentStatus,
+            );
+            console.log(
+              '[Webhook Processor] PaymentIntent actualizado:',
+              updatedPaymentIntent.state,
+            );
+          } catch (error) {
+            console.warn(
+              '[Webhook Processor] Error actualizando PaymentIntent:',
+              error.message,
+            );
+          }
+
+          // Actualizar la Order
+          try {
+            const orderStatus =
+              this.mapPaymentStatusToOrderStatus(paymentStatus);
+            const order = await this.ordersService.findByOperationId(orderId);
+
+            if (order) {
+              updatedOrder = await this.ordersService.updateOrderStatus(
+                order.id,
+                orderStatus,
+              );
+              console.log(
+                '[Webhook Processor] Order actualizada:',
+                updatedOrder.status,
+              );
+            } else {
+              console.warn(
+                '[Webhook Processor] No se encontró orden con operationID:',
+                orderId,
+              );
+            }
+          } catch (error) {
+            console.warn(
+              '[Webhook Processor] Error actualizando Order:',
+              error.message,
+            );
+          }
+        }
+      }
+
+      // Caso 2: Notificación de merchant_order
+      if (merchantOrderId && !orderId) {
+        console.log(
+          '[Webhook Processor] Procesando merchant_order ID:',
+          merchantOrderId,
+        );
+        orderId =
+          await this.mercadoPagoService.getOrderIdByMerchantOrderId(
+            merchantOrderId,
+          );
+
+        if (orderId) {
+          // Para merchant_order, generalmente significa que el pago fue aprobado
+          try {
+            updatedPaymentIntent = await this.updatePaymentIntentStatus(
+              orderId,
+              'approved',
+            );
+            console.log(
+              '[Webhook Processor] PaymentIntent actualizado via merchant_order',
+            );
+          } catch (error) {
+            console.warn(
+              '[Webhook Processor] Error actualizando PaymentIntent via merchant_order:',
+              error.message,
+            );
+          }
+
+          try {
+            const order = await this.ordersService.findByOperationId(orderId);
+            if (order) {
+              updatedOrder = await this.ordersService.updateOrderStatus(
+                order.id,
+                'confirmed',
+              );
+              console.log(
+                '[Webhook Processor] Order confirmada via merchant_order',
+              );
+            }
+          } catch (error) {
+            console.warn(
+              '[Webhook Processor] Error actualizando Order via merchant_order:',
+              error.message,
+            );
+          }
+        }
+      }
+
+      return {
+        orderId,
+        paymentIntent: updatedPaymentIntent,
+        order: updatedOrder,
+        paymentStatus,
+      };
+    } catch (error) {
+      console.error(
+        '[Webhook Processor] Error procesando notificación:',
+        error,
+      );
+      throw new BadRequestException(
+        `Error procesando notificación del webhook: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Mapea el estado del pago de MercadoPago al estado de la orden
+   */
+  private mapPaymentStatusToOrderStatus(mpPaymentStatus: string): string {
+    switch (mpPaymentStatus) {
+      case 'approved':
+        return 'confirmed';
+      case 'pending':
+      case 'in_process':
+        return 'pending';
+      case 'rejected':
+      case 'cancelled':
+        return 'cancelled';
+      case 'refunded':
+        return 'cancelled';
+      default:
+        return 'pending';
     }
   }
 }
