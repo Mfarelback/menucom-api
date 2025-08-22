@@ -91,13 +91,57 @@ export class MercadoPagoOAuthController {
   async handleCallback(
     @Body() tokenExchangeDto: TokenExchangeDto,
   ): Promise<MercadoPagoAccount> {
+    console.log('OAuth callback received:', {
+      hasAuthCode: !!tokenExchangeDto.authorizationCode,
+      authCodeLength: tokenExchangeDto.authorizationCode?.length,
+      redirectUri: tokenExchangeDto.redirectUri,
+      vinculationId: tokenExchangeDto.vinculation_id,
+    });
+
     const userId = tokenExchangeDto.vinculation_id;
+
+    if (!userId) {
+      throw new BadRequestException('vinculation_id is required');
+    }
+
+    if (!tokenExchangeDto.authorizationCode) {
+      throw new BadRequestException('authorizationCode is required');
+    }
+
+    if (!tokenExchangeDto.redirectUri) {
+      throw new BadRequestException('redirectUri is required');
+    }
 
     return await this.mpOAuthService.linkAccount(
       userId,
       tokenExchangeDto.authorizationCode,
       tokenExchangeDto.redirectUri,
     );
+  }
+
+  @Get('config-check')
+  @ApiOperation({
+    summary: 'Verificar configuración OAuth (solo desarrollo)',
+    description:
+      'Endpoint para verificar que las variables de entorno estén configuradas',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Estado de configuración OAuth',
+  })
+  async checkOAuthConfig() {
+    const clientId = process.env.MERCADO_PAGO_CLIENT_ID;
+    const clientSecret = process.env.MERCADO_PAGO_CLIENT_SECRET;
+    const redirectUri = process.env.MERCADO_PAGO_REDIRECT_URI;
+
+    return {
+      configured: !!clientId && !!clientSecret,
+      hasClientId: !!clientId,
+      hasClientSecret: !!clientSecret,
+      hasRedirectUri: !!redirectUri,
+      clientIdLength: clientId?.length || 0,
+      redirectUri: redirectUri || 'not_configured',
+    };
   }
 
   @UseGuards(JwtAuthGuard)

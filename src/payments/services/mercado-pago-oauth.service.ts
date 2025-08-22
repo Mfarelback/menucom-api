@@ -66,22 +66,47 @@ export class MercadoPagoOAuthService {
    */
   async exchangeCodeForTokens(code: string, redirectUri: string): Promise<any> {
     try {
-      const response = await axios.post(`${this.baseUrl}/oauth/token`, {
+      this.logger.log(
+        `Exchanging code for tokens - Code: ${code.substring(
+          0,
+          10,
+        )}..., RedirectUri: ${redirectUri}`,
+      );
+
+      const payload = {
         client_id: this.clientId,
         client_secret: this.clientSecret,
         grant_type: 'authorization_code',
         code: code,
         redirect_uri: redirectUri,
-      });
+      };
+
+      this.logger.log(
+        `Token exchange payload: ${JSON.stringify({
+          ...payload,
+          client_secret: '***HIDDEN***',
+        })}`,
+      );
+
+      const response = await axios.post(`${this.baseUrl}/oauth/token`, payload);
 
       this.logger.log('Successfully exchanged code for tokens');
       return response.data;
     } catch (error) {
       this.logger.error(
         'Error exchanging code for tokens:',
-        error.response?.data || error.message,
+        JSON.stringify({
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: error.response?.data,
+          message: error.message,
+        }),
       );
-      throw new BadRequestException('Failed to exchange authorization code');
+      throw new BadRequestException(
+        `Failed to exchange authorization code: ${
+          error.response?.data?.message || error.message
+        }`,
+      );
     }
   }
 
@@ -114,23 +139,39 @@ export class MercadoPagoOAuthService {
     authorizationCode: string,
     redirectUri: string,
   ): Promise<MercadoPagoAccount> {
+    this.logger.log(
+      `Starting OAuth account linking for user: ${userId}, redirectUri: ${redirectUri}`,
+    );
+
+    // Verificar configuración OAuth
+    if (!this.clientId || !this.clientSecret) {
+      throw new BadRequestException(
+        'OAuth not configured. Missing CLIENT_ID or CLIENT_SECRET',
+      );
+    }
+
     // Verificar si el usuario ya tiene una cuenta vinculada
     const existingAccount = await this.mpAccountRepository.findOne({
       where: { userId },
     });
 
     if (existingAccount && existingAccount.isActive) {
+      this.logger.warn(`User ${userId} already has a linked MP account`);
       throw new ConflictException(
         'User already has a linked Mercado Pago account',
       );
     }
 
     try {
+      this.logger.log(`Exchanging authorization code for user ${userId}`);
+
       // Intercambiar código por tokens
       const tokenData = await this.exchangeCodeForTokens(
         authorizationCode,
         redirectUri,
       );
+
+      this.logger.log(`Token exchange successful for user ${userId}`);
 
       // Obtener información del usuario de MP
       const userInfo = await this.getUserInfo(tokenData.access_token);
