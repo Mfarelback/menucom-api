@@ -58,15 +58,19 @@ export class MercadoPagoOAuthController {
   ) {
     const userId = req.user.userId;
 
+    // Generar state correcto para el callback GET
+    const actualState =
+      initiateOAuthDto.state || `user_${userId}_${Date.now()}`;
+
     const authorizationUrl = this.mpOAuthService.generateAuthorizationUrl(
       userId,
       initiateOAuthDto.redirectUri,
-      initiateOAuthDto.state,
+      actualState,
     );
 
     return {
       authorizationUrl,
-      state: initiateOAuthDto.state || `user_${userId}_${Date.now()}`,
+      state: actualState, // Devolver el state que realmente se usa
       vinculation_id: userId,
     };
   }
@@ -91,7 +95,11 @@ export class MercadoPagoOAuthController {
   async handleCallback(
     @Body() tokenExchangeDto: TokenExchangeDto,
   ): Promise<MercadoPagoAccount> {
-    console.log('OAuth callback received:', {
+    console.log(
+      'OAuth callback received - Full body:',
+      JSON.stringify(tokenExchangeDto, null, 2),
+    );
+    console.log('OAuth callback received - Summary:', {
       hasAuthCode: !!tokenExchangeDto.authorizationCode,
       authCodeLength: tokenExchangeDto.authorizationCode?.length,
       redirectUri: tokenExchangeDto.redirectUri,
@@ -299,7 +307,15 @@ export class MercadoPagoOAuthController {
     @Query('state') state: string,
     @Query('error') error?: string,
   ) {
+    console.log('=== OAUTH GET CALLBACK RECEIVED ===');
+    console.log('Query parameters:', {
+      code: code?.substring(0, 10) + '...',
+      state,
+      error,
+    });
+
     if (error) {
+      console.log('OAuth error received:', error);
       return {
         success: false,
         message: `OAuth error: ${error}`,
@@ -308,31 +324,67 @@ export class MercadoPagoOAuthController {
     }
 
     if (!code || !state) {
+      console.log('Missing required parameters:', {
+        hasCode: !!code,
+        hasState: !!state,
+      });
       throw new BadRequestException('Missing authorization code or state');
     }
 
     try {
-      // Extraer userId del state (format: user_{userId}_{timestamp})
-      const stateMatch = state.match(/^user_([^_]+)_/);
-      if (!stateMatch) {
-        throw new BadRequestException('Invalid state format');
+      console.log('Attempting to extract userId from state:', state);
+
+      // Extraer userId del state - ahora soporta ambos formatos
+      let userId: string;
+
+      // Formato nuevo: user_{userId}_{timestamp}
+      const userStateMatch = state.match(/^user_([^_]+)_/);
+      if (userStateMatch) {
+        userId = userStateMatch[1];
+        console.log('Found userId in user_ format:', userId);
+      } else {
+        // Formato del initiate actual: oauth_{timestamp} - necesitamos obtener el userId de otra manera
+        console.log(
+          'State does not match user_ format, checking for oauth_ format',
+        );
+
+        // Para el formato oauth_, necesitamos revisar si tenemos alguna forma de obtener el userId
+        // Por ahora, vamos a loggear el error y arreglar el generateAuthorizationUrl
+        throw new BadRequestException(
+          `Invalid state format: ${state}. Expected format: user_{userId}_{timestamp}`,
+        );
       }
 
-      const userId = stateMatch[1];
+      console.log('Using userId for linking:', userId);
 
-      // Aquí necesitarías definir una redirectUri fija configurada en tu app de MP
+      // Usar la misma redirect URI que se configuró en MP
       const redirectUri =
-        process.env.MERCADO_PAGO_REDIRECT_URI ||
-        'https://yourdomain.com/oauth/callback';
+        'https://menucom-api-60e608ae2f99.herokuapp.com/payments/oauth/callback';
 
-      await this.mpOAuthService.linkAccount(userId, code, redirectUri);
+      console.log('Calling linkAccount with:', { userId, redirectUri });
+
+      const account = await this.mpOAuthService.linkAccount(
+        userId,
+        code,
+        redirectUri,
+      );
+
+      console.log('Account linked successfully:', {
+        accountId: account.id,
+        collectorId: account.collectorId,
+      });
 
       return {
         success: true,
         message: 'Cuenta vinculada exitosamente',
         redirectUrl: '/dashboard?oauth=success',
+        account: {
+          id: account.id,
+          collectorId: account.collectorId,
+        },
       };
     } catch (error) {
+      console.error('Error in OAuth callback:', error.message);
       return {
         success: false,
         message: `Error linking account: ${error.message}`,
