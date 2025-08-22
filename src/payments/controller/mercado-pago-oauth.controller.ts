@@ -70,8 +70,7 @@ export class MercadoPagoOAuthController {
     };
   }
 
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
+  // @UseGuards(JwtAuthGuard)
   @Post('callback')
   @ApiOperation({
     summary: 'Manejar callback de autorización OAuth',
