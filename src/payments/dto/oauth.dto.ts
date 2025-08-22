@@ -49,4 +49,11 @@ export class TokenExchangeDto {
   })
   @IsUrl()
   redirectUri: string;
+
+  @ApiProperty({
+    description: 'ID de vinculación del usuario (recibido en initiateOAuth)',
+    example: 'user-uuid-123',
+  })
+  @IsString()
+  vinculation_id: string;
 }

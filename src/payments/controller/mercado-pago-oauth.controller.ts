@@ -67,6 +67,7 @@ export class MercadoPagoOAuthController {
     return {
       authorizationUrl,
       state: initiateOAuthDto.state || `user_${userId}_${Date.now()}`,
+      vinculation_id: userId,
     };
   }
 
@@ -88,10 +89,9 @@ export class MercadoPagoOAuthController {
     description: 'El usuario ya tiene una cuenta de Mercado Pago vinculada',
   })
   async handleCallback(
-    @Req() req: any,
     @Body() tokenExchangeDto: TokenExchangeDto,
   ): Promise<MercadoPagoAccount> {
-    const userId = req.user.userId;
+    const userId = tokenExchangeDto.vinculation_id;
 
     return await this.mpOAuthService.linkAccount(
       userId,

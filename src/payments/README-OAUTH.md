@@ -42,19 +42,20 @@ Content-Type: application/json
 ```json
 {
   "authorizationUrl": "https://auth.mercadopago.com/authorization?client_id=...",
-  "state": "user_123_1629123456789"
+  "state": "user_123_1629123456789",
+  "vinculation_id": "user-uuid-123"
 }
 ```
 
 ### 2. **Completar Vinculación**
 ```bash
 POST /payments/oauth/callback
-Authorization: Bearer {JWT_TOKEN}
 Content-Type: application/json
 
 {
   "authorizationCode": "AUTH_CODE_FROM_MP",
-  "redirectUri": "https://tuapp.com/oauth/callback"
+  "redirectUri": "https://tuapp.com/oauth/callback",
+  "vinculation_id": "user-uuid-123"
 }
 ```
 
@@ -111,32 +112,37 @@ const initiateResponse = await fetch('/api/payments/oauth/initiate', {
   })
 });
 
-const { authorizationUrl } = await initiateResponse.json();
+const { authorizationUrl, vinculation_id } = await initiateResponse.json();
 
-// 2. Redirigir al usuario a MP
+// 2. Guardar vinculation_id para usar en el callback
+localStorage.setItem('oauth_vinculation_id', vinculation_id);
+
+// 3. Redirigir al usuario a MP
 window.location.href = authorizationUrl;
 
-// 3. En tu callback page (después de que MP redirija de vuelta)
+// 4. En tu callback page (después de que MP redirija de vuelta)
 const urlParams = new URLSearchParams(window.location.search);
 const code = urlParams.get('code');
 const state = urlParams.get('state');
+const vinculationId = localStorage.getItem('oauth_vinculation_id');
 
-if (code) {
-  // 4. Completar vinculación
+if (code && vinculationId) {
+  // 5. Completar vinculación (SIN JWT en este endpoint)
   const linkResponse = await fetch('/api/payments/oauth/callback', {
     method: 'POST',
     headers: {
-      'Authorization': `Bearer ${userToken}`,
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
       authorizationCode: code,
-      redirectUri: 'https://tuapp.com/oauth/callback'
+      redirectUri: 'https://tuapp.com/oauth/callback',
+      vinculation_id: vinculationId
     })
   });
   
   if (linkResponse.ok) {
     console.log('¡Cuenta vinculada exitosamente!');
+    localStorage.removeItem('oauth_vinculation_id');
     // Redirigir al dashboard o mostrar confirmación
   }
 }
@@ -258,14 +264,14 @@ curl -X POST "http://localhost:3001/payments/oauth/initiate" \
 
 # 2. Copiar authorizationUrl y abrir en browser
 # 3. Autorizar en MP y copiar el código del callback
-# 4. Completar vinculación
+# 4. Completar vinculación (SIN JWT en este endpoint)
 
 curl -X POST "http://localhost:3001/payments/oauth/callback" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
     "authorizationCode": "CODIGO_DEL_CALLBACK",
-    "redirectUri": "http://localhost:3000/oauth/callback"
+    "redirectUri": "http://localhost:3000/oauth/callback",
+    "vinculation_id": "USER_UUID_FROM_INITIATE"
   }'
 ```
 
