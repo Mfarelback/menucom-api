@@ -8,6 +8,7 @@ import { PaymentsService } from 'src/payments/services/payments.service';
 import { UserService } from 'src/user/user.service';
 import { Menu } from 'src/menu/entities/menu.entity';
 import { Wardrobes } from 'src/wardrobes/entities/wardrobes.entity';
+import { AppConfigService } from 'src/app-data';
 
 @Injectable()
 export class OrdersService {
@@ -22,6 +23,7 @@ export class OrdersService {
     private readonly wardrobesRepository: Repository<Wardrobes>,
     private paymentService: PaymentsService,
     private userService: UserService,
+    private readonly appConfig: AppConfigService,
   ) {}
 
   /**
@@ -60,6 +62,9 @@ export class OrdersService {
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
     try {
+      // Verificar configuraciones del sistema antes de procesar la orden
+      await this.checkOrderingConfig();
+
       // Asignar datos falsos si no se proveen y corregir si el email es un teléfono
       const fakeEmail = 'anon@fake.com';
       const fakePhone = '0000000000';
@@ -80,6 +85,9 @@ export class OrdersService {
       if (!ownerId) {
         ownerId = await this.determineOwnerId(items);
       }
+
+      // Validar límites de orden según configuración
+      await this.validateOrderLimits(items);
 
       const orderData = {
         ...rest,
@@ -288,5 +296,136 @@ export class OrdersService {
     } catch (error) {
       throw new Error(`Error finding order by operation ID: ${error.message}`);
     }
+  }
+
+  /**
+   * Ejemplo: Verificar configuraciones del sistema antes de procesar órdenes
+   */
+  private async checkOrderingConfig(): Promise<void> {
+    // Verificar si el sistema de órdenes está habilitado
+    const orderingEnabled = await this.appConfig.getBoolean(
+      'ordering_enabled',
+      true,
+    );
+
+    if (!orderingEnabled) {
+      const maintenanceMessage = await this.appConfig.getString(
+        'ordering_disabled_message',
+        'El sistema de órdenes está temporalmente deshabilitado',
+      );
+      throw new Error(maintenanceMessage);
+    }
+
+    //verifica el percentage_fee
+    const percentageFee = await this.appConfig.getNumber('percentage_fee', 0);
+    if (percentageFee < 0 || percentageFee > 100) {
+      throw new Error(`El porcentaje de comisión debe estar entre 0 y 100`);
+    }
+
+    // Verificar modo de mantenimiento
+    const maintenanceMode = await this.appConfig.getBoolean(
+      'maintenance_mode',
+      false,
+    );
+
+    if (maintenanceMode) {
+      const maintenanceMessage = await this.appConfig.getString(
+        'maintenance_message',
+        'Sistema en mantenimiento. Inténtalo más tarde.',
+      );
+      throw new Error(maintenanceMessage);
+    }
+  }
+
+  /**
+   * Ejemplo: Validar límites de orden según configuración
+   */
+  private async validateOrderLimits(
+    items: CreateOrderDto['items'],
+  ): Promise<void> {
+    // Obtener límites configurables
+    const maxItemsPerOrder = await this.appConfig.getNumber(
+      'max_items_per_order',
+      10,
+    );
+    const maxOrderValue = await this.appConfig.getNumber(
+      'max_order_value',
+      1000,
+    );
+    const minOrderValue = await this.appConfig.getNumber('min_order_value', 5);
+
+    // Validar número de items
+    if (items.length > maxItemsPerOrder) {
+      throw new Error(
+        `La orden no puede tener más de ${maxItemsPerOrder} items`,
+      );
+    }
+
+    // Calcular valor total de items
+    const totalValue = items.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0,
+    );
+
+    // Validar valor mínimo
+    if (totalValue < minOrderValue) {
+      throw new Error(`El valor mínimo de orden es $${minOrderValue}`);
+    }
+
+    // Validar valor máximo
+    if (totalValue > maxOrderValue) {
+      throw new Error(`El valor máximo de orden es $${maxOrderValue}`);
+    }
+
+    // Verificar si ciertos tipos de items están permitidos
+    const allowWardobeItems = await this.appConfig.getBoolean(
+      'allow_wardrobe_items',
+      true,
+    );
+    const allowMenuItems = await this.appConfig.getBoolean(
+      'allow_menu_items',
+      true,
+    );
+
+    for (const item of items) {
+      if (item.sourceType === 'wardrobe' && !allowWardobeItems) {
+        throw new Error(
+          'Los items de guardarropa están temporalmente deshabilitados',
+        );
+      }
+
+      if (item.sourceType === 'menu' && !allowMenuItems) {
+        throw new Error('Los items de menú están temporalmente deshabilitados');
+      }
+    }
+  }
+
+  /**
+   * Ejemplo: Obtener configuraciones de notificación
+   */
+  async getNotificationSettings(): Promise<any> {
+    return await this.appConfig.getObject('notification_settings', {
+      email_enabled: true,
+      sms_enabled: false,
+      push_enabled: true,
+      order_confirmation: true,
+      payment_confirmation: true,
+      order_ready: true,
+    });
+  }
+
+  /**
+   * Ejemplo: Obtener configuraciones de horario de servicio
+   */
+  async getServiceHours(): Promise<any> {
+    return await this.appConfig.getObject('service_hours', {
+      monday: { open: '08:00', close: '22:00', enabled: true },
+      tuesday: { open: '08:00', close: '22:00', enabled: true },
+      wednesday: { open: '08:00', close: '22:00', enabled: true },
+      thursday: { open: '08:00', close: '22:00', enabled: true },
+      friday: { open: '08:00', close: '22:00', enabled: true },
+      saturday: { open: '10:00', close: '20:00', enabled: true },
+      sunday: { open: '10:00', close: '18:00', enabled: false },
+    });
   }
 }

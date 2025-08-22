@@ -12,6 +12,7 @@ import { WardrobesModule } from './wardrobes/wardrobes.module';
 import { OrdersModule } from './orders/orders.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ImageProxyModule } from './image-proxy/image-proxy.module';
+import { AppDataModule } from './app-data/app-data.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ImageProxyModule } from './image-proxy/image-proxy.module';
     WardrobesModule,
     OrdersModule,
     PaymentsModule,
+    AppDataModule,
   ],
   providers: [PaymentsGateway],
 })
