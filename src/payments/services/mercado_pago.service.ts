@@ -294,6 +294,106 @@ export class MercadopagoService {
   }
 
   /**
+   * Crea una preferencia con access token específico (para vendedores con cuentas vinculadas)
+   * @param options Opciones para crear la preferencia
+   * @param accessToken Access token específico del vendedor
+   * @returns ID de la preferencia creada
+   */
+  async createPreferenceWithCustomToken(
+    options: CreatePreferenceOptions,
+    accessToken: string,
+  ): Promise<PreferenceResponse> {
+    try {
+      this.logger.log(
+        `Creating preference with custom access token for collector_id: ${options.collector_id}`,
+      );
+
+      // Crear un cliente temporal con el access token específico
+      const customClient = new MercadoPago.MercadoPagoConfig({
+        accessToken: accessToken,
+        options: {
+          // Mantener las mismas opciones que el cliente principal
+        },
+      });
+
+      // Validar las opciones
+      MercadoPagoHelpers.validateCreatePreferenceOptions(options);
+
+      // Generar IDs únicos para items que no los tengan
+      const itemsWithIds = MercadoPagoHelpers.ensureItemsHaveIds(options.items);
+      const defaultCategory = process.env.MP_ITEM_CATEGORY_ID || 'services';
+      const itemsFinal = itemsWithIds.map((item) => ({
+        ...item,
+        category_id: item.category_id ?? (defaultCategory as any),
+      }));
+
+      // Configurar URLs de retorno por defecto si no se proporcionan
+      const backUrls = MercadoPagoHelpers.buildBackUrls(options.back_urls);
+
+      // Sanitizar payer y completar con datos por defecto si faltan
+      let payer = MercadoPagoHelpers.sanitizePayer(options.payer);
+      if (
+        !payer ||
+        (typeof payer === 'object' && Object.keys(payer).length === 0)
+      ) {
+        payer = {
+          email: process.env.MP_TEST_PAYER_EMAIL || 'test_user@test.com',
+          first_name: process.env.MP_TEST_PAYER_FIRST_NAME || 'Test',
+          last_name: process.env.MP_TEST_PAYER_LAST_NAME || 'User',
+        } as MercadoPagoPayer;
+      }
+
+      const preferenceBody: any = {
+        items: itemsFinal,
+        external_reference: options.external_reference,
+        payer,
+        ...(backUrls && { back_urls: backUrls }),
+        ...(options.notification_url && {
+          notification_url: options.notification_url,
+        }),
+        auto_return: 'approved',
+        ...(options.collector_id && {
+          collector_id: options.collector_id,
+        }),
+      };
+
+      // Sanitizar el payload
+      const sanitizedPreferenceBody = MercadoPagoHelpers.removeEmptyDeep(
+        preferenceBody,
+        ['items', 'external_reference'],
+      );
+
+      this.logger.debug(
+        'Creating preference with custom token and body:',
+        JSON.stringify(sanitizedPreferenceBody, null, 2),
+      );
+
+      // Crear preferencia usando el cliente personalizado
+      const preference = new MercadoPago.Preference(customClient);
+      const result = await preference.create({ body: sanitizedPreferenceBody });
+
+      if (!result.id) {
+        throw new InternalServerErrorException(
+          'No se pudo obtener el ID de la preferencia creada',
+        );
+      }
+
+      this.logger.log(
+        `Preference created successfully with custom token, ID: ${result.id}`,
+      );
+      return result;
+    } catch (error) {
+      this.logger.error('Error creating preference with custom token:', error);
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      throw new InternalServerErrorException(
+        `Error creando preferencia con token personalizado: ${error.message || error}`,
+      );
+    }
+  }
+
+  /**
    * Busca pagos por diferentes criterios
    * @param searchOptions Opciones de búsqueda
    * @returns Resultados de la búsqueda

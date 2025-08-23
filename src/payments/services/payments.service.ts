@@ -59,15 +59,20 @@ export class PaymentsService {
       ];
 
       // Buscar collector_id si se proporciona ownerId
-      let collectorId: number | null = null;
+      let accountData: {
+        collectorId: number;
+        accessToken: string;
+      } | null = null;
       if (ownerId) {
         try {
-          collectorId =
-            await this.mercadoPagoOAuthService.getCollectorIdByUserId(ownerId);
+          accountData =
+            await this.mercadoPagoOAuthService.getAccountDataForPreference(
+              ownerId,
+            );
         } catch (error) {
           // Log el error pero continúa sin collector_id para compatibilidad
           console.warn(
-            `Could not get collector_id for owner ${ownerId}:`,
+            `Could not get account data for owner ${ownerId}:`,
             error.message,
           );
         }
@@ -75,16 +80,20 @@ export class PaymentsService {
 
       // Crear la preferencia con o sin collector_id
       let paymentMpID;
-      if (collectorId) {
+      if (accountData) {
         console.log(
-          `Creating preference with collector_id: ${collectorId} for owner: ${ownerId}`,
+          `Creating preference with collector_id: ${accountData.collectorId} for owner: ${ownerId}`,
         );
-        // Usar createPreference con collector_id para pagos con vendedor específico
-        paymentMpID = await this.mercadoPagoService.createPreference({
-          items,
-          external_reference: paymentCreated.id,
-          collector_id: collectorId,
-        });
+        // Usar createPreferenceWithCustomToken para pagos con vendedor específico
+        paymentMpID =
+          await this.mercadoPagoService.createPreferenceWithCustomToken(
+            {
+              items,
+              external_reference: paymentCreated.id,
+              collector_id: accountData.collectorId,
+            },
+            accountData.accessToken,
+          );
       } else {
         console.log(
           `Creating preference without collector_id for owner: ${ownerId || 'no owner'}`,
@@ -93,6 +102,7 @@ export class PaymentsService {
         paymentMpID = await this.mercadoPagoService.createSimplePreference(
           paymentCreated.id,
           items,
+          // payer,
         );
       }
 

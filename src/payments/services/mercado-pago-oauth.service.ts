@@ -379,4 +379,42 @@ export class MercadoPagoOAuthService {
       throw new BadRequestException('Error getting collector ID');
     }
   }
+
+  /**
+   * Obtiene los datos completos de la cuenta para crear preferencias
+   * @param userId ID del usuario
+   * @returns Datos de la cuenta o null si no existe
+   */
+  async getAccountDataForPreference(userId: string): Promise<{
+    collectorId: number;
+    accessToken: string;
+  } | null> {
+    try {
+      const account = await this.mpAccountRepository.findOne({
+        where: { userId, isActive: true },
+      });
+
+      if (!account) {
+        this.logger.warn(
+          `No active MercadoPago account found for user ${userId}`,
+        );
+        return null;
+      }
+
+      this.logger.log(
+        `Found account data for user ${userId}: collector_id=${account.collectorId}`,
+      );
+
+      return {
+        collectorId: parseInt(account.collectorId, 10),
+        accessToken: account.accessToken,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Error getting account data for user ${userId}:`,
+        error,
+      );
+      throw new BadRequestException('Error getting account data');
+    }
+  }
 }
