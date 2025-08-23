@@ -350,10 +350,7 @@ export class OrdersService {
       'max_items_per_order',
       10,
     );
-    const maxOrderValue = await this.appConfig.getNumber(
-      'max_order_value',
-      1000,
-    );
+
     const minOrderValue = await this.appConfig.getNumber('min_order_value', 5);
 
     // Validar número de items
@@ -372,11 +369,6 @@ export class OrdersService {
     // Validar valor mínimo
     if (totalValue < minOrderValue) {
       throw new Error(`El valor mínimo de orden es $${minOrderValue}`);
-    }
-
-    // Validar valor máximo
-    if (totalValue > maxOrderValue) {
-      throw new Error(`El valor máximo de orden es $${maxOrderValue}`);
     }
 
     // Verificar si ciertos tipos de items están permitidos
