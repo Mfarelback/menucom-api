@@ -56,7 +56,7 @@ export interface CreatePreferenceOptions {
   expiration_date_from?: string;
   expiration_date_to?: string;
   statement_descriptor?: string;
-  collector_id?: string; // ID del collector para pagos con vendedor específico
+  collector_id?: number; // ID del collector para pagos con vendedor específico
 }
 
 export interface PaymentSearchOptions {

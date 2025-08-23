@@ -351,9 +351,9 @@ export class MercadoPagoOAuthService {
   /**
    * Obtiene el collector_id de la cuenta de MercadoPago vinculada para un usuario
    * @param userId ID del usuario
-   * @returns collector_id o null si no tiene cuenta vinculada
+   * @returns collector_id como número o null si no tiene cuenta vinculada
    */
-  async getCollectorIdByUserId(userId: string): Promise<string | null> {
+  async getCollectorIdByUserId(userId: string): Promise<number | null> {
     try {
       const account = await this.mpAccountRepository.findOne({
         where: { userId, isActive: true },
@@ -369,7 +369,8 @@ export class MercadoPagoOAuthService {
       this.logger.log(
         `Found collector_id ${account.collectorId} for user ${userId}`,
       );
-      return account.collectorId;
+      // Convertir a número ya que MercadoPago lo espera como number
+      return parseInt(account.collectorId, 10);
     } catch (error) {
       this.logger.error(
         `Error getting collector_id for user ${userId}:`,

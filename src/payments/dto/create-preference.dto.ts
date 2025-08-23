@@ -213,6 +213,6 @@ export class CreatePreferenceDto {
     description: 'ID del collector para pagos con vendedor específico',
   })
   @IsOptional()
-  @IsString()
-  collector_id?: string;
+  @IsNumber()
+  collector_id?: number;
 }

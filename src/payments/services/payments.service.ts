@@ -59,7 +59,7 @@ export class PaymentsService {
       ];
 
       // Buscar collector_id si se proporciona ownerId
-      let collectorId: string | null = null;
+      let collectorId: number | null = null;
       if (ownerId) {
         try {
           collectorId =
