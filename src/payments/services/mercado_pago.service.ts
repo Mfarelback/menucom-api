@@ -1,3 +1,4 @@
+/* eslint-disable prettier/prettier */
 import {
   Inject,
   Injectable,
@@ -137,26 +138,23 @@ export class MercadopagoService {
       // Asegurar auto_return siempre en 'approved'
       const autoReturn = 'approved';
 
-      // Sanitizar payer y completar con datos por defecto si faltan.
-      // Nota: Según doc de MP, email es obligatorio y se recomienda DNI + nombre/apellido para mejorar scoring.
+      // Sanitizar payer - en producción no incluir datos de prueba por defecto
+      // Solo usar payer si viene proporcionado desde el request
       let payer = MercadoPagoHelpers.sanitizePayer(options.payer);
-      // Si no llega payer o llega vacío, usamos uno por defecto para sandbox/tests
-      if (
-        !payer ||
-        (typeof payer === 'object' && Object.keys(payer).length === 0)
-      ) {
-        payer = {
-          email: process.env.MP_TEST_PAYER_EMAIL || 'test_user@test.com',
-          first_name: process.env.MP_TEST_PAYER_FIRST_NAME || 'Test',
-          last_name: process.env.MP_TEST_PAYER_LAST_NAME || 'User',
-        } as MercadoPagoPayer;
+      
+      // Solo en desarrollo/testing, si no hay payer, crear uno mínimo para evitar errores de MP
+      if (MercadoPagoHelpers.shouldAddMinimalPayerForDev(payer)) {
+        this.logger.warn(
+          'No payer provided in development environment, using minimal test payer',
+        );
+        payer = MercadoPagoHelpers.createMinimalDevPayer();
       }
 
       const preferenceBody: any = {
         items: itemsFinal,
         external_reference: options.external_reference,
-        // Siempre enviamos payer válido; si no vienen datos, usamos default de sandbox.
-        payer,
+        // Solo incluir payer si está disponible
+        ...(payer && { payer }),
         ...(backUrls && { back_urls: backUrls }),
         ...(options.notification_url && {
           notification_url: options.notification_url,
@@ -177,6 +175,8 @@ export class MercadopagoService {
         ...(options.collector_id && {
           collector_id: options.collector_id,
         }),
+        // Incluir metadata para trazabilidad
+        ...(options.metadata && { metadata: options.metadata }),
         // Si binary_mode fue provisto en options, lo propagamos
         ...((options as any).binary_mode !== undefined && {
           binary_mode: (options as any).binary_mode,
@@ -330,23 +330,23 @@ export class MercadopagoService {
       // Configurar URLs de retorno por defecto si no se proporcionan
       const backUrls = MercadoPagoHelpers.buildBackUrls(options.back_urls);
 
-      // Sanitizar payer y completar con datos por defecto si faltan
+      // Sanitizar payer - en producción no incluir datos de prueba por defecto
+      // Solo usar payer si viene proporcionado desde el request
       let payer = MercadoPagoHelpers.sanitizePayer(options.payer);
-      if (
-        !payer ||
-        (typeof payer === 'object' && Object.keys(payer).length === 0)
-      ) {
-        payer = {
-          email: process.env.MP_TEST_PAYER_EMAIL || 'test_user@test.com',
-          first_name: process.env.MP_TEST_PAYER_FIRST_NAME || 'Test',
-          last_name: process.env.MP_TEST_PAYER_LAST_NAME || 'User',
-        } as MercadoPagoPayer;
+      
+      // Solo en desarrollo/testing, si no hay payer, crear uno mínimo para evitar errores de MP
+      if (MercadoPagoHelpers.shouldAddMinimalPayerForDev(payer)) {
+        this.logger.warn(
+          'No payer provided in development environment, using minimal test payer',
+        );
+        payer = MercadoPagoHelpers.createMinimalDevPayer();
       }
 
       const preferenceBody: any = {
         items: itemsFinal,
         external_reference: options.external_reference,
-        payer,
+        // Solo incluir payer si está disponible
+        ...(payer && { payer }),
         ...(backUrls && { back_urls: backUrls }),
         ...(options.notification_url && {
           notification_url: options.notification_url,
@@ -355,6 +355,8 @@ export class MercadopagoService {
         ...(options.collector_id && {
           collector_id: options.collector_id,
         }),
+        // Incluir metadata para trazabilidad
+        ...(options.metadata && { metadata: options.metadata }),
       };
 
       // Sanitizar el payload

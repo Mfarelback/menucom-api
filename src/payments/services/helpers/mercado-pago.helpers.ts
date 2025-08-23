@@ -237,4 +237,30 @@ export class MercadoPagoHelpers {
     }
     return cleaned as T;
   }
+
+  /**
+   * Valida si es necesario agregar datos mínimos de payer en ambientes de desarrollo
+   * para evitar errores en MercadoPago cuando no se proporciona información de pagador
+   */
+  static shouldAddMinimalPayerForDev(
+    payer?: MercadoPagoPayer,
+    environment?: string,
+  ): boolean {
+    const env = environment || process.env.NODE_ENV || 'development';
+    const isDev = env === 'development' || env === 'test';
+    const hasNoPayer = !payer || Object.keys(payer).length === 0;
+
+    return isDev && hasNoPayer;
+  }
+
+  /**
+   * Crea un payer mínimo para desarrollo/testing
+   */
+  static createMinimalDevPayer(): MercadoPagoPayer {
+    return {
+      email: process.env.MP_TEST_PAYER_EMAIL || 'test_user@test.com',
+      first_name: process.env.MP_TEST_PAYER_FIRST_NAME || 'Test',
+      last_name: process.env.MP_TEST_PAYER_LAST_NAME || 'User',
+    };
+  }
 }

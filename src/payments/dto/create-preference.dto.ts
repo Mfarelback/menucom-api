@@ -8,6 +8,7 @@ import {
   ValidateNested,
   Min,
   IsEnum,
+  IsObject,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -215,4 +216,12 @@ export class CreatePreferenceDto {
   @IsOptional()
   @IsNumber()
   collector_id?: number;
+
+  @ApiPropertyOptional({
+    description: 'Metadata adicional para trazabilidad',
+    type: 'object',
+  })
+  @IsOptional()
+  @IsObject()
+  metadata?: { [key: string]: any };
 }

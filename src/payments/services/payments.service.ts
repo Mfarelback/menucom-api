@@ -31,6 +31,8 @@ export class PaymentsService {
     amount: number,
     description?: string,
     ownerId?: string,
+    anonymousId?: string,
+    orderId?: string,
   ): Promise<PaymentIntent> {
     try {
       if (!phone || !amount) {
@@ -78,6 +80,16 @@ export class PaymentsService {
         }
       }
 
+      // Crear metadata para trazabilidad
+      const metadata: { [key: string]: any } = {
+        payment_id: paymentCreated.id,
+        ...(orderId && { order_id: orderId }),
+        ...(ownerId && { owner_id: ownerId }),
+        ...(anonymousId && { anonymous_id: anonymousId }),
+        created_at: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development',
+      };
+
       // Crear la preferencia con o sin collector_id
       let paymentMpID;
       if (accountData) {
@@ -91,6 +103,7 @@ export class PaymentsService {
               items,
               external_reference: paymentCreated.id,
               collector_id: accountData.collectorId,
+              metadata,
             },
             accountData.accessToken,
           );
@@ -98,12 +111,12 @@ export class PaymentsService {
         console.log(
           `Creating preference without collector_id for owner: ${ownerId || 'no owner'}`,
         );
-        // Usar createSimplePreference para pagos normales (sin vendedor específico)
-        paymentMpID = await this.mercadoPagoService.createSimplePreference(
-          paymentCreated.id,
+        // Usar createPreference para pagos normales con metadata incluida
+        paymentMpID = await this.mercadoPagoService.createPreference({
           items,
-          // payer,
-        );
+          external_reference: paymentCreated.id,
+          metadata,
+        });
       }
 
       paymentCreated.transaction_id = paymentMpID.id;

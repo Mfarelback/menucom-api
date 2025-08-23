@@ -99,22 +99,27 @@ export class OrdersService {
       // Crear instancia de Order (TypeORM generará automáticamente el ID)
       const order = this.orderRepository.create(orderData);
 
-      // Crear el pago y obtener el intent
+      // Guardar la orden primero para obtener el ID
+      const savedOrder = await this.orderRepository.save(order);
+
+      // Crear el pago y obtener el intent (ahora con el orderId disponible)
       const paymentIntent = await this.paymentService.createPayment(
         orderData.customerEmail,
         orderData.total,
         undefined, // description
         orderData.ownerId, // ownerId para buscar collector_id
+        orderData.createdBy, // anonymousId para trazabilidad
+        savedOrder.id, // orderId para trazabilidad
       );
-      order.operationID = paymentIntent.id; // Asignar el ID del pago a la orden
+      savedOrder.operationID = paymentIntent.id; // Asignar el ID del pago a la orden
 
       // Generar la URL de checkout de Mercado Pago usando el transaction_id
       if (paymentIntent.transaction_id) {
-        order.paymentUrl = paymentIntent.init_point;
+        savedOrder.paymentUrl = paymentIntent.init_point;
       }
 
-      // Guardar la orden primero para obtener el ID
-      const savedOrder = await this.orderRepository.save(order);
+      // Actualizar la orden con los datos del pago
+      await this.orderRepository.save(savedOrder);
 
       // Crear y guardar los ítems asociados a la orden
       const orderItems = items.map((itemDto) =>

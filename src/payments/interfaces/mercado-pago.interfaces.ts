@@ -57,6 +57,7 @@ export interface CreatePreferenceOptions {
   expiration_date_to?: string;
   statement_descriptor?: string;
   collector_id?: number; // ID del collector para pagos con vendedor específico
+  metadata?: { [key: string]: any }; // Metadata para trazabilidad
 }
 
 export interface PaymentSearchOptions {
