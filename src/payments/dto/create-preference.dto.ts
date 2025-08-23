@@ -208,4 +208,11 @@ export class CreatePreferenceDto {
   @IsOptional()
   @IsString()
   statement_descriptor?: string;
+
+  @ApiPropertyOptional({
+    description: 'ID del collector para pagos con vendedor específico',
+  })
+  @IsOptional()
+  @IsString()
+  collector_id?: string;
 }

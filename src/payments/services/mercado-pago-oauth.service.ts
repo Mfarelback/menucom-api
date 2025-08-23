@@ -347,4 +347,35 @@ export class MercadoPagoOAuthService {
 
     return account.accessToken;
   }
+
+  /**
+   * Obtiene el collector_id de la cuenta de MercadoPago vinculada para un usuario
+   * @param userId ID del usuario
+   * @returns collector_id o null si no tiene cuenta vinculada
+   */
+  async getCollectorIdByUserId(userId: string): Promise<string | null> {
+    try {
+      const account = await this.mpAccountRepository.findOne({
+        where: { userId, isActive: true },
+      });
+
+      if (!account) {
+        this.logger.warn(
+          `No active MercadoPago account found for user ${userId}`,
+        );
+        return null;
+      }
+
+      this.logger.log(
+        `Found collector_id ${account.collectorId} for user ${userId}`,
+      );
+      return account.collectorId;
+    } catch (error) {
+      this.logger.error(
+        `Error getting collector_id for user ${userId}:`,
+        error,
+      );
+      throw new BadRequestException('Error getting collector ID');
+    }
+  }
 }

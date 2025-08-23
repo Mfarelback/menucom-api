@@ -103,6 +103,8 @@ export class OrdersService {
       const paymentIntent = await this.paymentService.createPayment(
         orderData.customerEmail,
         orderData.total,
+        undefined, // description
+        orderData.ownerId, // ownerId para buscar collector_id
       );
       order.operationID = paymentIntent.id; // Asignar el ID del pago a la orden
 

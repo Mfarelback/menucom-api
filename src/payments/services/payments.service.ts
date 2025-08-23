@@ -6,6 +6,7 @@ import {
   forwardRef,
 } from '@nestjs/common';
 import { MercadopagoService } from './mercado_pago.service';
+import { MercadoPagoOAuthService } from './mercado-pago-oauth.service';
 import { PaymentsRepository } from '../repository/payment_repository';
 import { PaymentIntent } from '../entities/payment_intent_entity';
 import { v4 as uuidv4 } from 'uuid';
@@ -19,6 +20,7 @@ import { OrdersService } from 'src/orders/services/orders.service';
 export class PaymentsService {
   constructor(
     private readonly mercadoPagoService: MercadopagoService,
+    private readonly mercadoPagoOAuthService: MercadoPagoOAuthService,
     private readonly paymentIntentRepository: PaymentsRepository,
     @Inject(forwardRef(() => OrdersService))
     private readonly ordersService: OrdersService,
@@ -28,6 +30,7 @@ export class PaymentsService {
     phone: string,
     amount: number,
     description?: string,
+    ownerId?: string,
   ): Promise<PaymentIntent> {
     try {
       if (!phone || !amount) {
@@ -55,11 +58,44 @@ export class PaymentsService {
         },
       ];
 
-      const paymentMpID = await this.mercadoPagoService.createSimplePreference(
-        paymentCreated.id,
-        items,
-        // payer,
-      );
+      // Buscar collector_id si se proporciona ownerId
+      let collectorId: string | null = null;
+      if (ownerId) {
+        try {
+          collectorId =
+            await this.mercadoPagoOAuthService.getCollectorIdByUserId(ownerId);
+        } catch (error) {
+          // Log el error pero continúa sin collector_id para compatibilidad
+          console.warn(
+            `Could not get collector_id for owner ${ownerId}:`,
+            error.message,
+          );
+        }
+      }
+
+      // Crear la preferencia con o sin collector_id
+      let paymentMpID;
+      if (collectorId) {
+        console.log(
+          `Creating preference with collector_id: ${collectorId} for owner: ${ownerId}`,
+        );
+        // Usar createPreference con collector_id para pagos con vendedor específico
+        paymentMpID = await this.mercadoPagoService.createPreference({
+          items,
+          external_reference: paymentCreated.id,
+          collector_id: collectorId,
+        });
+      } else {
+        console.log(
+          `Creating preference without collector_id for owner: ${ownerId || 'no owner'}`,
+        );
+        // Usar createSimplePreference para pagos normales (sin vendedor específico)
+        paymentMpID = await this.mercadoPagoService.createSimplePreference(
+          paymentCreated.id,
+          items,
+        );
+      }
+
       paymentCreated.transaction_id = paymentMpID.id;
       paymentCreated.init_point =
         process.env.ENV === 'qa'
@@ -68,6 +104,8 @@ export class PaymentsService {
 
       const payment =
         await this.paymentIntentRepository.createPayment(paymentCreated);
+
+      return payment;
 
       return payment;
     } catch (error) {

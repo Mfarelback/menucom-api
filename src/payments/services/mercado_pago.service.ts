@@ -174,6 +174,9 @@ export class MercadopagoService {
         ...(options.statement_descriptor && {
           statement_descriptor: options.statement_descriptor,
         }),
+        ...(options.collector_id && {
+          collector_id: options.collector_id,
+        }),
         // Si binary_mode fue provisto en options, lo propagamos
         ...((options as any).binary_mode !== undefined && {
           binary_mode: (options as any).binary_mode,
