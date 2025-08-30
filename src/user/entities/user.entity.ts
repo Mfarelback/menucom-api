@@ -5,7 +5,9 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   PrimaryColumn,
+  OneToOne,
 } from 'typeorm';
+import { Membership } from '../../membership/entities/membership.entity';
 
 @Entity()
 export class User {
@@ -33,6 +35,9 @@ export class User {
 
   @Column({ type: 'varchar', length: 100 })
   role: string;
+
+  @OneToOne(() => Membership, (membership) => membership.user)
+  membership: Membership;
 
   @CreateDateColumn({
     type: 'timestamp',
