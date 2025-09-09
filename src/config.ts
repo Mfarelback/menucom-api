@@ -15,6 +15,12 @@ export default registerAs('config', () => {
     },
     jwtsecret: process.env.JWT_SECRET,
     env: process.env.ENV,
+    // Configuración de Firebase
+    firebase: {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    },
   };
 });
 

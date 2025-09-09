@@ -69,7 +69,7 @@ export class MenuAdvancedController {
   @UseGuards(JwtAuthGuard) // Only JWT guard, we'll check limits manually
   async createBulkMenuItems(@Req() req: Request, @Body() items: any[]) {
     const userId = req['user']['userId'];
-    
+
     // Check if user can add this many items
     const canAdd = await this.membershipProvider.checkResourceLimit(
       userId,
@@ -97,7 +97,7 @@ export class MenuAdvancedController {
   async getUserLimits(@Req() req: Request) {
     const userId = req['user']['userId'];
     const status = await this.membershipProvider.getMembershipStatus(userId);
-    
+
     return {
       plan: status.plan,
       features: status.features,
@@ -118,9 +118,9 @@ export class MenuAdvancedController {
   async getUpgradeSuggestions(@Req() req: Request) {
     const userId = req['user']['userId'];
     const status = await this.membershipProvider.getMembershipStatus(userId);
-    
+
     const suggestions = [];
-    
+
     if (
       !(await this.membershipProvider.checkFeatureAccess(
         userId,
@@ -133,7 +133,7 @@ export class MenuAdvancedController {
         requiredPlan: 'premium',
       });
     }
-    
+
     if (
       !(await this.membershipProvider.checkFeatureAccess(
         userId,

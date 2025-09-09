@@ -46,6 +46,11 @@ lerna-debug.log*
 .env.local
 .env.*.local
 
+# Firebase configuration files (NEVER commit these!)
+menucom-gconfig.json
+firebase-adminsdk-*.json
+*-firebase-key.json
+deportivo-key.json
 
 # temp directory
 .temp
