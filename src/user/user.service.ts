@@ -393,6 +393,52 @@ export class UserService {
     }
   }
 
+  /**
+   * Obtiene usuarios filtrados por roles y opcionalmente por vinculación con MercadoPago
+   * @param roles - Array de roles para filtrar
+   * @param withVinculedAccount - Si es true, solo usuarios con cuenta MP vinculada
+   * @returns Lista de usuarios filtrados
+   */
+  async getUsersByRoles(
+    roles: string[],
+    withVinculedAccount: boolean = false,
+  ): Promise<User[]> {
+    try {
+      const queryBuilder = this.userRepo
+        .createQueryBuilder('user')
+        .leftJoinAndSelect('user.membership', 'membership')
+        .where('user.role IN (:...roles)', { roles });
+
+      if (withVinculedAccount) {
+        // Solo usuarios con paymentId o subscriptionId en su membership
+        queryBuilder.andWhere(
+          '(membership.paymentId IS NOT NULL OR membership.subscriptionId IS NOT NULL)',
+        );
+      }
+
+      const users = await queryBuilder.getMany();
+
+      // Transformar URLs y excluir passwords
+      return users.map((user) => {
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { password, ...userWithoutPassword } = user;
+        return this.urlTransformService.transformDataUrls(
+          userWithoutPassword,
+        ) as User;
+      });
+    } catch (error) {
+      console.error('❌ [USER SERVICE] Error en getUsersByRoles:', {
+        message: error.message,
+        roles,
+        withVinculedAccount,
+      });
+      throw new HttpException(
+        'Error al obtener usuarios por roles: ' + error.message,
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   generateRandomFourDigitNumber(): number {
     const min = 1000; // El valor mínimo (1000) para asegurar 4 dígitos
     const max = 9999; // El valor máximo (9999) para 4 dígitos

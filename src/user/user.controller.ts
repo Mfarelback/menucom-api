@@ -12,10 +12,11 @@ import {
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
 import { ChangePasswordDto } from './dto/password.dto';
+import { GetUsersByRolesDto } from './dto/get-users-by-roles.dto';
 // import { PasswordService } from '../services/password/password.service';
 // import { RecoveryPasswordDto } from '../dto/recovery-pass';
 // import { ChangePasswordDto } from '../dto/change-password';
@@ -53,6 +54,30 @@ export class UserController {
       return await this.userService.update(id, updateUserDto);
     } catch (error) {
       throw new InternalServerErrorException('Failed to update user');
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('by-roles')
+  @ApiOperation({
+    summary: 'Obtener usuarios por roles',
+    description:
+      'Obtiene una lista de usuarios filtrados por roles y opcionalmente por vinculación con MercadoPago',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de usuarios obtenida exitosamente',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Error interno del servidor',
+  })
+  async getUsersByRoles(@Body() getUsersByRolesDto: GetUsersByRolesDto) {
+    try {
+      const { roles, withVinculedAccount = false } = getUsersByRolesDto;
+      return await this.userService.getUsersByRoles(roles, withVinculedAccount);
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to get users by roles');
     }
   }
 
