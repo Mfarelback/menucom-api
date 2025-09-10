@@ -20,4 +20,15 @@ export class GetUsersByRolesDto {
   @IsOptional()
   @IsBoolean()
   withVinculedAccount?: boolean = false;
+
+  @ApiProperty({
+    description:
+      'Si es true, incluye los menús y sus items para cada usuario. Si es false, solo trae la información del usuario.',
+    example: false,
+    required: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  includeMenus?: boolean = false;
 }

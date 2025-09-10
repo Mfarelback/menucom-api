@@ -11,5 +11,6 @@ import { ImageProxyModule } from 'src/image-proxy/image-proxy.module';
   imports: [TypeOrmModule.forFeature([Menu, MenuItem, User]), ImageProxyModule],
   controllers: [MenuController],
   providers: [MenuService],
+  exports: [MenuService],
 })
 export class MenuModule {}

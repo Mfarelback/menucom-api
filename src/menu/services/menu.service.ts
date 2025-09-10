@@ -187,4 +187,37 @@ export class MenuService {
     const menus = this.menuRepository.find({ where: { idOwner: userOwn.id } });
     return menus;
   }
+
+  /**
+   * Obtiene los menús de un usuario con sus items incluidos
+   * @param userId - ID del usuario propietario de los menús
+   * @returns Menús con sus items transformados con URLs del proxy
+   */
+  async getMenusWithItemsByUserId(userId: string): Promise<any[]> {
+    try {
+      const menus = await this.menuRepository.find({
+        where: { idOwner: userId },
+      });
+
+      if (!menus || menus.length === 0) {
+        return [];
+      }
+
+      // Obtener items para cada menú
+      await Promise.all(
+        menus.map(async (menu) => {
+          const items = await this.menuItemRepository.find({
+            where: { menu: menu },
+          });
+          menu.items = items;
+        }),
+      );
+
+      // Transformar URLs usando el proxy
+      return this.urlTransformService.transformDataUrls(menus);
+    } catch (error) {
+      console.error('Error obteniendo menús con items:', error);
+      return [];
+    }
+  }
 }

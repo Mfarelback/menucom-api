@@ -9,7 +9,8 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateUserDto, UpdateUserDto } from './dto/create-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
 
 import * as bcrypt from 'bcrypt';
@@ -17,6 +18,8 @@ import { v4 as uuidv4 } from 'uuid';
 import { ChangePasswordDto } from './dto/password.dto';
 import { RecoveryPassword } from './entities/recovery-password.entity';
 import { UrlTransformService } from 'src/image-proxy/services/url-transform.service';
+import { CloudinaryService } from 'src/cloudinary/services/cloudinary.service';
+import { MenuService } from 'src/menu/services/menu.service';
 
 @Injectable()
 export class UserService {
@@ -25,6 +28,8 @@ export class UserService {
     @InjectRepository(RecoveryPassword)
     private restoreRepo: Repository<RecoveryPassword>,
     private readonly urlTransformService: UrlTransformService,
+    private readonly cloudinaryService: CloudinaryService,
+    private readonly menuService: MenuService,
   ) {}
 
   async create(data: CreateUserDto) {
@@ -277,17 +282,48 @@ export class UserService {
     }
   }
 
-  async update(id: string, changes: UpdateUserDto) {
+  async update(
+    id: string,
+    changes: UpdateUserDto,
+    photoFile?: Express.Multer.File,
+  ) {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) {
       throw new NotFoundException(`User #${id} not found`);
     }
-    if (changes.password) {
-      const updatedChanges = { ...changes, password: user.password };
-      this.userRepo.merge(user, updatedChanges);
-    } else {
-      this.userRepo.merge(user, changes);
+
+    // Si se proporciona un archivo de foto, subirlo a Cloudinary
+    if (photoFile) {
+      console.log('📸 [USER SERVICE] Subiendo nueva foto de usuario...');
+      try {
+        const uploadedUrl = await this.cloudinaryService.uploadImage(photoFile);
+        if (typeof uploadedUrl === 'string') {
+          changes = { ...changes, photoURL: uploadedUrl };
+          console.log(
+            '✅ [USER SERVICE] Foto subida exitosamente:',
+            uploadedUrl,
+          );
+        } else {
+          console.error(
+            '❌ [USER SERVICE] Error al subir imagen:',
+            uploadedUrl,
+          );
+          throw new HttpException(
+            'Error al subir la imagen',
+            HttpStatus.BAD_REQUEST,
+          );
+        }
+      } catch (error) {
+        console.error('❌ [USER SERVICE] Error en uploadImage:', error);
+        throw new HttpException(
+          'Error al procesar la imagen: ' + error.message,
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
     }
+
+    // Merging changes directly since password field is not allowed in UpdateUserDto
+    this.userRepo.merge(user, changes);
     return this.userRepo.save(user);
   }
 
@@ -397,12 +433,14 @@ export class UserService {
    * Obtiene usuarios filtrados por roles y opcionalmente por vinculación con MercadoPago
    * @param roles - Array de roles para filtrar
    * @param withVinculedAccount - Si es true, solo usuarios con cuenta MP vinculada
-   * @returns Lista de usuarios filtrados
+   * @param includeMenus - Si es true, incluye menús y sus items para cada usuario
+   * @returns Lista de usuarios filtrados con menús opcionales
    */
   async getUsersByRoles(
     roles: string[],
     withVinculedAccount: boolean = false,
-  ): Promise<User[]> {
+    includeMenus: boolean = false,
+  ): Promise<any[]> {
     try {
       const queryBuilder = this.userRepo
         .createQueryBuilder('user')
@@ -419,18 +457,35 @@ export class UserService {
       const users = await queryBuilder.getMany();
 
       // Transformar URLs y excluir passwords
-      return users.map((user) => {
+      const usersWithoutPassword = users.map((user) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { password, ...userWithoutPassword } = user;
-        return this.urlTransformService.transformDataUrls(
-          userWithoutPassword,
-        ) as User;
+        return this.urlTransformService.transformDataUrls(userWithoutPassword);
       });
+
+      // Si se solicitan menús, agregarlos a cada usuario
+      if (includeMenus) {
+        const usersWithMenus = await Promise.all(
+          usersWithoutPassword.map(async (user) => {
+            const menus = await this.menuService.getMenusWithItemsByUserId(
+              user.id,
+            );
+            return {
+              ...user,
+              menus: menus,
+            };
+          }),
+        );
+        return usersWithMenus;
+      }
+
+      return usersWithoutPassword;
     } catch (error) {
       console.error('❌ [USER SERVICE] Error en getUsersByRoles:', {
         message: error.message,
         roles,
         withVinculedAccount,
+        includeMenus,
       });
       throw new HttpException(
         'Error al obtener usuarios por roles: ' + error.message,
