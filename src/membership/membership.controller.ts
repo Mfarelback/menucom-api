@@ -12,9 +12,12 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.gards';
+import { Public } from '../auth/decorators/public.decorator';
 import { MembershipService } from './membership.service';
 import { MercadoPagoService } from './payment/mercado-pago.service';
+import { SubscriptionPlanService } from './services/subscription-plan.service';
 import { SubscribeMembershipDto } from './dto/subscribe-membership.dto';
+import { SubscribeToCustomPlanDto } from './dto/subscribe-to-custom-plan.dto';
 import { UpdateMembershipDto } from './dto/update-membership.dto';
 import { MembershipResponseDto } from './dto/membership-response.dto';
 import { MembershipPlan } from './enums/membership-plan.enum';
@@ -25,6 +28,7 @@ export class MembershipController {
   constructor(
     private readonly membershipService: MembershipService,
     private readonly mercadoPagoService: MercadoPagoService,
+    private readonly subscriptionPlanService: SubscriptionPlanService,
   ) {}
 
   @Get()
@@ -83,6 +87,7 @@ export class MembershipController {
 
   @Get('plans')
   async getAvailablePlans(): Promise<any> {
+    // Aquí ahora debería integrar con SubscriptionPlanService para obtener planes dinámicos
     return {
       plans: [
         {
@@ -91,6 +96,8 @@ export class MembershipController {
           features: [
             'Basic menu management',
             'Up to 10 items',
+            'Up to 1 wardrobe',
+            'Up to 10 clothing items',
             '7 days analytics',
           ],
         },
@@ -100,7 +107,9 @@ export class MembershipController {
           features: [
             'Advanced analytics',
             'Custom branding',
-            'Up to 500 items',
+            'Up to 500 menu items',
+            'Up to 5 wardrobes',
+            'Up to 500 clothing items',
             'Priority support',
           ],
         },
@@ -110,7 +119,9 @@ export class MembershipController {
             MembershipPlan.ENTERPRISE,
           ),
           features: [
-            'Unlimited items',
+            'Unlimited menu items',
+            'Unlimited wardrobes',
+            'Unlimited clothing items',
             'API access',
             'White label',
             'Dedicated support',
@@ -119,6 +130,49 @@ export class MembershipController {
       ],
       currency: 'ARS',
     };
+  }
+
+  @Get('custom-plans')
+  @Public()
+  async getCustomPlans(): Promise<any> {
+    const customPlans = await this.subscriptionPlanService.getActivePlans();
+
+    return {
+      plans: customPlans.map((plan) => ({
+        id: plan.id,
+        name: plan.name,
+        displayName: plan.displayName,
+        description: plan.description,
+        price: plan.price,
+        currency: plan.currency,
+        billingCycle: plan.billingCycle,
+        features: plan.features,
+        limits: plan.limits,
+        metadata: plan.metadata,
+        type: plan.type,
+      })),
+    };
+  }
+
+  @Post('subscribe-custom')
+  @HttpCode(HttpStatus.OK)
+  async subscribeToCustomPlan(
+    @Request() req,
+    @Body() subscribeDto: SubscribeToCustomPlanDto,
+  ): Promise<MembershipResponseDto> {
+    // Obtener el plan personalizado
+    const plan = await this.subscriptionPlanService.getPlanById(
+      subscribeDto.subscriptionPlanId,
+    );
+
+    // Crear una membership asociada al plan personalizado
+    const membership = await this.membershipService.subscribeToCustomPlan(
+      req.user.id,
+      plan,
+      subscribeDto,
+    );
+
+    return this.membershipService.formatMembershipResponse(membership);
   }
 
   @Post('create-payment')

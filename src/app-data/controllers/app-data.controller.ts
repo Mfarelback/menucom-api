@@ -27,6 +27,10 @@ import { RoleGuard } from 'src/auth/guards/role.guards';
 import { Roles } from 'src/auth/decorators/role.decorator';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { Role } from 'src/auth/models/roles.model';
+import {
+  SetMarketplaceFeeDto,
+  MarketplaceFeeResponseDto,
+} from '../dtos/marketplace-fee.dto';
 
 @ApiTags('App Data')
 @Controller('app-data')
@@ -253,5 +257,78 @@ export class AppDataController {
   })
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
     return this.appDataService.remove(id);
+  }
+
+  @Get('marketplace-fee')
+  @Public()
+  @ApiOperation({
+    summary: 'Obtener el porcentaje de comisión del marketplace (Público)',
+    description:
+      'Obtiene el porcentaje de comisión que cobra el marketplace por cada transacción. No requiere autenticación.',
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Porcentaje de comisión del marketplace obtenido exitosamente.',
+    type: MarketplaceFeeResponseDto,
+  })
+  async getMarketplaceFee(): Promise<MarketplaceFeeResponseDto> {
+    try {
+      const percentage = await this.appDataService.getValueByKey(
+        'marketplace_fee_percentage',
+      );
+      return { percentage: percentage || 0 };
+    } catch (error) {
+      // Si no existe el dato, retornar 0% como valor por defecto
+      return { percentage: 0 };
+    }
+  }
+
+  @Post('marketplace-fee')
+  @UseGuards(RoleGuard)
+  @Roles(Role.ADMIN)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary:
+      'Configurar el porcentaje de comisión del marketplace (Solo Admins)',
+    description:
+      'Configura el porcentaje de comisión que cobra el marketplace por cada transacción. Requiere rol de administrador.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Porcentaje de comisión configurado exitosamente.',
+    type: AppData,
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Porcentaje inválido. Debe estar entre 0 y 100.',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'No tienes permisos para realizar esta acción.',
+  })
+  async setMarketplaceFee(
+    @Body() setMarketplaceFeeDto: SetMarketplaceFeeDto,
+  ): Promise<AppData> {
+    const { percentage } = setMarketplaceFeeDto;
+
+    try {
+      // Intentar actualizar si ya existe
+      const existingData = await this.appDataService.findByKey(
+        'marketplace_fee_percentage',
+      );
+      return await this.appDataService.update(existingData.id, {
+        value: percentage.toString(),
+      });
+    } catch (error) {
+      // Si no existe, crear uno nuevo
+      return await this.appDataService.create({
+        key: 'marketplace_fee_percentage',
+        value: percentage.toString(),
+        dataType: 'number' as any,
+        description: 'Porcentaje de comisión del marketplace por transacción',
+        isActive: true,
+      });
+    }
   }
 }

@@ -8,12 +8,14 @@ import { PaymentsModule } from 'src/payments/payments.module';
 import { UserModule } from 'src/user/user.module';
 import { Menu } from 'src/menu/entities/menu.entity';
 import { Wardrobes } from 'src/wardrobes/entities/wardrobes.entity';
+import { AppDataModule } from 'src/app-data/app-data.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Order, OrderItem, Menu, Wardrobes]),
     forwardRef(() => PaymentsModule),
     UserModule,
+    AppDataModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

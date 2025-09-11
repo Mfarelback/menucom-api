@@ -33,7 +33,22 @@ export class OrderResponseDto {
   @ApiProperty({ type: [OrderItem] })
   items: OrderItem[];
 
-  @ApiProperty({ example: 1300.5 })
+  @ApiProperty({ example: 1200.0, description: 'Subtotal sin comisiones' })
+  subtotal: number;
+
+  @ApiProperty({
+    example: 5.5,
+    description: 'Porcentaje de comisión del marketplace aplicado',
+  })
+  marketplaceFeePercentage: number;
+
+  @ApiProperty({
+    example: 66.0,
+    description: 'Monto de la comisión del marketplace',
+  })
+  marketplaceFeeAmount: number;
+
+  @ApiProperty({ example: 1266.0, description: 'Total final con comisiones' })
   total: number;
 
   @ApiProperty({ example: 'pending' })

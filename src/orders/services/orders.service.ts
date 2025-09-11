@@ -9,6 +9,7 @@ import { UserService } from 'src/user/user.service';
 import { Menu } from 'src/menu/entities/menu.entity';
 import { Wardrobes } from 'src/wardrobes/entities/wardrobes.entity';
 import { AppConfigService } from 'src/app-data';
+import { AppDataService } from 'src/app-data/services/app-data.service';
 
 @Injectable()
 export class OrdersService {
@@ -24,6 +25,7 @@ export class OrdersService {
     private paymentService: PaymentsService,
     private userService: UserService,
     private readonly appConfig: AppConfigService,
+    private readonly appDataService: AppDataService,
   ) {}
 
   /**
@@ -60,6 +62,46 @@ export class OrdersService {
     }
   }
 
+  /**
+   * Calcula los montos de la orden incluyendo la comisión del marketplace
+   * @param subtotal El subtotal de la orden antes de comisiones
+   * @returns Objeto con subtotal, porcentaje de comisión, monto de comisión y total
+   */
+  private async calculateOrderAmounts(subtotal: number): Promise<{
+    subtotal: number;
+    marketplaceFeePercentage: number;
+    marketplaceFeeAmount: number;
+    total: number;
+  }> {
+    try {
+      // Obtener el porcentaje de comisión del marketplace
+      const marketplaceFeePercentage =
+        await this.appDataService.getMarketplaceFeePercentage();
+
+      // Calcular el monto de la comisión
+      const marketplaceFeeAmount = (subtotal * marketplaceFeePercentage) / 100;
+
+      // Calcular el total final
+      const total = subtotal + marketplaceFeeAmount;
+
+      return {
+        subtotal,
+        marketplaceFeePercentage,
+        marketplaceFeeAmount,
+        total,
+      };
+    } catch (error) {
+      console.error('Error calculating order amounts:', error);
+      // En caso de error, devolver valores por defecto (sin comisión)
+      return {
+        subtotal,
+        marketplaceFeePercentage: 0,
+        marketplaceFeeAmount: 0,
+        total: subtotal,
+      };
+    }
+  }
+
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
     try {
       // Verificar configuraciones del sistema antes de procesar la orden
@@ -89,11 +131,19 @@ export class OrdersService {
       // Validar límites de orden según configuración
       await this.validateOrderLimits(items);
 
+      // Calcular los montos incluyendo la comisión del marketplace
+      // Nota: rest.total se considera como el subtotal original
+      const calculatedAmounts = await this.calculateOrderAmounts(rest.total);
+
       const orderData = {
         ...rest,
         customerEmail,
         customerPhone,
         ownerId,
+        subtotal: calculatedAmounts.subtotal,
+        marketplaceFeePercentage: calculatedAmounts.marketplaceFeePercentage,
+        marketplaceFeeAmount: calculatedAmounts.marketplaceFeeAmount,
+        total: calculatedAmounts.total, // Total final con comisión incluida
       };
 
       // Crear instancia de Order (TypeORM generará automáticamente el ID)
@@ -103,6 +153,7 @@ export class OrdersService {
       const savedOrder = await this.orderRepository.save(order);
 
       // Crear el pago y obtener el intent (ahora con el orderId disponible)
+      // Usar el total final que incluye la comisión del marketplace
       const paymentIntent = await this.paymentService.createPayment(
         orderData.customerEmail,
         orderData.total,

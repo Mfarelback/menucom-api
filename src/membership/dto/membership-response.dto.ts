@@ -13,4 +13,5 @@ export class MembershipResponseDto {
   isExpired: boolean;
   createdAt: Date;
   updatedAt: Date;
+  subscriptionPlanId?: string; // Para planes personalizables
 }

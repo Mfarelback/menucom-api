@@ -43,16 +43,22 @@ export const PLAN_LIMITS = {
   [MembershipPlan.FREE]: {
     maxMenuItems: 10,
     maxLocations: 1,
+    maxWardrobes: 1, // Nuevo límite para wardrobes
+    maxClothingItems: 10, // Nuevo límite para items de ropa
     analyticsRetention: 7, // days
   },
   [MembershipPlan.PREMIUM]: {
     maxMenuItems: 500,
     maxLocations: 3,
+    maxWardrobes: 5, // Nuevo límite para wardrobes
+    maxClothingItems: 500, // Nuevo límite para items de ropa
     analyticsRetention: 90, // days
   },
   [MembershipPlan.ENTERPRISE]: {
     maxMenuItems: -1, // unlimited
     maxLocations: -1, // unlimited
+    maxWardrobes: -1, // unlimited
+    maxClothingItems: -1, // unlimited
     analyticsRetention: 365, // days
   },
 };

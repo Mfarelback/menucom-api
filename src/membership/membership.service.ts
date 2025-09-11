@@ -6,9 +6,11 @@ import {
 } from '@nestjs/common';
 import { MembershipRepository } from './membership.repository';
 import { SubscribeMembershipDto } from './dto/subscribe-membership.dto';
+import { SubscribeToCustomPlanDto } from './dto/subscribe-to-custom-plan.dto';
 import { UpdateMembershipDto } from './dto/update-membership.dto';
 import { MembershipResponseDto } from './dto/membership-response.dto';
 import { Membership } from './entities/membership.entity';
+import { SubscriptionPlan } from './entities/subscription-plan.entity';
 import { MembershipAuditAction } from './entities/membership-audit.entity';
 import {
   MembershipPlan,
@@ -98,6 +100,73 @@ export class MembershipService {
 
     this.logger.log(
       `User ${userId} ${action} from ${previousPlan} to ${subscribeDto.plan}`,
+    );
+
+    return updatedMembership;
+  }
+
+  async subscribeToCustomPlan(
+    userId: string,
+    plan: SubscriptionPlan,
+    subscribeDto: SubscribeToCustomPlanDto,
+  ): Promise<Membership> {
+    let membership = await this.membershipRepository.findByUserId(userId);
+
+    if (!membership) {
+      membership = await this.createMembership(userId);
+    }
+
+    const previousPlan = membership.plan;
+    const expiresAt = this.calculateExpirationDateFromBillingCycle(
+      plan.billingCycle,
+    );
+
+    const updatedMembership = await this.membershipRepository.updateMembership(
+      membership.id,
+      {
+        plan: plan.name as MembershipPlan, // Para compatibilidad con el enum existente
+        features: plan.features,
+        expiresAt,
+        isActive: true,
+        lastUpgradeAt: new Date(),
+        paymentId: subscribeDto.paymentId,
+        subscriptionId: subscribeDto.subscriptionId,
+        subscriptionPlanId: plan.id, // Nueva relación con el plan personalizable
+        amount: plan.price,
+        currency: plan.currency,
+        metadata: {
+          ...subscribeDto.metadata,
+          customPlan: true,
+          planId: plan.id,
+          planName: plan.name,
+        },
+      },
+    );
+
+    // Determinar la acción de auditoría basada en el plan anterior
+    const action = previousPlan
+      ? MembershipAuditAction.UPGRADED
+      : MembershipAuditAction.CREATED;
+
+    await this.membershipRepository.createAuditLog({
+      userId,
+      membershipId: membership.id,
+      action,
+      previousPlan,
+      newPlan: plan.name as MembershipPlan,
+      paymentId: subscribeDto.paymentId,
+      amount: plan.price,
+      currency: plan.currency,
+      description: `${action} to custom plan: ${plan.displayName || plan.name}`,
+      metadata: {
+        ...subscribeDto.metadata,
+        customPlan: true,
+        planId: plan.id,
+      },
+    });
+
+    this.logger.log(
+      `User ${userId} subscribed to custom plan: ${plan.name} (${plan.id})`,
     );
 
     return updatedMembership;
@@ -255,6 +324,36 @@ export class MembershipService {
     return expirationDate;
   }
 
+  private calculateExpirationDateFromBillingCycle(
+    billingCycle: string,
+  ): Date | null {
+    if (billingCycle === 'lifetime') {
+      return null; // No expiration for lifetime plans
+    }
+
+    const expirationDate = new Date();
+
+    switch (billingCycle) {
+      case 'monthly':
+        expirationDate.setMonth(expirationDate.getMonth() + 1);
+        break;
+      case 'yearly':
+        expirationDate.setFullYear(expirationDate.getFullYear() + 1);
+        break;
+      case 'weekly':
+        expirationDate.setDate(expirationDate.getDate() + 7);
+        break;
+      case 'quarterly':
+        expirationDate.setMonth(expirationDate.getMonth() + 3);
+        break;
+      default:
+        // Default to monthly
+        expirationDate.setMonth(expirationDate.getMonth() + 1);
+    }
+
+    return expirationDate;
+  }
+
   private getAuditAction(
     previousPlan: MembershipPlan,
     newPlan: MembershipPlan,
@@ -285,6 +384,7 @@ export class MembershipService {
       isExpired: membership.isExpired(),
       createdAt: membership.createdAt,
       updatedAt: membership.updatedAt,
+      subscriptionPlanId: membership.subscriptionPlanId,
     };
   }
 }

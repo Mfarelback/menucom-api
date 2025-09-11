@@ -96,6 +96,20 @@ export class AppDataService {
   }
 
   /**
+   * Obtener el porcentaje de comisión del marketplace
+   * @returns El porcentaje de comisión (0-100) o 0 si no está configurado
+   */
+  async getMarketplaceFeePercentage(): Promise<number> {
+    try {
+      const percentage = await this.getValueByKey('marketplace_fee_percentage');
+      return typeof percentage === 'number' ? percentage : 0;
+    } catch (error) {
+      // Si no existe la configuración, retornar 0%
+      return 0;
+    }
+  }
+
+  /**
    * Actualizar un dato de configuración
    */
   async update(

@@ -141,7 +141,7 @@ export class MercadopagoService {
       // Sanitizar payer - en producción no incluir datos de prueba por defecto
       // Solo usar payer si viene proporcionado desde el request
       let payer = MercadoPagoHelpers.sanitizePayer(options.payer);
-      
+
       // Solo en desarrollo/testing, si no hay payer, crear uno mínimo para evitar errores de MP
       if (MercadoPagoHelpers.shouldAddMinimalPayerForDev(payer)) {
         this.logger.warn(
@@ -333,7 +333,7 @@ export class MercadopagoService {
       // Sanitizar payer - en producción no incluir datos de prueba por defecto
       // Solo usar payer si viene proporcionado desde el request
       let payer = MercadoPagoHelpers.sanitizePayer(options.payer);
-      
+
       // Solo en desarrollo/testing, si no hay payer, crear uno mínimo para evitar errores de MP
       if (MercadoPagoHelpers.shouldAddMinimalPayerForDev(payer)) {
         this.logger.warn(

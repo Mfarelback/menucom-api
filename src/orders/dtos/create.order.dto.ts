@@ -35,7 +35,11 @@ export class CreateOrderDto {
   @IsString()
   ownerId?: string;
 
-  @ApiProperty({ example: 1300.5 })
+  @ApiProperty({
+    example: 1300.5,
+    description:
+      'Subtotal de la orden (sin comisiones). La comisión del marketplace se aplicará automáticamente.',
+  })
   @IsNumber({ maxDecimalPlaces: 2 })
   @IsPositive()
   total: number;

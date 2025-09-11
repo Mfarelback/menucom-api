@@ -109,6 +109,7 @@ export class MembershipProvider {
     isExpired: boolean;
     remainingDays: number;
     features: MembershipFeature[];
+    subscriptionPlanId?: string;
   }> {
     try {
       const membership = await this.membershipService.getUserMembership(userId);
@@ -118,6 +119,7 @@ export class MembershipProvider {
         isExpired: membership.isExpired,
         remainingDays: membership.remainingDays,
         features: membership.features,
+        subscriptionPlanId: membership.subscriptionPlanId,
       };
     } catch (error) {
       this.logger.error(
@@ -129,6 +131,7 @@ export class MembershipProvider {
         isExpired: false,
         remainingDays: -1,
         features: [],
+        subscriptionPlanId: undefined,
       };
     }
   }

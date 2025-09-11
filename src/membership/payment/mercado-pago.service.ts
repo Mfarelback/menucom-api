@@ -38,7 +38,7 @@ export class MercadoPagoService {
   async createPayment(request: PaymentRequest): Promise<PaymentResponse> {
     try {
       const amount = this.planPrices[request.plan];
-      
+
       if (amount === 0) {
         // Free plan - no payment needed
         return {
@@ -90,7 +90,9 @@ export class MercadoPagoService {
         throw new Error(`Payment creation failed: ${payment.message}`);
       }
 
-      this.logger.log(`Payment created for user ${request.userId}: ${payment.id}`);
+      this.logger.log(
+        `Payment created for user ${request.userId}: ${payment.id}`,
+      );
 
       return {
         paymentId: payment.id,
@@ -125,7 +127,6 @@ export class MercadoPagoService {
         amount: payment.transaction_amount,
         currency: payment.currency_id,
       };
-
     } catch (error) {
       this.logger.error('Error getting payment status:', error);
       throw error;
@@ -146,7 +147,7 @@ export class MercadoPagoService {
       }
 
       const paymentStatus = await this.getPaymentStatus(data.id);
-      
+
       // Extract user info from external_reference
       const externalRef = data.external_reference;
       const [, userId, plan] = externalRef.split('_');
@@ -157,7 +158,6 @@ export class MercadoPagoService {
         paymentId: data.id,
         status: paymentStatus.status,
       };
-
     } catch (error) {
       this.logger.error('Error processing webhook:', error);
       throw error;

@@ -5,6 +5,7 @@ import {
   UpdateDateColumn,
   PrimaryGeneratedColumn,
   OneToOne,
+  ManyToOne,
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
@@ -12,6 +13,7 @@ import {
   MembershipPlan,
   MembershipFeature,
 } from '../enums/membership-plan.enum';
+import { SubscriptionPlan } from './subscription-plan.entity';
 
 @Entity()
 export class Membership {
@@ -49,6 +51,14 @@ export class Membership {
 
   @Column({ type: 'varchar', nullable: true })
   subscriptionId: string;
+
+  // Relación con el plan de suscripción personalizable
+  @ManyToOne(() => SubscriptionPlan, { nullable: true })
+  @JoinColumn()
+  subscriptionPlan: SubscriptionPlan;
+
+  @Column({ type: 'varchar', nullable: true })
+  subscriptionPlanId: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   amount: number;

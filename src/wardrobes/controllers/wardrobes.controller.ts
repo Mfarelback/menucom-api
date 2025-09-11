@@ -14,11 +14,15 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
 import { WardrobeServices } from '../services/wardrobes.services';
 import { WardrobeDto } from '../dtos/create-ward.dto';
 import { CreateClothingItemDto } from '../dtos/create_clothing.dto';
+import { ResourceLimitService } from '../../membership/services/resource-limit.service';
 
 @ApiTags('Wardrobe')
 @Controller('wardrobe')
 export class WardrobesController {
-  constructor(private readonly wardServices: WardrobeServices) {}
+  constructor(
+    private readonly wardServices: WardrobeServices,
+    private readonly resourceLimitService: ResourceLimitService,
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @Get('/me')
@@ -36,6 +40,14 @@ export class WardrobesController {
   @Post('/create/')
   async createMenuwithItem(@Req() req: Request, @Body() ward: WardrobeDto) {
     const userID = req['user']['userId'];
+
+    // Verificar límites antes de crear
+    await this.resourceLimitService.validateResourceCreation(
+      userID,
+      'wardrobe',
+      1,
+    );
+
     return this.wardServices.createWardrobe(ward, userID);
   }
 

@@ -38,6 +38,15 @@ export class Order {
   @Column({ type: 'decimal', precision: 10, scale: 2 })
   total: number;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  subtotal: number;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  marketplaceFeePercentage: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  marketplaceFeeAmount: number;
+
   @Column({ default: 'pending' })
   status: string;
 
