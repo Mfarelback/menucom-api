@@ -7,6 +7,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -30,6 +31,7 @@ export class UserService {
     private readonly urlTransformService: UrlTransformService,
     private readonly cloudinaryService: CloudinaryService,
     private readonly menuService: MenuService,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(data: CreateUserDto) {
@@ -460,7 +462,19 @@ export class UserService {
       const usersWithoutPassword = users.map((user) => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { password, ...userWithoutPassword } = user;
-        return this.urlTransformService.transformDataUrls(userWithoutPassword);
+        const transformedUser =
+          this.urlTransformService.transformDataUrls(userWithoutPassword);
+
+        // Agregar storeURL usando MP_BACK_URL + id del usuario
+        const mpBackUrl = this.configService.get<string>(
+          'config.mercadoPago.backUrl',
+        );
+        const storeURL = mpBackUrl ? `${mpBackUrl}/${user.id}` : null;
+
+        return {
+          ...transformedUser,
+          storeURL,
+        };
       });
 
       // Si se solicitan menús, agregarlos a cada usuario

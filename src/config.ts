@@ -21,6 +21,10 @@ export default registerAs('config', () => {
       privateKey: process.env.FIREBASE_PRIVATE_KEY,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
     },
+    // Configuración de MercadoPago
+    mercadoPago: {
+      backUrl: process.env.MP_BACK_URL,
+    },
   };
 });
 
