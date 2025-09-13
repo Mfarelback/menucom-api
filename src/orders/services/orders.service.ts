@@ -111,7 +111,22 @@ export class OrdersService {
       const fakeEmail = 'anon@fake.com';
       const fakePhone = '0000000000';
       let { customerEmail, customerPhone, ownerId } = createOrderDto;
+      const { createdBy } = createOrderDto;
       const { items, ...rest } = createOrderDto;
+
+      // Si createdBy está presente, buscar info del usuario
+      if (createdBy) {
+        try {
+          const user = await this.userService.findOne(createdBy);
+          if (user) {
+            // Si el usuario tiene email y/o phone, usarlos
+            customerEmail = user.email || customerEmail;
+            customerPhone = user.phone || customerPhone;
+          }
+        } catch (e) {
+          // Si no se encuentra el usuario, continuar con los datos originales
+        }
+      }
 
       // Detectar si customerEmail es un número de teléfono (solo dígitos, 8-15 caracteres)
       const phoneRegex = /^\d{8,15}$/;
@@ -140,6 +155,7 @@ export class OrdersService {
         customerEmail,
         customerPhone,
         ownerId,
+        createdBy,
         subtotal: calculatedAmounts.subtotal,
         marketplaceFeePercentage: calculatedAmounts.marketplaceFeePercentage,
         marketplaceFeeAmount: calculatedAmounts.marketplaceFeeAmount,
@@ -159,7 +175,7 @@ export class OrdersService {
         orderData.total,
         undefined, // description
         orderData.ownerId, // ownerId para buscar collector_id
-        orderData.createdBy, // anonymousId para trazabilidad
+        orderData.createdBy, // anonymousId o userId para trazabilidad
         savedOrder.id, // orderId para trazabilidad
       );
       savedOrder.operationID = paymentIntent.id; // Asignar el ID del pago a la orden

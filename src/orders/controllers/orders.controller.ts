@@ -56,17 +56,20 @@ export class OrdersController {
     return this.orderService.findByOwnerId(ownerId);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear una nueva orden con ítems' })
   async create(
     @Body() createOrderDto: CreateOrderDto,
     @Headers('x-anonymous-id') anonymousId?: string,
+    @Req() req?: Request,
   ): Promise<Order> {
-    // Agregar el ID del creador al DTO si está presente en el header
+    // Prioriza el usuario autenticado, si no existe usa el anonymousId
+    const userId = req?.user && (req.user['userId'] || req.user['id']);
     const orderWithCreator = {
       ...createOrderDto,
-      createdBy: anonymousId,
+      createdBy: userId || anonymousId,
     };
 
     return this.orderService.create(orderWithCreator);
