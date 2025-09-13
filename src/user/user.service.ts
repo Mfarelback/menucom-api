@@ -334,7 +334,7 @@ export class UserService {
     try {
       const user = await this.userRepo.findOne({
         where: { id: id },
-        relations: ['posts', 'sessions', 'tokens', 'settings'], // ajustá según tus entidades
+        relations: ['membership'], // ajustá según tus entidades
       });
 
       if (!user) {
