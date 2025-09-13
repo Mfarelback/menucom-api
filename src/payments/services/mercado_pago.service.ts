@@ -175,8 +175,8 @@ export class MercadopagoService {
         ...(options.collector_id && {
           collector_id: options.collector_id,
         }),
-        ...(options.application_fee !== undefined && {
-          application_fee: options.application_fee,
+        ...(options.marketplace_fee !== undefined && {
+          marketplace_fee: options.marketplace_fee,
         }),
         // Incluir metadata para trazabilidad
         ...(options.metadata && { metadata: options.metadata }),
@@ -358,8 +358,8 @@ export class MercadopagoService {
         ...(options.collector_id && {
           collector_id: options.collector_id,
         }),
-        ...(options.application_fee !== undefined && {
-          application_fee: options.application_fee,
+        ...(options.marketplace_fee !== undefined && {
+          marketplace_fee: options.marketplace_fee,
         }),
         // Incluir metadata para trazabilidad
         ...(options.metadata && { metadata: options.metadata }),

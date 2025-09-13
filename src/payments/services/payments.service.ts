@@ -104,7 +104,7 @@ export class PaymentsService {
               items,
               external_reference: paymentCreated.id,
               collector_id: accountData.collectorId,
-              application_fee: marketplaceFeeAmount, // <-- Propagamos el fee
+              marketplace_fee: marketplaceFeeAmount, // <-- Propagamos el fee para Checkout Pro
               metadata,
             },
             accountData.accessToken,
