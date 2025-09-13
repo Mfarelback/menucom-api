@@ -175,6 +175,9 @@ export class MercadopagoService {
         ...(options.collector_id && {
           collector_id: options.collector_id,
         }),
+        ...(options.application_fee !== undefined && {
+          application_fee: options.application_fee,
+        }),
         // Incluir metadata para trazabilidad
         ...(options.metadata && { metadata: options.metadata }),
         // Si binary_mode fue provisto en options, lo propagamos
@@ -354,6 +357,9 @@ export class MercadopagoService {
         auto_return: 'approved',
         ...(options.collector_id && {
           collector_id: options.collector_id,
+        }),
+        ...(options.application_fee !== undefined && {
+          application_fee: options.application_fee,
         }),
         // Incluir metadata para trazabilidad
         ...(options.metadata && { metadata: options.metadata }),

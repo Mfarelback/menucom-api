@@ -33,6 +33,7 @@ export class PaymentsService {
     ownerId?: string,
     anonymousId?: string,
     orderId?: string,
+    marketplaceFeeAmount?: number,
   ): Promise<PaymentIntent> {
     try {
       if (!phone || !amount) {
@@ -103,6 +104,7 @@ export class PaymentsService {
               items,
               external_reference: paymentCreated.id,
               collector_id: accountData.collectorId,
+              application_fee: marketplaceFeeAmount, // <-- Propagamos el fee
               metadata,
             },
             accountData.accessToken,

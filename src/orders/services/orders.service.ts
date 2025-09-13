@@ -177,6 +177,7 @@ export class OrdersService {
         orderData.ownerId, // ownerId para buscar collector_id
         orderData.createdBy, // anonymousId o userId para trazabilidad
         savedOrder.id, // orderId para trazabilidad
+        orderData.marketplaceFeeAmount, // <-- Pasamos el fee
       );
       savedOrder.operationID = paymentIntent.id; // Asignar el ID del pago a la orden
 

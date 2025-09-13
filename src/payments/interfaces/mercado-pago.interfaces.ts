@@ -57,6 +57,7 @@ export interface CreatePreferenceOptions {
   expiration_date_to?: string;
   statement_descriptor?: string;
   collector_id?: number; // ID del collector para pagos con vendedor específico
+  application_fee?: number; // Comisión del marketplace a cobrar (en la moneda de la preferencia)
   metadata?: { [key: string]: any }; // Metadata para trazabilidad
 }
 
