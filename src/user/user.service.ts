@@ -4,6 +4,7 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
@@ -329,8 +330,40 @@ export class UserService {
     return this.userRepo.save(user);
   }
 
-  remove(id: number) {
-    return this.userRepo.delete(id);
+  async remove(id: string): Promise<void> {
+    try {
+      const user = await this.userRepo.findOne({
+        where: { id: id },
+        relations: ['posts', 'sessions', 'tokens', 'settings'], // ajustá según tus entidades
+      });
+
+      if (!user) {
+        throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+      }
+
+      // Eliminación explícita de relaciones
+      // await Promise.all([
+      //   this.menuService.deleteMenuByUser( id ),
+      //   this.sessionRepo.delete({ user: { id } }),
+      //   this.tokenRepo.delete({ user: { id } }),
+      //   this.settingsRepo.delete({ user: { id } }),
+      // ]);
+
+      // Eliminación del usuario
+      await this.userRepo.delete(id);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      // Logging opcional
+      console.error(`Error al eliminar usuario ${id}:`, error);
+
+      // Lanzar error genérico o personalizado
+      throw new InternalServerErrorException(
+        'No se pudo eliminar el usuario. Intenta nuevamente o contacta soporte.',
+      );
+    }
   }
 
   async getadminUser(email: string) {
