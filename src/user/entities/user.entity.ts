@@ -57,6 +57,9 @@ export class User {
   })
   createAt: Date;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  fcmToken: string;
+
   @UpdateDateColumn({
     type: 'timestamp',
   })

@@ -14,6 +14,7 @@ import { PaymentsModule } from './payments/payments.module';
 import { ImageProxyModule } from './image-proxy/image-proxy.module';
 import { AppDataModule } from './app-data/app-data.module';
 import { MembershipModule } from './membership/membership.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { MembershipModule } from './membership/membership.module';
     PaymentsModule,
     AppDataModule,
     MembershipModule,
+    NotificationsModule,
   ],
   providers: [PaymentsGateway],
 })

@@ -548,4 +548,13 @@ export class UserService {
     // Genera un número aleatorio entre min y max (ambos incluidos)
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
+
+  async updateFcmToken(userId: string, fcmToken: string): Promise<User> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+    user.fcmToken = fcmToken;
+    return this.userRepo.save(user);
+  }
 }

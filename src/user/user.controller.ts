@@ -26,6 +26,7 @@ import { Request } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
 import { ChangePasswordDto } from './dto/password.dto';
 import { GetUsersByRolesDto } from './dto/get-users-by-roles.dto';
+import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto'; // Importar el nuevo DTO
 import { FileInterceptor } from '@nestjs/platform-express';
 // import { PasswordService } from '../services/password/password.service';
 // import { RecoveryPasswordDto } from '../dto/recovery-pass';
@@ -135,5 +136,32 @@ export class UserController {
   @Delete()
   deleteall() {
     return this.userService.deleteAllusers();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('/fcm-token')
+  @ApiOperation({
+    summary: 'Actualizar el token FCM del usuario',
+    description:
+      'Actualiza el token de Firebase Cloud Messaging (FCM) para el usuario autenticado.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Token FCM actualizado exitosamente.',
+  })
+  @ApiResponse({ status: 401, description: 'No autorizado.' })
+  @ApiResponse({ status: 404, description: 'Usuario no encontrado.' })
+  @ApiResponse({ status: 500, description: 'Error interno del servidor.' })
+  async updateFcmToken(
+    @Req() req: Request,
+    @Body() updateFcmTokenDto: UpdateFcmTokenDto,
+  ) {
+    try {
+      const userId = req['user']['userId'];
+      const { fcmToken } = updateFcmTokenDto;
+      return await this.userService.updateFcmToken(userId, fcmToken);
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to update FCM token');
+    }
   }
 }
