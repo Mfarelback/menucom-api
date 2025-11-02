@@ -524,15 +524,4 @@ export class MercadopagoService {
       );
     }
   }
-
-  // /**
-  //  * Construye las URLs de retorno usando configuración por defecto si no se proporcionan
-  //  * @param customBackUrls URLs personalizadas (opcional)
-  //  * @returns URLs de retorno configuradas
-  //  */
-  // private buildBackUrls(
-  //   customBackUrls?: MercadoPagoBackUrls,
-  // ): MercadoPagoBackUrls | undefined {
-  //   return MercadoPagoHelpers.buildBackUrls(customBackUrls);
-  // }
 }

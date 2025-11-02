@@ -66,7 +66,8 @@ export class OrdersController {
     @Req() req?: Request,
   ): Promise<Order> {
     // Prioriza el usuario autenticado, si no existe usa el anonymousId
-    const userId = req?.user && (req.user['userId'] || req.user['id']);
+    const userId =
+      req?.['user'] && (req['user']['userId'] || req['user']['id']);
     const orderWithCreator = {
       ...createOrderDto,
       createdBy: userId || anonymousId,

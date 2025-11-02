@@ -6,10 +6,10 @@ import { OrderItem } from '../entities/order.item.entity';
 import { CreateOrderDto } from '../dtos/create.order.dto';
 import { PaymentsService } from 'src/payments/services/payments.service';
 import { UserService } from 'src/user/user.service';
-import { Menu } from 'src/menu/entities/menu.entity';
-import { Wardrobes } from 'src/wardrobes/entities/wardrobes.entity';
 import { AppConfigService } from 'src/app-data';
 import { AppDataService } from 'src/app-data/services/app-data.service';
+import { Catalog } from 'src/catalog/entities/catalog.entity';
+import { LoggerService } from 'src/core/logger';
 
 @Injectable()
 export class OrdersService {
@@ -18,15 +18,17 @@ export class OrdersService {
     private readonly orderRepository: Repository<Order>,
     @InjectRepository(OrderItem)
     private readonly orderItemRepository: Repository<OrderItem>,
-    @InjectRepository(Menu)
-    private readonly menuRepository: Repository<Menu>,
-    @InjectRepository(Wardrobes)
-    private readonly wardrobesRepository: Repository<Wardrobes>,
+    @InjectRepository(Catalog)
+    private readonly catalogRepository: Repository<Catalog>,
+
     private paymentService: PaymentsService,
     private userService: UserService,
     private readonly appConfig: AppConfigService,
     private readonly appDataService: AppDataService,
-  ) {}
+    private readonly logger: LoggerService,
+  ) {
+    this.logger.setContext('OrdersService');
+  }
 
   /**
    * Determina automáticamente el ownerId basado en los items de la orden
@@ -38,26 +40,23 @@ export class OrdersService {
       // Buscar el primer item que tenga sourceId y sourceType definidos
       for (const item of items) {
         if (item.sourceId && item.sourceType) {
-          if (item.sourceType === 'menu') {
-            const menu = await this.menuRepository.findOne({
+          // Ambos sourceType 'menu' y 'wardrobe' ahora buscan en la tabla catalog
+          if (item.sourceType === 'menu' || item.sourceType === 'wardrobe') {
+            const catalog = await this.catalogRepository.findOne({
               where: { id: item.sourceId },
             });
-            if (menu) {
-              return menu.idOwner;
-            }
-          } else if (item.sourceType === 'wardrobe') {
-            const wardrobe = await this.wardrobesRepository.findOne({
-              where: { id: item.sourceId },
-            });
-            if (wardrobe) {
-              return wardrobe.idOwner;
+            if (catalog) {
+              return catalog.ownerId;
             }
           }
         }
       }
       return null;
     } catch (error) {
-      console.error('Error determining owner ID:', error);
+      this.logger.error(
+        `Error determining owner ID: ${error.message}`,
+        error.stack,
+      );
       return null;
     }
   }
@@ -91,7 +90,10 @@ export class OrdersService {
         total,
       };
     } catch (error) {
-      console.error('Error calculating order amounts:', error);
+      this.logger.error(
+        `Error calculating order amounts for subtotal ${subtotal}: ${error.message}`,
+        error.stack,
+      );
       // En caso de error, devolver valores por defecto (sin comisión)
       return {
         subtotal,
@@ -247,7 +249,7 @@ export class OrdersService {
       if (!user) {
         throw new Error(`User with id ${userId} not found`);
       }
-      console.log(user);
+      this.logger.debug(`Finding orders for user: ${user.email}`);
       // Find orders by user's email
       return await this.findByOwner(user.email);
     } catch (error) {

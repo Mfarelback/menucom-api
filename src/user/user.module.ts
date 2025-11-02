@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+import { CatalogModule } from '../catalog/catalog.module';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -7,7 +8,6 @@ import { RecoveryPassword } from './entities/recovery-password.entity';
 import { Membership } from '../membership/entities/membership.entity';
 import { ImageProxyModule } from 'src/image-proxy/image-proxy.module';
 import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
-import { MenuModule } from 'src/menu/menu.module';
 
 @Global()
 @Module({
@@ -15,7 +15,7 @@ import { MenuModule } from 'src/menu/menu.module';
     TypeOrmModule.forFeature([User, RecoveryPassword, Membership]),
     ImageProxyModule,
     CloudinaryModule,
-    MenuModule,
+    CatalogModule,
   ],
   controllers: [UserController],
   providers: [UserService],

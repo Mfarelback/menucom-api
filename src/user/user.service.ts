@@ -21,7 +21,9 @@ import { ChangePasswordDto } from './dto/password.dto';
 import { RecoveryPassword } from './entities/recovery-password.entity';
 import { UrlTransformService } from 'src/image-proxy/services/url-transform.service';
 import { CloudinaryService } from 'src/cloudinary/services/cloudinary.service';
-import { MenuService } from 'src/menu/services/menu.service';
+import { CatalogService } from '../catalog/services/catalog.service';
+import { CatalogType } from '../catalog/enums/catalog-type.enum';
+import { LoggerService } from '../core/logger';
 
 @Injectable()
 export class UserService {
@@ -31,9 +33,12 @@ export class UserService {
     private restoreRepo: Repository<RecoveryPassword>,
     private readonly urlTransformService: UrlTransformService,
     private readonly cloudinaryService: CloudinaryService,
-    private readonly menuService: MenuService,
+    private readonly catalogService: CatalogService,
     private readonly configService: ConfigService,
-  ) {}
+    private readonly logger: LoggerService,
+  ) {
+    this.logger.setContext('UserService');
+  }
 
   async create(data: CreateUserDto) {
     // Verifica si la tabla 'user' existe
@@ -88,8 +93,8 @@ export class UserService {
   }
 
   async createOfSocial(data: any) {
-    console.log('🆕 [USER SERVICE] Iniciando creación de usuario social');
-    console.log('📋 [USER SERVICE] Datos recibidos para createOfSocial:', {
+    this.logger.debug('Iniciando creación de usuario social');
+    this.logger.logObject('Datos recibidos para createOfSocial', {
       email: data.email,
       name: data.name,
       socialToken: data.socialToken,
@@ -114,9 +119,8 @@ export class UserService {
         lastLoginAt: new Date(),
       });
 
-      console.log(
-        '🔍 [USER SERVICE] Verificando si existe usuario con email:',
-        data.email,
+      this.logger.debug(
+        `Verificando si existe usuario con email: ${data.email}`,
       );
       // Verificar si ya existe un usuario con el mismo email
       const existingUser = await this.userRepo.findOne({
@@ -124,52 +128,38 @@ export class UserService {
       });
 
       if (existingUser) {
-        console.log(
-          '👤 [USER SERVICE] Usuario existente encontrado:',
-          existingUser.id,
-        );
+        this.logger.debug(`Usuario existente encontrado: ${existingUser.id}`);
         // Si existe pero no tiene socialToken, actualizar
         if (!existingUser.socialToken) {
-          console.log(
-            '🔄 [USER SERVICE] Actualizando usuario existente con datos sociales',
+          this.logger.debug(
+            'Actualizando usuario existente con datos sociales',
           );
           existingUser.socialToken = data.socialToken;
           existingUser.firebaseProvider = data.firebaseProvider;
           existingUser.isEmailVerified = data.isEmailVerified || false;
           existingUser.lastLoginAt = new Date();
           const updated = await this.userRepo.save(existingUser);
-          console.log(
-            '✅ [USER SERVICE] Usuario existente actualizado con datos sociales',
-          );
+          this.logger.log('Usuario existente actualizado con datos sociales');
           return updated;
         } else {
-          console.log(
-            'ℹ️ [USER SERVICE] Usuario ya tiene socialToken, retornando existente',
+          this.logger.debug(
+            'Usuario ya tiene socialToken, retornando existente',
           );
           // Si ya tiene socialToken, retornar el existente
           return existingUser;
         }
       }
 
-      console.log(
-        '💾 [USER SERVICE] Creando nuevo usuario social en base de datos...',
-      );
+      this.logger.debug('Creando nuevo usuario social en base de datos...');
       // Si no existe, crear nuevo
       const savedUser = await this.userRepo.save(newUser);
-      console.log(
-        '✅ [USER SERVICE] Nuevo usuario social creado exitosamente:',
-        {
-          id: savedUser.id,
-          email: savedUser.email,
-          role: savedUser.role,
-        },
+      this.logger.log(
+        `Nuevo usuario social creado exitosamente: ${savedUser.id}`,
       );
 
       // Verificación crítica final
       if (!savedUser) {
-        console.error(
-          '❌ [USER SERVICE] CRÍTICO: savedUser es null después de save',
-        );
+        this.logger.error('CRÍTICO: savedUser es null después de save', '');
         throw new HttpException(
           'Error crítico: no se pudo guardar el usuario en la base de datos',
           HttpStatus.INTERNAL_SERVER_ERROR,
@@ -178,13 +168,13 @@ export class UserService {
 
       return savedUser;
     } catch (error) {
-      console.error('❌ [USER SERVICE] Error en createOfSocial:', {
-        message: error.message,
-        stack: error.stack?.substring(0, 200) + '...',
-        userData: {
-          email: data?.email,
-          socialToken: data?.socialToken,
-        },
+      this.logger.error(
+        `Error en createOfSocial: ${error.message}`,
+        error.stack,
+      );
+      this.logger.logObject('Datos del error', {
+        email: data?.email,
+        role: data?.role,
       });
       throw new HttpException(
         'Error al crear usuario social: ' + error.message,
@@ -206,13 +196,13 @@ export class UserService {
   }
 
   async findByEmail(email: string) {
-    console.log('🔍 [USER SERVICE] Buscando usuario por email:', email);
+    this.logger.debug(`Buscando usuario por email: ${email}`);
     const user = await this.userRepo.findOne({ where: { email: email } });
-    console.log(
-      user
-        ? `✅ [USER SERVICE] Usuario encontrado por email: ${user.id}`
-        : '❌ [USER SERVICE] Usuario no encontrado por email',
-    );
+    if (user) {
+      this.logger.debug(`Usuario encontrado por email: ${user.id}`);
+    } else {
+      this.logger.debug('Usuario no encontrado por email');
+    }
     return user;
   }
 
@@ -222,25 +212,21 @@ export class UserService {
    * @returns Usuario encontrado o null
    */
   async findBySocialToken(socialToken: string): Promise<User | null> {
-    console.log(
-      '🔍 [USER SERVICE] Buscando usuario por socialToken:',
-      socialToken,
-    );
+    this.logger.debug('Buscando usuario por socialToken');
     try {
       const user = await this.userRepo.findOne({ where: { socialToken } });
-      console.log(
-        user
-          ? `✅ [USER SERVICE] Usuario encontrado por socialToken: ${user.id} (${user.email})`
-          : '❌ [USER SERVICE] Usuario no encontrado por socialToken',
-      );
+      if (user) {
+        this.logger.debug(
+          `Usuario encontrado por socialToken: ${user.id} (${user.email})`,
+        );
+      } else {
+        this.logger.debug('Usuario no encontrado por socialToken');
+      }
       return user;
     } catch (error) {
-      console.error(
-        '❌ [USER SERVICE] Error buscando usuario por socialToken:',
-        {
-          message: error.message,
-          socialToken,
-        },
+      this.logger.error(
+        `Error buscando usuario por socialToken: ${error.message}`,
+        error.stack,
       );
       return null;
     }
@@ -253,31 +239,27 @@ export class UserService {
    * @returns Usuario actualizado
    */
   async updateSocialToken(userId: string, socialToken: string): Promise<User> {
-    console.log(
-      '🔄 [USER SERVICE] Actualizando socialToken para usuario:',
-      userId,
-    );
+    this.logger.debug(`Actualizando socialToken para usuario: ${userId}`);
     try {
       const user = await this.userRepo.findOne({ where: { id: userId } });
       if (!user) {
-        console.error(
-          `❌ [USER SERVICE] Usuario #${userId} no encontrado para actualizar socialToken`,
+        this.logger.warn(
+          `Usuario #${userId} no encontrado para actualizar socialToken`,
         );
         throw new NotFoundException(`Usuario #${userId} no encontrado`);
       }
 
       user.socialToken = socialToken;
       const updatedUser = await this.userRepo.save(user);
-      console.log(
-        `✅ [USER SERVICE] SocialToken actualizado exitosamente para usuario: ${user.email}`,
+      this.logger.log(
+        `SocialToken actualizado exitosamente para usuario: ${user.email}`,
       );
       return updatedUser;
     } catch (error) {
-      console.error('❌ [USER SERVICE] Error actualizando socialToken:', {
-        message: error.message,
-        userId,
-        socialToken,
-      });
+      this.logger.error(
+        `Error actualizando socialToken para userId ${userId}: ${error.message}`,
+        error.stack,
+      );
       throw new HttpException(
         'Error al actualizar token social: ' + error.message,
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -297,27 +279,21 @@ export class UserService {
 
     // Si se proporciona un archivo de foto, subirlo a Cloudinary
     if (photoFile) {
-      console.log('📸 [USER SERVICE] Subiendo nueva foto de usuario...');
+      this.logger.debug('Subiendo nueva foto de usuario...');
       try {
         const uploadedUrl = await this.cloudinaryService.uploadImage(photoFile);
         if (typeof uploadedUrl === 'string') {
           changes = { ...changes, photoURL: uploadedUrl };
-          console.log(
-            '✅ [USER SERVICE] Foto subida exitosamente:',
-            uploadedUrl,
-          );
+          this.logger.log(`Foto subida exitosamente: ${uploadedUrl}`);
         } else {
-          console.error(
-            '❌ [USER SERVICE] Error al subir imagen:',
-            uploadedUrl,
-          );
+          this.logger.error(`Error al subir imagen: ${uploadedUrl}`);
           throw new HttpException(
             'Error al subir la imagen',
             HttpStatus.BAD_REQUEST,
           );
         }
       } catch (error) {
-        console.error('❌ [USER SERVICE] Error en uploadImage:', error);
+        this.logger.logError('Error en uploadImage', error);
         throw new HttpException(
           'Error al procesar la imagen: ' + error.message,
           HttpStatus.INTERNAL_SERVER_ERROR,
@@ -334,30 +310,24 @@ export class UserService {
     try {
       const user = await this.userRepo.findOne({
         where: { id: id },
-        relations: ['membership'], // ajustá según tus entidades
+        relations: ['membership'],
       });
 
       if (!user) {
         throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
       }
 
-      // Eliminación explícita de relaciones
-      // await Promise.all([
-      //   this.menuService.deleteMenuByUser( id ),
-      //   this.sessionRepo.delete({ user: { id } }),
-      //   this.tokenRepo.delete({ user: { id } }),
-      //   this.settingsRepo.delete({ user: { id } }),
-      // ]);
-
-      // Eliminación del usuario
+      // Eliminación del usuario (cascada automática por configuración de entidad)
       await this.userRepo.delete(id);
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
       }
 
-      // Logging opcional
-      console.error(`Error al eliminar usuario ${id}:`, error);
+      this.logger.error(
+        `Error al eliminar usuario ${id}: ${error.message}`,
+        error.stack,
+      );
 
       // Lanzar error genérico o personalizado
       throw new InternalServerErrorException(
@@ -421,7 +391,7 @@ export class UserService {
           throw new ConflictException('Código invalido');
         }
         await this.restoreRepo.remove([findCode]);
-        console.log('Removido');
+        this.logger.debug('Código de recuperación removido');
         this.sendVerificationCode(userFind);
       }
       return [];
@@ -456,10 +426,15 @@ export class UserService {
 
       const codeCreated = this.restoreRepo.create(newCodeVerification);
       await this.restoreRepo.save(codeCreated);
-      console.log(codeCreated.codeValidation);
+      this.logger.debug(
+        `Código de verificación creado: ${codeCreated.codeValidation}`,
+      );
       return [];
     } catch (error) {
-      console.log(error);
+      this.logger.error(
+        `Error al enviar código: ${error.message}`,
+        error.stack,
+      );
       throw new ServiceUnavailableException('Error al enviar código');
     }
   }
@@ -514,8 +489,10 @@ export class UserService {
       if (includeMenus) {
         const usersWithMenus = await Promise.all(
           usersWithoutPassword.map(async (user) => {
-            const menus = await this.menuService.getMenusWithItemsByUserId(
+            const menus = await this.catalogService.getCatalogsByOwner(
               user.id,
+              CatalogType.MENU,
+              true,
             );
             return {
               ...user,
@@ -528,8 +505,11 @@ export class UserService {
 
       return usersWithoutPassword;
     } catch (error) {
-      console.error('❌ [USER SERVICE] Error en getUsersByRoles:', {
-        message: error.message,
+      this.logger.error(
+        `Error en getUsersByRoles: ${error.message}`,
+        error.stack,
+      );
+      this.logger.logObject('Parámetros de búsqueda', {
         roles,
         withVinculedAccount,
         includeMenus,

@@ -6,10 +6,9 @@ import { SubscriptionPlanService } from './subscription-plan.service';
 import { PLAN_LIMITS } from '../enums/membership-plan.enum';
 
 // Import entities for counting
-import { Menu } from '../../menu/entities/menu.entity';
-import { MenuItem } from '../../menu/entities/menu-item.entity';
-import { Wardrobes } from '../../wardrobes/entities/wardrobes.entity';
-import { ClothingItem } from '../../wardrobes/entities/clothing_item.entity';
+import { Catalog } from '../../catalog/entities/catalog.entity';
+import { CatalogItem } from '../../catalog/entities/catalog-item.entity';
+import { CatalogType } from '../../catalog/enums/catalog-type.enum';
 
 @Injectable()
 export class ResourceLimitService {
@@ -18,14 +17,10 @@ export class ResourceLimitService {
   constructor(
     private readonly membershipProvider: MembershipProvider,
     private readonly subscriptionPlanService: SubscriptionPlanService,
-    @InjectRepository(Menu)
-    private readonly menuRepository: Repository<Menu>,
-    @InjectRepository(MenuItem)
-    private readonly menuItemRepository: Repository<MenuItem>,
-    @InjectRepository(Wardrobes)
-    private readonly wardrobeRepository: Repository<Wardrobes>,
-    @InjectRepository(ClothingItem)
-    private readonly clothingItemRepository: Repository<ClothingItem>,
+    @InjectRepository(Catalog)
+    private readonly catalogRepository: Repository<Catalog>,
+    @InjectRepository(CatalogItem)
+    private readonly catalogItemRepository: Repository<CatalogItem>,
   ) {}
 
   /**
@@ -34,24 +29,19 @@ export class ResourceLimitService {
   async canCreateMenu(userId: string): Promise<boolean> {
     const membership =
       await this.membershipProvider.getMembershipStatus(userId);
-
-    // Si tiene un plan personalizado, usar sus límites
     if (membership.subscriptionPlanId) {
       const currentMenuCount = await this.getCurrentMenuCount(userId);
       return this.subscriptionPlanService.canCreateResource(
         membership.subscriptionPlanId,
-        'maxMenus',
+        'maxMenuItems',
         currentMenuCount,
       );
     }
-
-    // Usar límites del plan estándar
     const limit = await this.membershipProvider.getResourceLimit(
       userId,
       'maxMenuItems',
     );
     const currentCount = await this.getCurrentMenuCount(userId);
-
     return limit === -1 || currentCount < limit;
   }
 
@@ -64,8 +54,6 @@ export class ResourceLimitService {
   ): Promise<boolean> {
     const membership =
       await this.membershipProvider.getMembershipStatus(userId);
-
-    // Si tiene un plan personalizado, usar sus límites
     if (membership.subscriptionPlanId) {
       const currentItemCount = await this.getCurrentMenuItemCount(userId);
       return this.subscriptionPlanService.canCreateResource(
@@ -74,12 +62,10 @@ export class ResourceLimitService {
         currentItemCount + additionalItems,
       );
     }
-
-    // Usar límites del plan estándar
     return this.membershipProvider.checkResourceLimit(
       userId,
       'maxMenuItems',
-      additionalItems,
+      additionalItems + (await this.getCurrentMenuItemCount(userId)),
     );
   }
 
@@ -89,8 +75,6 @@ export class ResourceLimitService {
   async canCreateWardrobe(userId: string): Promise<boolean> {
     const membership =
       await this.membershipProvider.getMembershipStatus(userId);
-
-    // Si tiene un plan personalizado, usar sus límites
     if (membership.subscriptionPlanId) {
       const currentWardrobeCount = await this.getCurrentWardrobeCount(userId);
       return this.subscriptionPlanService.canCreateResource(
@@ -99,11 +83,8 @@ export class ResourceLimitService {
         currentWardrobeCount,
       );
     }
-
-    // Para planes estándar, usar los nuevos límites
     const limit = await this.getWardrobeLimit(userId);
     const currentCount = await this.getCurrentWardrobeCount(userId);
-
     return limit === -1 || currentCount < limit;
   }
 
@@ -116,8 +97,6 @@ export class ResourceLimitService {
   ): Promise<boolean> {
     const membership =
       await this.membershipProvider.getMembershipStatus(userId);
-
-    // Si tiene un plan personalizado, usar sus límites
     if (membership.subscriptionPlanId) {
       const currentItemCount = await this.getCurrentClothingItemCount(userId);
       return this.subscriptionPlanService.canCreateResource(
@@ -126,11 +105,8 @@ export class ResourceLimitService {
         currentItemCount + additionalItems,
       );
     }
-
-    // Para planes estándar, usar los nuevos límites
     const limit = await this.getClothingItemLimit(userId);
     const currentCount = await this.getCurrentClothingItemCount(userId);
-
     return limit === -1 || currentCount + additionalItems <= limit;
   }
 
@@ -218,50 +194,44 @@ export class ResourceLimitService {
 
   // Métodos privados para obtener conteos actuales
   private async getCurrentMenuCount(userId: string): Promise<number> {
-    return await this.menuRepository.count({
-      where: { idOwner: userId },
+    return await this.catalogRepository.count({
+      where: { ownerId: userId, catalogType: CatalogType.MENU },
     });
   }
 
   private async getCurrentMenuItemCount(userId: string): Promise<number> {
-    // Primero obtener todos los menús del usuario
-    const userMenus = await this.menuRepository.find({
-      where: { idOwner: userId },
+    // Obtener todos los catálogos tipo MENU del usuario
+    const userMenus = await this.catalogRepository.find({
+      where: { ownerId: userId, catalogType: CatalogType.MENU },
       select: ['id'],
     });
-
     if (userMenus.length === 0) {
       return 0;
     }
-
-    // Contar items en todos los menús del usuario
     const menuIds = userMenus.map((menu) => menu.id);
-    return await this.menuItemRepository.count({
-      where: { menu: { id: In(menuIds) } },
+    return await this.catalogItemRepository.count({
+      where: { catalogId: In(menuIds) },
     });
   }
 
   private async getCurrentWardrobeCount(userId: string): Promise<number> {
-    return await this.wardrobeRepository.count({
-      where: { idOwner: userId },
+    return await this.catalogRepository.count({
+      where: { ownerId: userId, catalogType: CatalogType.WARDROBE },
     });
   }
 
   private async getCurrentClothingItemCount(userId: string): Promise<number> {
-    // Primero obtener todos los wardrobes del usuario
-    const userWardrobes = await this.wardrobeRepository.find({
-      where: { idOwner: userId },
+    // Obtener todos los catálogos tipo WARDROBE del usuario
+    const userWardrobes = await this.catalogRepository.find({
+      where: { ownerId: userId, catalogType: CatalogType.WARDROBE },
       select: ['id'],
     });
-
     if (userWardrobes.length === 0) {
       return 0;
     }
-
-    // Contar items en todos los wardrobes del usuario
     const wardrobeIds = userWardrobes.map((wardrobe) => wardrobe.id);
-    return await this.clothingItemRepository.count({
-      where: { wardrobe: { id: In(wardrobeIds) } },
+    return await this.catalogItemRepository.count({
+      where: { catalogId: In(wardrobeIds) },
     });
   }
 

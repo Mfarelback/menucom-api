@@ -14,10 +14,8 @@ import { MembershipAudit } from './entities/membership-audit.entity';
 import { SubscriptionPlan } from './entities/subscription-plan.entity';
 
 // Import external entities for ResourceLimitService
-import { Menu } from '../menu/entities/menu.entity';
-import { MenuItem } from '../menu/entities/menu-item.entity';
-import { Wardrobes } from '../wardrobes/entities/wardrobes.entity';
-import { ClothingItem } from '../wardrobes/entities/clothing_item.entity';
+import { Catalog } from '../catalog/entities/catalog.entity';
+import { CatalogItem } from '../catalog/entities/catalog-item.entity';
 
 @Module({
   imports: [
@@ -26,10 +24,8 @@ import { ClothingItem } from '../wardrobes/entities/clothing_item.entity';
       MembershipAudit,
       SubscriptionPlan,
       // External entities for ResourceLimitService
-      Menu,
-      MenuItem,
-      Wardrobes,
-      ClothingItem,
+      Catalog,
+      CatalogItem,
     ]),
   ],
   controllers: [

@@ -5,6 +5,7 @@ import { CreateUserDto } from 'src/user/dto/create-user.dto';
 import { SocialRegistrationDto } from 'src/user/dto/social-user.dto';
 import { AuthService } from '../services/auth.service';
 import { FirebaseAdmin } from '../firebase-admin';
+import { LoggerService } from 'src/core/logger/logger.service';
 import {
   ApiTags,
   ApiOperation,
@@ -20,7 +21,12 @@ interface AuthenticatedRequest extends Request {
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly logger: LoggerService,
+  ) {
+    this.logger.setContext('AuthController');
+  }
 
   @Get('firebase/health')
   @ApiOperation({ summary: 'Check Firebase configuration health' })
@@ -84,7 +90,7 @@ export class AuthController {
     },
   })
   async register(@Body() payload: CreateUserDto) {
-    console.log(payload);
+    this.logger.debug('Registro de usuario tradicional iniciado');
     return this.authService.registerUser(payload);
   }
 
@@ -123,18 +129,14 @@ export class AuthController {
   })
   @ApiResponse({ status: 401, description: 'Token inválido o expirado' })
   async loginSocial(@Req() req: AuthenticatedRequest) {
-    console.log('🔐 [AUTH CONTROLLER] Iniciando proceso de login social');
-    console.log('📋 [AUTH CONTROLLER] Headers recibidos:', {
-      authorization: req.headers.authorization
-        ? '***TOKEN_PRESENTE***'
-        : 'NO_TOKEN',
-      'user-agent': req.headers['user-agent'],
-      'content-type': req.headers['content-type'],
-    });
+    this.logger.log('Iniciando proceso de login social');
+    this.logger.debug(
+      `Headers - Authorization: ${req.headers.authorization ? 'PRESENTE' : 'AUSENTE'}`,
+    );
 
     // Los datos del usuario ya vienen validados por GoogleIdTokenStrategy
     const firebaseUserData = req.user;
-    console.log('👤 [AUTH CONTROLLER] Datos de Firebase validados:', {
+    this.logger.logObject('Datos de Firebase validados', {
       uid: firebaseUserData?.uid,
       email: firebaseUserData?.email,
       name: firebaseUserData?.name,
@@ -142,9 +144,9 @@ export class AuthController {
       firebaseProvider: firebaseUserData?.firebaseProvider,
     });
 
-    console.log('🚀 [AUTH CONTROLLER] Enviando datos al AuthService...');
+    this.logger.debug('Enviando datos al AuthService...');
     const result = await this.authService.loginSocial(firebaseUserData);
-    console.log('✅ [AUTH CONTROLLER] Login social completado exitosamente');
+    this.logger.log('Login social completado exitosamente');
 
     return result;
   }
@@ -173,49 +175,28 @@ export class AuthController {
     @Req() req: AuthenticatedRequest,
     @Body() socialData: SocialRegistrationDto,
   ) {
-    console.log(
-      '🔐 [AUTH CONTROLLER] Iniciando registro social con datos adicionales',
+    this.logger.log('Iniciando registro social con datos adicionales');
+    this.logger.debug(
+      `Headers - Authorization: ${req.headers.authorization ? 'PRESENTE' : 'AUSENTE'}`,
     );
-    console.log('📋 [AUTH CONTROLLER] Headers recibidos:', {
-      authorization: req.headers.authorization
-        ? '***TOKEN_PRESENTE***'
-        : 'NO_TOKEN',
-      'content-type': req.headers['content-type'],
-    });
 
     const firebaseUserData = req.user;
-    console.log('👤 [AUTH CONTROLLER] Datos de Firebase para registro:', {
+    this.logger.logObject('Datos de Firebase para registro', {
       uid: firebaseUserData?.uid,
       email: firebaseUserData?.email,
       name: firebaseUserData?.name,
       email_verified: firebaseUserData?.email_verified,
     });
 
-    console.log('📝 [AUTH CONTROLLER] Datos adicionales del formulario:', {
-      ...socialData,
-      // No loggear datos sensibles si los hay
-    });
+    this.logger.debug('Datos adicionales del formulario recibidos');
 
-    console.log(
-      '🚀 [AUTH CONTROLLER] Enviando al AuthService para registro...',
-    );
+    this.logger.debug('Enviando al AuthService para registro...');
     const result = await this.authService.registerSocialWithData(
       socialData,
       firebaseUserData,
     );
-    console.log('✅ [AUTH CONTROLLER] Registro social completado exitosamente');
+    this.logger.log('Registro social completado exitosamente');
 
     return result;
-  }
-
-  // Mantener el endpoint anterior por compatibilidad
-  @Post('/social')
-  @ApiOperation({
-    summary: '[DEPRECATED] Autenticación social legacy',
-    description:
-      'Endpoint legacy para autenticación social. Usar /social/login en su lugar.',
-  })
-  async loginSocialLegacy(@Body() payload: CreateUserDto) {
-    return this.authService.loginSocial_OLD(payload);
   }
 }

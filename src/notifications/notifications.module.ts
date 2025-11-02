@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
-// import { FirebaseAdminModule } from '../auth/firebase-admin.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from '../user/entities/user.entity';
 

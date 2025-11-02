@@ -8,13 +8,17 @@ import * as bcrypt from 'bcrypt';
 import { UserService } from 'src/user/user.service';
 import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from 'src/user/dto/create-user.dto';
+import { LoggerService } from 'src/core/logger/logger.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UserService,
     private jwtService: JwtService,
-  ) {}
+    private logger: LoggerService,
+  ) {
+    this.logger.setContext('AuthService');
+  }
 
   async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.usersService.findByEmail(email);
@@ -23,7 +27,6 @@ export class AuthService {
       if (isMatch) {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { password, ...result } = user;
-        // console.log(result);
         return result;
       } else {
         throw new UnauthorizedException('Contraseña no válida');
@@ -68,8 +71,8 @@ export class AuthService {
    * @returns Token JWT y datos del usuario
    */
   async loginSocial(firebaseUserData: any) {
-    console.log('🔄 [AUTH SERVICE] Iniciando loginSocial');
-    console.log('📊 [AUTH SERVICE] Datos recibidos de Firebase:', {
+    this.logger.debug('Iniciando loginSocial');
+    this.logger.logObject('Datos recibidos de Firebase', {
       uid: firebaseUserData?.uid,
       email: firebaseUserData?.email,
       name: firebaseUserData?.name,
@@ -77,9 +80,8 @@ export class AuthService {
     });
 
     try {
-      console.log(
-        '🔍 [AUTH SERVICE] Buscando usuario por socialToken (uid):',
-        firebaseUserData.uid,
+      this.logger.debug(
+        `Buscando usuario por socialToken (uid): ${firebaseUserData.uid}`,
       );
       // Buscar usuario existente por token social (Firebase UID)
       let user = await this.usersService.findBySocialToken(
@@ -87,36 +89,34 @@ export class AuthService {
       );
 
       if (!user) {
-        console.log('❌ [AUTH SERVICE] Usuario no encontrado por socialToken');
-        console.log(
-          '🔍 [AUTH SERVICE] Buscando usuario por email:',
-          firebaseUserData.email,
+        this.logger.debug('Usuario no encontrado por socialToken');
+        this.logger.debug(
+          `Buscando usuario por email: ${firebaseUserData.email}`,
         );
 
         // Si no existe, buscar por email
         user = await this.usersService.findByEmail(firebaseUserData.email);
         if (user) {
-          console.log(
-            '✅ [AUTH SERVICE] Usuario encontrado por email, actualizando socialToken',
+          this.logger.log(
+            'Usuario encontrado por email, actualizando socialToken',
           );
           // Usuario existe pero no tiene socialToken, actualizar
           user = await this.usersService.updateSocialToken(
             user.id,
             firebaseUserData.uid,
           );
-          console.log('🔄 [AUTH SERVICE] SocialToken actualizado exitosamente');
+          this.logger.log('SocialToken actualizado exitosamente');
         } else {
-          console.log(
-            '❌ [AUTH SERVICE] Usuario no encontrado por email tampoco',
-          );
-          console.log('🆕 [AUTH SERVICE] Creando nuevo usuario social...');
+          this.logger.debug('Usuario no encontrado por email tampoco');
+          this.logger.log('Creando nuevo usuario social...');
           // Usuario no existe, crear nuevo
           user = await this.registerUserSocial(firebaseUserData);
 
           // Verificación crítica: asegurar que registerUserSocial retornó un usuario
           if (!user) {
-            console.error(
-              '❌ [AUTH SERVICE] CRÍTICO: registerUserSocial retornó null',
+            this.logger.error(
+              'CRÍTICO: registerUserSocial retornó null',
+              new Error('User creation failed').stack,
             );
             throw new HttpException(
               'Error crítico: no se pudo crear el nuevo usuario social',
@@ -124,25 +124,24 @@ export class AuthService {
             );
           }
 
-          console.log(
-            '✅ [AUTH SERVICE] Nuevo usuario social creado con ID:',
-            user.id,
-          );
+          this.logger.log(`Nuevo usuario social creado con ID: ${user.id}`);
         }
       } else {
-        console.log('✅ [AUTH SERVICE] Usuario encontrado por socialToken:', {
+        this.logger.log('Usuario encontrado por socialToken');
+        this.logger.logObject('Datos del usuario', {
           id: user.id,
           email: user.email,
           name: user.name,
         });
       }
 
-      console.log('🎫 [AUTH SERVICE] Generando JWT token...');
+      this.logger.debug('Generando JWT token...');
 
       // Verificación de seguridad: asegurar que user no sea null
       if (!user) {
-        console.error(
-          '❌ [AUTH SERVICE] ERROR CRÍTICO: user es null después de todos los intentos',
+        this.logger.error(
+          'ERROR CRÍTICO: user es null después de todos los intentos',
+          new Error('User is null').stack,
         );
         throw new HttpException(
           'Error interno: no se pudo crear o encontrar el usuario',
@@ -157,7 +156,7 @@ export class AuthService {
       };
 
       const jwtToken = this.jwtService.sign(payload);
-      console.log('✅ [AUTH SERVICE] JWT token generado exitosamente');
+      this.logger.log('JWT token generado exitosamente');
 
       const response = {
         access_token: jwtToken,
@@ -173,15 +172,13 @@ export class AuthService {
         },
       };
 
-      console.log(
-        '🎉 [AUTH SERVICE] LoginSocial completado exitosamente para usuario:',
-        user.email,
+      this.logger.log(
+        `LoginSocial completado exitosamente para usuario: ${user.email}`,
       );
       return response;
     } catch (error) {
-      console.error('❌ [AUTH SERVICE] Error en loginSocial:', {
-        message: error.message,
-        stack: error.stack,
+      this.logger.error(`Error en loginSocial: ${error.message}`, error.stack);
+      this.logger.logObject('Contexto del error', {
         firebaseUid: firebaseUserData?.uid,
         firebaseEmail: firebaseUserData?.email,
       });
@@ -198,8 +195,8 @@ export class AuthService {
    * @returns Usuario creado
    */
   async registerUserSocial(firebaseUserData: any) {
-    console.log('🆕 [AUTH SERVICE] Iniciando registro de usuario social');
-    console.log('📊 [AUTH SERVICE] Datos para registro:', {
+    this.logger.log('Iniciando registro de usuario social');
+    this.logger.logObject('Datos para registro', {
       email: firebaseUserData.email,
       uid: firebaseUserData.uid,
       name: firebaseUserData.name,
@@ -222,19 +219,23 @@ export class AuthService {
         lastLoginAt: new Date(),
       };
 
-      console.log('💾 [AUTH SERVICE] Creando usuario en base de datos...');
+      this.logger.debug('Creando usuario en base de datos...');
       const userRegister = await this.usersService.createOfSocial(newUserData);
 
       // Verificación crítica: asegurar que createOfSocial retornó un usuario válido
       if (!userRegister) {
-        console.error('❌ [AUTH SERVICE] CRÍTICO: createOfSocial retornó null');
+        this.logger.error(
+          'CRÍTICO: createOfSocial retornó null',
+          new Error('User creation failed').stack,
+        );
         throw new HttpException(
           'Error crítico: el servicio de usuarios no pudo crear el usuario',
           500,
         );
       }
 
-      console.log('✅ [AUTH SERVICE] Usuario social registrado exitosamente:', {
+      this.logger.log('Usuario social registrado exitosamente');
+      this.logger.logObject('Datos del usuario registrado', {
         id: userRegister.id,
         email: userRegister.email,
         role: userRegister.role,
@@ -242,9 +243,11 @@ export class AuthService {
 
       return userRegister;
     } catch (error) {
-      console.error('❌ [AUTH SERVICE] Error en registerUserSocial:', {
-        message: error.message,
-        stack: error.stack,
+      this.logger.error(
+        `Error en registerUserSocial: ${error.message}`,
+        error.stack,
+      );
+      this.logger.logObject('Contexto del error', {
         firebaseEmail: firebaseUserData?.email,
         firebaseUid: firebaseUserData?.uid,
       });
@@ -262,14 +265,14 @@ export class AuthService {
    * @returns Token JWT y datos del usuario
    */
   async registerSocialWithData(socialData: any, firebaseUserData: any) {
-    console.log('🆕 [AUTH SERVICE] Iniciando registerSocialWithData');
-    console.log('🔥 [AUTH SERVICE] Datos de Firebase:', {
+    this.logger.log('Iniciando registerSocialWithData');
+    this.logger.logObject('Datos de Firebase', {
       uid: firebaseUserData?.uid,
       email: firebaseUserData?.email,
       name: firebaseUserData?.name,
       email_verified: firebaseUserData?.email_verified,
     });
-    console.log('📝 [AUTH SERVICE] Datos del formulario social:', socialData);
+    this.logger.logObject('Datos del formulario social', socialData);
 
     try {
       const userData = {
@@ -280,16 +283,16 @@ export class AuthService {
         firebaseProvider: firebaseUserData.firebaseProvider,
       };
 
-      console.log('🔗 [AUTH SERVICE] Datos combinados para registro:', {
+      this.logger.logObject('Datos combinados para registro', {
         email: userData.email,
         name: userData.name,
         socialToken: userData.socialToken,
         role: userData.role,
       });
 
-      console.log('💾 [AUTH SERVICE] Enviando datos a UserService...');
+      this.logger.debug('Enviando datos a UserService...');
       const userRegister = await this.usersService.createOfSocial(userData);
-      console.log('✅ [AUTH SERVICE] Usuario registrado, generando JWT...');
+      this.logger.log('Usuario registrado, generando JWT...');
 
       const payload = {
         username: userRegister.role,
@@ -302,13 +305,16 @@ export class AuthService {
         user: userRegister,
       };
 
-      console.log(
-        '🎉 [AUTH SERVICE] RegisterSocialWithData completado para:',
-        userRegister.email,
+      this.logger.log(
+        `RegisterSocialWithData completado para: ${userRegister.email}`,
       );
       return response;
     } catch (error) {
-      console.error('❌ [AUTH SERVICE] Error en registerSocialWithData:', {
+      this.logger.error(
+        `Error en registerSocialWithData: ${error.message}`,
+        error.stack,
+      );
+      this.logger.logObject('Contexto del error', {
         message: error.message,
         stack: error.stack?.substring(0, 200) + '...',
         firebaseUid: firebaseUserData?.uid,
@@ -319,35 +325,5 @@ export class AuthService {
         500,
       );
     }
-  }
-
-  async loginSocial_OLD(userData: CreateUserDto) {
-    return this.usersService
-      .findOne(userData.id)
-      .then((user) => {
-        if (user) {
-          const payload = { username: user.role, sub: user.id };
-          return {
-            access_token: this.jwtService.sign(payload),
-          };
-        } else {
-          return this.registerUserSocial_OLD(userData);
-        }
-      })
-      .catch((err) => {
-        if (err.status === 404) {
-          return this.registerUserSocial_OLD(userData);
-        }
-        console.log('coltala', err.status);
-      });
-  }
-
-  async registerUserSocial_OLD(userData: CreateUserDto) {
-    const userRegister = await this.usersService.createOfSocial(userData);
-    const payload = { username: userRegister.role, sub: userRegister.id };
-
-    return {
-      access_token: this.jwtService.sign(payload),
-    };
   }
 }

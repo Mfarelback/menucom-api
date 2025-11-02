@@ -63,7 +63,7 @@ export class UrlTransformService {
       const transformed = { ...data };
 
       for (const key in transformed) {
-        if (transformed.hasOwnProperty(key)) {
+        if (Object.prototype.hasOwnProperty.call(transformed, key)) {
           // Campos que sabemos que contienen URLs de imágenes
           if (this.isImageField(key)) {
             transformed[key] = this.transformToProxy(transformed[key]);

@@ -26,11 +26,8 @@ import { Request } from 'express';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
 import { ChangePasswordDto } from './dto/password.dto';
 import { GetUsersByRolesDto } from './dto/get-users-by-roles.dto';
-import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto'; // Importar el nuevo DTO
+import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-// import { PasswordService } from '../services/password/password.service';
-// import { RecoveryPasswordDto } from '../dto/recovery-pass';
-// import { ChangePasswordDto } from '../dto/change-password';
 
 @ApiTags('user')
 @Controller('user')

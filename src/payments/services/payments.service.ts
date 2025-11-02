@@ -10,11 +10,10 @@ import { MercadoPagoOAuthService } from './mercado-pago-oauth.service';
 import { PaymentsRepository } from '../repository/payment_repository';
 import { PaymentIntent } from '../entities/payment_intent_entity';
 import { v4 as uuidv4 } from 'uuid';
-// import { PaymentStatusType } from 'src/core/constants';
 import { MerchantOrderResponse } from 'mercadopago/dist/clients/merchantOrder/commonTypes';
 import { PaymentStatusType } from 'src/config';
 import { OrdersService } from 'src/orders/services/orders.service';
-// import { PaymentSearchResult } from 'mercadopago/dist/clients/payment/search/types';
+import { LoggerService } from 'src/core/logger/logger.service';
 
 @Injectable()
 export class PaymentsService {
@@ -24,7 +23,10 @@ export class PaymentsService {
     private readonly paymentIntentRepository: PaymentsRepository,
     @Inject(forwardRef(() => OrdersService))
     private readonly ordersService: OrdersService,
-  ) {}
+    private readonly logger: LoggerService,
+  ) {
+    this.logger.setContext('PaymentsService');
+  }
 
   async createPayment(
     phone: string,
@@ -74,9 +76,8 @@ export class PaymentsService {
             );
         } catch (error) {
           // Log el error pero continúa sin collector_id para compatibilidad
-          console.warn(
-            `Could not get account data for owner ${ownerId}:`,
-            error.message,
+          this.logger.warn(
+            `Could not get account data for owner ${ownerId}: ${error.message}`,
           );
         }
       }
@@ -94,7 +95,7 @@ export class PaymentsService {
       // Crear la preferencia con o sin collector_id
       let paymentMpID;
       if (accountData) {
-        console.log(
+        this.logger.log(
           `Creating preference with collector_id: ${accountData.collectorId} for owner: ${ownerId}`,
         );
         // Usar createPreferenceWithCustomToken para pagos con vendedor específico
@@ -110,7 +111,7 @@ export class PaymentsService {
             accountData.accessToken,
           );
       } else {
-        console.log(
+        this.logger.log(
           `Creating preference without collector_id for owner: ${ownerId || 'no owner'}`,
         );
         // Usar createPreference para pagos normales con metadata incluida
@@ -353,7 +354,7 @@ export class PaymentsService {
 
       // Caso 1: Notificación de payment
       if (paymentId) {
-        console.log('[Webhook Processor] Procesando payment ID:', paymentId);
+        this.logger.log(`Procesando payment ID: ${paymentId}`);
 
         // Obtener información del pago desde MercadoPago
         const paymentInfo =
@@ -362,12 +363,10 @@ export class PaymentsService {
           paymentInfo.external_reference || paymentInfo.order_id || null;
         paymentStatus = paymentInfo.status;
 
-        console.log(
-          '[Webhook Processor] Payment status:',
-          paymentStatus,
-          'OrderId:',
-          orderId,
-        );
+        this.logger.logObject('Payment status', {
+          status: paymentStatus,
+          orderId: orderId,
+        });
 
         if (orderId && paymentStatus) {
           // Actualizar el PaymentIntent
@@ -376,14 +375,12 @@ export class PaymentsService {
               orderId,
               paymentStatus,
             );
-            console.log(
-              '[Webhook Processor] PaymentIntent actualizado:',
-              updatedPaymentIntent.state,
+            this.logger.log(
+              `PaymentIntent actualizado: ${updatedPaymentIntent.state}`,
             );
           } catch (error) {
-            console.warn(
-              '[Webhook Processor] Error actualizando PaymentIntent:',
-              error.message,
+            this.logger.warn(
+              `Error actualizando PaymentIntent: ${error.message}`,
             );
           }
 
@@ -398,31 +395,21 @@ export class PaymentsService {
                 order.id,
                 orderStatus,
               );
-              console.log(
-                '[Webhook Processor] Order actualizada:',
-                updatedOrder.status,
-              );
+              this.logger.log(`Order actualizada: ${updatedOrder.status}`);
             } else {
-              console.warn(
-                '[Webhook Processor] No se encontró orden con operationID:',
-                orderId,
+              this.logger.warn(
+                `No se encontró orden con operationID: ${orderId}`,
               );
             }
           } catch (error) {
-            console.warn(
-              '[Webhook Processor] Error actualizando Order:',
-              error.message,
-            );
+            this.logger.warn(`Error actualizando Order: ${error.message}`);
           }
         }
       }
 
       // Caso 2: Notificación de merchant_order
       if (merchantOrderId && !orderId) {
-        console.log(
-          '[Webhook Processor] Procesando merchant_order ID:',
-          merchantOrderId,
-        );
+        this.logger.log(`Procesando merchant_order ID: ${merchantOrderId}`);
         orderId =
           await this.mercadoPagoService.getOrderIdByMerchantOrderId(
             merchantOrderId,
@@ -435,13 +422,10 @@ export class PaymentsService {
               orderId,
               'approved',
             );
-            console.log(
-              '[Webhook Processor] PaymentIntent actualizado via merchant_order',
-            );
+            this.logger.log('PaymentIntent actualizado via merchant_order');
           } catch (error) {
-            console.warn(
-              '[Webhook Processor] Error actualizando PaymentIntent via merchant_order:',
-              error.message,
+            this.logger.warn(
+              `Error actualizando PaymentIntent via merchant_order: ${error.message}`,
             );
           }
 
@@ -452,14 +436,11 @@ export class PaymentsService {
                 order.id,
                 'confirmed',
               );
-              console.log(
-                '[Webhook Processor] Order confirmada via merchant_order',
-              );
+              this.logger.log('Order confirmada via merchant_order');
             }
           } catch (error) {
-            console.warn(
-              '[Webhook Processor] Error actualizando Order via merchant_order:',
-              error.message,
+            this.logger.warn(
+              `Error actualizando Order via merchant_order: ${error.message}`,
             );
           }
         }
@@ -472,9 +453,9 @@ export class PaymentsService {
         paymentStatus,
       };
     } catch (error) {
-      console.error(
-        '[Webhook Processor] Error procesando notificación:',
-        error,
+      this.logger.error(
+        `Error procesando notificación: ${error.message}`,
+        error.stack,
       );
       throw new BadRequestException(
         `Error procesando notificación del webhook: ${error.message}`,
