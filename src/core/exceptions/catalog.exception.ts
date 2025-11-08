@@ -2,6 +2,76 @@ import { HttpStatus } from '@nestjs/common';
 import { BaseBusinessException } from './base.exception';
 
 /**
+ * Excepción para catálogo no encontrado
+ */
+export class CatalogNotFoundException extends BaseBusinessException {
+  constructor(identifier: string, context?: Record<string, any>) {
+    super(
+      `Catálogo '${identifier}' no encontrado`,
+      HttpStatus.NOT_FOUND,
+      'CATALOG_NOT_FOUND',
+      {
+        catalogId: identifier,
+        ...context,
+      },
+    );
+  }
+}
+
+/**
+ * Excepción para item de catálogo no encontrado
+ */
+export class CatalogItemNotFoundException extends BaseBusinessException {
+  constructor(itemId: string, context?: Record<string, any>) {
+    super(
+      `Item de catálogo '${itemId}' no encontrado`,
+      HttpStatus.NOT_FOUND,
+      'CATALOG_ITEM_NOT_FOUND',
+      {
+        itemId,
+        ...context,
+      },
+    );
+  }
+}
+
+/**
+ * Excepción para acceso no autorizado al catálogo
+ */
+export class CatalogUnauthorizedException extends BaseBusinessException {
+  constructor(
+    catalogId: string,
+    userId: string,
+    context?: Record<string, any>,
+  ) {
+    super(
+      `Usuario '${userId}' no tiene permisos para acceder al catálogo '${catalogId}'`,
+      HttpStatus.FORBIDDEN,
+      'CATALOG_UNAUTHORIZED',
+      {
+        catalogId,
+        userId,
+        ...context,
+      },
+    );
+  }
+}
+
+/**
+ * Excepción para datos de catálogo inválidos
+ */
+export class InvalidCatalogDataException extends BaseBusinessException {
+  constructor(reason: string, context?: Record<string, any>) {
+    super(
+      `Datos de catálogo inválidos: ${reason}`,
+      HttpStatus.BAD_REQUEST,
+      'INVALID_CATALOG_DATA',
+      context,
+    );
+  }
+}
+
+/**
  * Excepción para errores en el catálogo
  */
 export class CatalogException extends BaseBusinessException {

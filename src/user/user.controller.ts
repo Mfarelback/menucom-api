@@ -13,6 +13,9 @@ import {
   UploadedFile,
 } from '@nestjs/common';
 import { UserService } from './user.service';
+import { UserProfileService } from './services/user-profile.service';
+import { UserRecoveryService } from './services/user-recovery.service';
+import { UserQueryService } from './services/user-query.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserWithFileDto } from './dto/update-user-with-file.dto';
 import {
@@ -32,7 +35,12 @@ import { FileInterceptor } from '@nestjs/platform-express';
 @ApiTags('user')
 @Controller('user')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly userService: UserService,
+    private readonly userProfileService: UserProfileService,
+    private readonly userRecoveryService: UserRecoveryService,
+    private readonly userQueryService: UserQueryService,
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @Get('/me')
@@ -52,7 +60,7 @@ export class UserController {
 
   @Post('change-password')
   async changePassword(@Body() password: ChangePasswordDto) {
-    return this.userService.changePasswordByUser(password);
+    return this.userRecoveryService.changePasswordByUser(password);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -86,7 +94,7 @@ export class UserController {
     @UploadedFile() photo?: Express.Multer.File,
   ) {
     try {
-      return await this.userService.update(id, updateUserDto, photo);
+      return await this.userProfileService.update(id, updateUserDto, photo);
     } catch (error) {
       throw new InternalServerErrorException('Failed to update user');
     }
@@ -114,7 +122,7 @@ export class UserController {
         withVinculedAccount = false,
         includeMenus = false,
       } = getUsersByRolesDto;
-      return await this.userService.getUsersByRoles(
+      return await this.userQueryService.getUsersByRoles(
         roles,
         withVinculedAccount,
         includeMenus,
@@ -156,7 +164,7 @@ export class UserController {
     try {
       const userId = req['user']['userId'];
       const { fcmToken } = updateFcmTokenDto;
-      return await this.userService.updateFcmToken(userId, fcmToken);
+      return await this.userProfileService.updateFcmToken(userId, fcmToken);
     } catch (error) {
       throw new InternalServerErrorException('Failed to update FCM token');
     }

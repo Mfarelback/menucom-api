@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UserService } from 'src/user/user.service';
+import { UserAuthService } from 'src/user/services/user-auth.service';
 import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from 'src/user/dto/create-user.dto';
 import { LoggerService } from 'src/core/logger/logger.service';
@@ -14,6 +15,7 @@ import { LoggerService } from 'src/core/logger/logger.service';
 export class AuthService {
   constructor(
     private usersService: UserService,
+    private userAuthService: UserAuthService,
     private jwtService: JwtService,
     private logger: LoggerService,
   ) {
@@ -84,7 +86,7 @@ export class AuthService {
         `Buscando usuario por socialToken (uid): ${firebaseUserData.uid}`,
       );
       // Buscar usuario existente por token social (Firebase UID)
-      let user = await this.usersService.findBySocialToken(
+      let user = await this.userAuthService.findBySocialToken(
         firebaseUserData.uid,
       );
 
@@ -101,7 +103,7 @@ export class AuthService {
             'Usuario encontrado por email, actualizando socialToken',
           );
           // Usuario existe pero no tiene socialToken, actualizar
-          user = await this.usersService.updateSocialToken(
+          user = await this.userAuthService.updateSocialToken(
             user.id,
             firebaseUserData.uid,
           );
@@ -220,7 +222,8 @@ export class AuthService {
       };
 
       this.logger.debug('Creando usuario en base de datos...');
-      const userRegister = await this.usersService.createOfSocial(newUserData);
+      const userRegister =
+        await this.userAuthService.createOfSocial(newUserData);
 
       // Verificación crítica: asegurar que createOfSocial retornó un usuario válido
       if (!userRegister) {
@@ -291,7 +294,7 @@ export class AuthService {
       });
 
       this.logger.debug('Enviando datos a UserService...');
-      const userRegister = await this.usersService.createOfSocial(userData);
+      const userRegister = await this.userAuthService.createOfSocial(userData);
       this.logger.log('Usuario registrado, generando JWT...');
 
       const payload = {

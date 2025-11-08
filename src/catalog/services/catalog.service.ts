@@ -1,11 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-  BadRequestException,
-  ConflictException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, ConflictException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere } from 'typeorm';
 import { Catalog } from '../entities/catalog.entity';
@@ -22,6 +15,12 @@ import {
   UpdateCatalogItemDto,
 } from '../dto/catalog-item.dto';
 import { MembershipProvider } from '../../membership/membership.provider';
+import {
+  CatalogNotFoundException,
+  CatalogItemNotFoundException,
+  CatalogUnauthorizedException,
+  InvalidCatalogDataException,
+} from '../../core/exceptions';
 
 @Injectable()
 export class CatalogService {
@@ -150,14 +149,12 @@ export class CatalogService {
     });
 
     if (!catalog) {
-      throw new NotFoundException(`Catálogo ${catalogId} no encontrado`);
+      throw new CatalogNotFoundException(catalogId);
     }
 
     // Validar ownership si se proporciona
     if (ownerId && catalog.ownerId !== ownerId) {
-      throw new ForbiddenException(
-        'No tienes permisos para acceder a este catálogo',
-      );
+      throw new CatalogUnauthorizedException(catalogId, ownerId);
     }
 
     return catalog;
@@ -177,7 +174,7 @@ export class CatalogService {
     });
 
     if (!catalog) {
-      throw new NotFoundException(`Catálogo con slug ${slug} no encontrado`);
+      throw new CatalogNotFoundException(slug, { searchType: 'slug' });
     }
 
     // Incrementar contador de vistas
@@ -262,8 +259,13 @@ export class CatalogService {
     // Verificar capacidad
     const currentItemCount = catalog.items?.length || 0;
     if (currentItemCount >= catalog.capacity) {
-      throw new BadRequestException(
+      throw new InvalidCatalogDataException(
         `El catálogo ha alcanzado su capacidad máxima de ${catalog.capacity} items`,
+        {
+          catalogId: createItemDto.catalogId,
+          currentItemCount,
+          capacity: catalog.capacity,
+        },
       );
     }
 
@@ -304,7 +306,7 @@ export class CatalogService {
     });
 
     if (!item) {
-      throw new NotFoundException(`Item ${itemId} no encontrado`);
+      throw new CatalogItemNotFoundException(itemId);
     }
 
     // Incrementar contador de vistas
@@ -328,14 +330,15 @@ export class CatalogService {
     });
 
     if (!item) {
-      throw new NotFoundException(`Item ${itemId} no encontrado`);
+      throw new CatalogItemNotFoundException(itemId);
     }
 
     // Validar ownership
     if (item.catalog.ownerId !== catalogOwnerId) {
-      throw new ForbiddenException(
-        'No tienes permisos para modificar este item',
-      );
+      throw new CatalogUnauthorizedException(item.catalog.id, catalogOwnerId, {
+        operation: 'update',
+        itemId,
+      });
     }
 
     Object.assign(item, {
@@ -360,13 +363,14 @@ export class CatalogService {
     });
 
     if (!item) {
-      throw new NotFoundException(`Item ${itemId} no encontrado`);
+      throw new CatalogItemNotFoundException(itemId);
     }
 
     if (item.catalog.ownerId !== catalogOwnerId) {
-      throw new ForbiddenException(
-        'No tienes permisos para eliminar este item',
-      );
+      throw new CatalogUnauthorizedException(item.catalog.id, catalogOwnerId, {
+        operation: 'delete',
+        itemId,
+      });
     }
 
     await this.catalogItemRepository.remove(item);
@@ -384,9 +388,10 @@ export class CatalogService {
     });
 
     if (!catalog) {
-      throw new NotFoundException(
-        `Catálogo público ${catalogId} no encontrado`,
-      );
+      throw new CatalogNotFoundException(catalogId, {
+        searchType: 'public',
+        isPublic: true,
+      });
     }
 
     // Filtrar solo items disponibles

@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { MembershipRepository } from './membership.repository';
 import { SubscribeMembershipDto } from './dto/subscribe-membership.dto';
 import { SubscribeToCustomPlanDto } from './dto/subscribe-to-custom-plan.dto';
@@ -18,6 +13,11 @@ import {
   PLAN_FEATURES,
   PLAN_LIMITS,
 } from './enums/membership-plan.enum';
+import {
+  MembershipNotFoundException,
+  DuplicateMembershipException,
+  SubscriptionException,
+} from '../core/exceptions';
 
 @Injectable()
 export class MembershipService {
@@ -30,7 +30,7 @@ export class MembershipService {
       await this.membershipRepository.findByUserId(userId);
 
     if (existingMembership) {
-      throw new BadRequestException('User already has a membership');
+      throw new DuplicateMembershipException(userId);
     }
 
     const membership = await this.membershipRepository.createMembership(
@@ -189,7 +189,7 @@ export class MembershipService {
     const membership = await this.membershipRepository.findByUserId(userId);
 
     if (!membership) {
-      throw new NotFoundException('Membership not found');
+      throw new MembershipNotFoundException(userId, { operation: 'update' });
     }
 
     return this.membershipRepository.updateMembership(membership.id, updateDto);
@@ -199,7 +199,7 @@ export class MembershipService {
     const membership = await this.membershipRepository.findByUserId(userId);
 
     if (!membership) {
-      throw new NotFoundException('Membership not found');
+      throw new MembershipNotFoundException(userId, { operation: 'cancel' });
     }
 
     const updatedMembership = await this.membershipRepository.updateMembership(
@@ -245,8 +245,15 @@ export class MembershipService {
     const hasAccess = await this.hasFeature(userId, requiredFeature);
 
     if (!hasAccess) {
-      throw new BadRequestException(
-        `Feature ${requiredFeature} requires a higher membership plan`,
+      const membership = await this.membershipRepository.findByUserId(userId);
+      const currentPlan = membership?.plan || 'FREE';
+      throw new SubscriptionException(
+        `La característica '${requiredFeature}' requiere un plan superior`,
+        {
+          requiredFeature,
+          currentPlan,
+          userId,
+        },
       );
     }
   }

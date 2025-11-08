@@ -4,6 +4,9 @@ import { MercadopagoService } from './services/mercado_pago.service';
 import { PaymentsController } from './controller/payments.controller';
 import { MercadoPagoOAuthController } from './controller/mercado-pago-oauth.controller';
 import { PaymentsService } from './services/payments.service';
+import { PaymentIntentService } from './services/payment-intent.service';
+import { PaymentWebhookService } from './services/payment-webhook.service';
+import { PaymentStatusService } from './services/payment-status.service';
 import { MercadoPagoHelperService } from './services/mercado-pago-helper.service';
 import { MercadoPagoOAuthService } from './services/mercado-pago-oauth.service';
 
@@ -41,6 +44,11 @@ import { OrdersModule } from 'src/orders/orders.module';
     MercadopagoService,
     MercadoPagoHelperService,
     MercadoPagoOAuthService,
+    // Servicios especializados de pagos
+    PaymentIntentService,
+    PaymentWebhookService,
+    PaymentStatusService,
+    // Servicio coordinador
     PaymentsService,
     MercadoPagoRepository,
     PaymentsRepository,
@@ -51,6 +59,11 @@ import { OrdersModule } from 'src/orders/orders.module';
     MercadopagoService,
     MercadoPagoHelperService,
     MercadoPagoOAuthService,
+    // Exportar servicios especializados para uso externo
+    PaymentIntentService,
+    PaymentWebhookService,
+    PaymentStatusService,
+    // Mantener PaymentsService como fachada
     PaymentsService,
     PaymentsGateway,
   ],

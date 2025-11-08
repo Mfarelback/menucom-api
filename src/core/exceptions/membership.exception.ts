@@ -2,6 +2,40 @@ import { HttpStatus } from '@nestjs/common';
 import { BaseBusinessException } from './base.exception';
 
 /**
+ * Excepción para membresía no encontrada
+ */
+export class MembershipNotFoundException extends BaseBusinessException {
+  constructor(identifier: string, context?: Record<string, any>) {
+    super(
+      `Membresía '${identifier}' no encontrada`,
+      HttpStatus.NOT_FOUND,
+      'MEMBERSHIP_NOT_FOUND',
+      {
+        membershipId: identifier,
+        ...context,
+      },
+    );
+  }
+}
+
+/**
+ * Excepción para membresía duplicada
+ */
+export class DuplicateMembershipException extends BaseBusinessException {
+  constructor(userId: string, context?: Record<string, any>) {
+    super(
+      `El usuario '${userId}' ya tiene una membresía activa`,
+      HttpStatus.BAD_REQUEST,
+      'DUPLICATE_MEMBERSHIP',
+      {
+        userId,
+        ...context,
+      },
+    );
+  }
+}
+
+/**
  * Excepción para errores de membresía
  */
 export class MembershipException extends BaseBusinessException {
