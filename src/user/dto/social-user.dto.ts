@@ -35,15 +35,6 @@ export class SocialUserDto {
   @ApiProperty({ description: 'Número de teléfono', required: false })
   readonly phone?: string;
 
-  @IsString()
-  @IsOptional()
-  @ApiProperty({
-    description: 'Rol del usuario',
-    enum: ['customer', 'admin', 'pro', 'operador'],
-    default: 'customer',
-  })
-  readonly role?: string;
-
   // Campos específicos para autenticación social
   @IsString()
   @ApiProperty({ description: 'Firebase UID (socialToken)' })

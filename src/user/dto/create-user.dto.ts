@@ -40,10 +40,6 @@ export class CreateUserDto {
   @ApiProperty({ description: 'the password of user' })
   readonly password: string;
 
-  @IsNotEmpty()
-  @ApiProperty({ description: 'Roles of user: customer, admin, pro' })
-  readonly role: string;
-
   @IsOptional()
   @IsPositive()
   @ApiProperty()

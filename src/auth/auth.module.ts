@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './services/auth.service';
 import { AuthController } from './contollers/auth.controller';
+import { UserRoleController } from './contollers/user-role.controller';
 import { JwtModule } from '@nestjs/jwt';
 import { UserModule } from 'src/user/user.module';
 import config from 'src/config';
@@ -12,13 +13,14 @@ import { LocalStrategy } from './local.strategy';
 import { GoogleIdTokenStrategy } from './strategies/google-id.strategy';
 import { FirebaseAdmin } from './firebase-admin';
 import { UserRole } from './entities/user-role.entity';
+import { User } from '../user/entities/user.entity';
 import { UserRoleService } from './services/user-role.service';
 import { PermissionsGuard } from './guards/permissions.guard';
 
 @Module({
   imports: [
     UserModule,
-    TypeOrmModule.forFeature([UserRole]),
+    TypeOrmModule.forFeature([UserRole, User]),
     JwtModule.registerAsync({
       inject: [config.KEY],
       useFactory: (configService: ConfigType<typeof config>) => {
@@ -31,7 +33,7 @@ import { PermissionsGuard } from './guards/permissions.guard';
       },
     }),
   ],
-  controllers: [AuthController],
+  controllers: [AuthController, UserRoleController],
   providers: [
     AuthService,
     JwtStrategy,

@@ -13,9 +13,12 @@ import {
   Query,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
-import { RoleGuard } from '../../auth/guards/role.guards';
-import { Roles } from '../../auth/decorators/role.decorator';
-import { Role } from '../../auth/models/roles.model';
+import { PermissionsGuard } from '../../auth/guards/permissions.guard';
+import { RequirePermissions } from '../../auth/decorators/permissions.decorator';
+import {
+  Permission,
+  BusinessContext,
+} from '../../auth/models/permissions.model';
 import { SubscriptionPlanService } from '../services/subscription-plan.service';
 import { CreateSubscriptionPlanDto } from '../dto/create-subscription-plan.dto';
 import { UpdateSubscriptionPlanDto } from '../dto/update-subscription-plan.dto';
@@ -25,8 +28,8 @@ import {
 } from '../entities/subscription-plan.entity';
 
 @Controller('admin/subscription-plans')
-@UseGuards(JwtAuthGuard, RoleGuard)
-@Roles(Role.ADMIN) // Solo administradores pueden gestionar planes
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions(Permission.MANAGE_USERS, BusinessContext.GENERAL) // Solo usuarios con permiso MANAGE_USERS pueden gestionar planes
 export class SubscriptionPlanController {
   constructor(
     private readonly subscriptionPlanService: SubscriptionPlanService,

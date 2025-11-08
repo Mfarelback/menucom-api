@@ -33,7 +33,11 @@ export class User {
   @Column({ type: 'boolean', default: true })
   needToChangepassword: boolean;
 
-  @Column({ type: 'varchar', length: 100 })
+  /**
+   * @deprecated Legacy role field. Use UserRole entity for role management.
+   * This field is kept for backward compatibility but should not be used in new code.
+   */
+  @Column({ type: 'varchar', length: 100, nullable: true })
   role: string;
 
   // Campos para autenticación social con Firebase

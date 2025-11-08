@@ -10,6 +10,8 @@ import { UserAuthService } from 'src/user/services/user-auth.service';
 import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from 'src/user/dto/create-user.dto';
 import { LoggerService } from 'src/core/logger/logger.service';
+import { UserRoleService } from './user-role.service';
+import { RoleType, BusinessContext } from '../models/permissions.model';
 
 @Injectable()
 export class AuthService {
@@ -18,6 +20,7 @@ export class AuthService {
     private userAuthService: UserAuthService,
     private jwtService: JwtService,
     private logger: LoggerService,
+    private userRoleService: UserRoleService,
   ) {
     this.logger.setContext('AuthService');
   }
@@ -54,6 +57,38 @@ export class AuthService {
   async registerUser(userData: CreateUserDto) {
     try {
       const userRegister = await this.usersService.create(userData);
+
+      // Asignar rol usando el nuevo sistema UserRole
+      try {
+        // Determinar el tipo de rol basado en el rol legacy
+        const roleType =
+          userRegister.role === 'admin'
+            ? RoleType.ADMIN
+            : userRegister.role === 'operador'
+              ? RoleType.OPERATOR
+              : RoleType.CUSTOMER;
+
+        await this.userRoleService.assignRole(
+          userRegister.id,
+          roleType,
+          BusinessContext.GENERAL,
+          {
+            grantedBy: 'system',
+            metadata: {
+              source: 'standard-registration',
+              registeredAt: new Date().toISOString(),
+            },
+          },
+        );
+        this.logger.log(
+          `Rol ${roleType} asignado al usuario ${userRegister.id}`,
+        );
+      } catch (roleError) {
+        this.logger.warn(
+          `No se pudo asignar UserRole al usuario ${userRegister.id}: ${roleError.message}`,
+        );
+      }
+
       const payload = {
         username: userRegister.role,
         sub: userRegister.id,
@@ -243,6 +278,30 @@ export class AuthService {
         email: userRegister.email,
         role: userRegister.role,
       });
+
+      // Asignar rol CUSTOMER en contexto GENERAL usando el nuevo sistema
+      try {
+        await this.userRoleService.assignRole(
+          userRegister.id,
+          RoleType.CUSTOMER,
+          BusinessContext.GENERAL,
+          {
+            grantedBy: 'system',
+            metadata: {
+              source: 'social-registration',
+              provider: firebaseUserData.firebaseProvider,
+              registeredAt: new Date().toISOString(),
+            },
+          },
+        );
+        this.logger.log(`Rol CUSTOMER asignado al usuario ${userRegister.id}`);
+      } catch (roleError) {
+        // No fallar el registro si falla la asignación de rol
+        // El usuario ya tiene el rol legacy en User.role
+        this.logger.warn(
+          `No se pudo asignar UserRole al usuario ${userRegister.id}: ${roleError.message}`,
+        );
+      }
 
       return userRegister;
     } catch (error) {

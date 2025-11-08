@@ -123,6 +123,40 @@ export class UserRoleService {
   }
 
   /**
+   * Actualiza un rol existente por su ID
+   */
+  async updateRole(
+    roleId: string,
+    updateData: {
+      isActive?: boolean;
+      expiresAt?: string;
+      metadata?: Record<string, any>;
+    },
+  ): Promise<UserRole> {
+    const userRole = await this.userRoleRepository.findOne({
+      where: { id: roleId },
+    });
+
+    if (!userRole) {
+      throw new NotFoundException('Rol no encontrado');
+    }
+
+    if (updateData.isActive !== undefined) {
+      userRole.isActive = updateData.isActive;
+    }
+
+    if (updateData.expiresAt !== undefined) {
+      userRole.expiresAt = new Date(updateData.expiresAt);
+    }
+
+    if (updateData.metadata !== undefined) {
+      userRole.metadata = updateData.metadata;
+    }
+
+    return await this.userRoleRepository.save(userRole);
+  }
+
+  /**
    * Obtiene todos los roles activos de un usuario
    */
   async getUserRoles(userId: string): Promise<UserRole[]> {
