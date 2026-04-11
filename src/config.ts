@@ -9,6 +9,38 @@ export default registerAs('config', () => {
       user: process.env.MYSQL_USER,
       host: process.env.MYSQL_HOST,
     },
+    postgresql: {
+      qa: process.env.POSTGRESQL_URL,
+      dev: process.env.POSTGRESQL_URL,
+    },
     jwtsecret: process.env.JWT_SECRET,
+    env: process.env.ENV,
+    // Configuración de Firebase
+    firebase: {
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      privateKey: process.env.FIREBASE_PRIVATE_KEY,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+    },
+    // Configuración de MercadoPago
+    mercadoPago: {
+      backUrl: process.env.MP_BACK_URL,
+    },
   };
 });
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+enum OrderStatus {
+  pending = 'pending',
+  confirmed = 'confirmed',
+  shipped = 'shipped',
+  cancelled = 'cancelled',
+}
+
+export enum PaymentStatusType {
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  IN_PROCESS = 'in_process',
+  REJECTED = 'rejected',
+  REFUNDED = 'refunded',
+  CANCELLED = 'cancelled',
+}

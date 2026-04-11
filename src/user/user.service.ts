@@ -1,48 +1,60 @@
 import {
-  BadRequestException,
-  ConflictException,
   HttpException,
   HttpStatus,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
-  ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateUserDto, UpdateUserDto } from './dto/create-user.dto';
+import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
 
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-import { ChangePasswordDto } from './dto/password.dto';
-import { RecoveryPassword } from './entities/recovery-password.entity';
+import { UrlTransformService } from 'src/image-proxy/services/url-transform.service';
+import { LoggerService } from '../core/logger';
 
+/**
+ * UserService - CRUD básico de usuarios
+ * Responsabilidad: Crear, buscar, eliminar usuarios
+ *
+ * Servicios especializados:
+ * - UserAuthService: Autenticación social (Firebase)
+ * - UserProfileService: Actualización de perfil e imágenes
+ * - UserRecoveryService: Recuperación de contraseñas
+ * - UserQueryService: Consultas complejas con joins
+ */
 @Injectable()
 export class UserService {
   constructor(
-    @InjectRepository(User) private userRepo: Repository<User>,
-    @InjectRepository(RecoveryPassword)
-    private restoreRepo: Repository<RecoveryPassword>,
-  ) {}
+    @InjectRepository(User) private readonly userRepo: Repository<User>,
+    private readonly urlTransformService: UrlTransformService,
+    private readonly logger: LoggerService,
+  ) {
+    this.logger.setContext('UserService');
+  }
 
   async create(data: CreateUserDto) {
     // Verifica si la tabla 'user' existe
-    const tableExists = await this.userRepo.query("SHOW TABLES LIKE 'user';");
+    const tableExists = await this.userRepo.query(`
+      SELECT to_regclass('public.user');
+    `);
 
     // Si la tabla no existe, créala
-    if (tableExists.length === 0) {
+    if (!tableExists[0].to_regclass) {
       await this.userRepo.query(`
-        CREATE TABLE user (
-          id VARCHAR(36) NOT NULL PRIMARY KEY,
-          photoURL VARCHAR(255),
+        CREATE TABLE "user" (
+          id UUID NOT NULL PRIMARY KEY,
+          "photoURL" VARCHAR(255),
           name VARCHAR(255),
           email VARCHAR(255) UNIQUE,
           phone VARCHAR(255),
           password VARCHAR(255),
-          needToChangepassword BOOLEAN DEFAULT true,
+          "needToChangepassword" BOOLEAN DEFAULT true,
           role VARCHAR(100),
-          createAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updateAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+          "createAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          "updateAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
       `);
     }
@@ -75,13 +87,6 @@ export class UserService {
     return this.userRepo.save(newUser);
   }
 
-  async createOfSocial(data: CreateUserDto) {
-    const newUser = this.userRepo.create(data);
-    console.log(newUser);
-
-    return this.userRepo.save(newUser);
-  }
-
   async findOne(id: string) {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) {
@@ -89,29 +94,50 @@ export class UserService {
     }
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...result } = user;
-    return result;
+
+    // Transformar las URLs de imágenes usando el proxy
+    return this.urlTransformService.transformDataUrls(result);
   }
 
   async findByEmail(email: string) {
-    return await this.userRepo.findOne({ where: { email: email } });
-  }
-
-  async update(id: string, changes: UpdateUserDto) {
-    const user = await this.userRepo.findOne({ where: { id } });
-    if (!user) {
-      throw new NotFoundException(`User #${id} not found`);
-    }
-    if (changes.password) {
-      const updatedChanges = { ...changes, password: user.password };
-      this.userRepo.merge(user, updatedChanges);
+    this.logger.debug(`Buscando usuario por email: ${email}`);
+    const user = await this.userRepo.findOne({ where: { email: email } });
+    if (user) {
+      this.logger.debug(`Usuario encontrado por email: ${user.id}`);
     } else {
-      this.userRepo.merge(user, changes);
+      this.logger.debug('Usuario no encontrado por email');
     }
-    return this.userRepo.save(user);
+    return user;
   }
 
-  remove(id: number) {
-    return this.userRepo.delete(id);
+  async remove(id: string): Promise<void> {
+    try {
+      const user = await this.userRepo.findOne({
+        where: { id: id },
+        relations: ['membership'],
+      });
+
+      if (!user) {
+        throw new NotFoundException(`Usuario con ID ${id} no encontrado`);
+      }
+
+      // Eliminación del usuario (cascada automática por configuración de entidad)
+      await this.userRepo.delete(id);
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+
+      this.logger.error(
+        `Error al eliminar usuario ${id}: ${error.message}`,
+        error.stack,
+      );
+
+      // Lanzar error genérico o personalizado
+      throw new InternalServerErrorException(
+        'No se pudo eliminar el usuario. Intenta nuevamente o contacta soporte.',
+      );
+    }
   }
 
   async getadminUser(email: string) {
@@ -131,92 +157,5 @@ export class UserService {
   async deleteAllusers() {
     const users = await this.userRepo.clear();
     return users;
-  }
-
-  async changePasswordByUser(newPassword: ChangePasswordDto) {
-    try {
-      if (newPassword.emailRecovery == '') {
-        throw new BadRequestException('Se necesita un email para empezar.');
-      }
-      const userFind = await this.userRepo.findOne({
-        where: { email: newPassword.emailRecovery },
-      });
-      if (userFind == null) {
-        throw new NotFoundException('El usuario no se encuentra registrado');
-      }
-      const findCode = await this.restoreRepo.findOne({
-        where: { userId: userFind.id },
-      });
-
-      if (findCode == null) {
-        this.sendVerificationCode(userFind);
-      } else {
-        if (newPassword.code != null) {
-          const isValidCode = newPassword.code == findCode.codeValidation;
-          if (isValidCode) {
-            if (newPassword.newPassword != null) {
-              await this.changePasswod(userFind, newPassword);
-              await this.restoreRepo.remove([findCode]);
-              return {
-                message: 'Contraseña cambiada',
-              };
-            }
-
-            return {
-              message: 'Codigo validado',
-            };
-          }
-          throw new ConflictException('Código invalido');
-        }
-        await this.restoreRepo.remove([findCode]);
-        console.log('Removido');
-        this.sendVerificationCode(userFind);
-      }
-      return [];
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async changePasswod(user: User, pass: ChangePasswordDto) {
-    try {
-      if (pass.newPassword == '') {
-        throw new ConflictException('La contraseña no puede estár vacía');
-      }
-      const passhash = await bcrypt.hash(pass.newPassword, 10);
-      user.password = passhash;
-      user.needToChangepassword = false;
-      const newUser = await this.userRepo.save(user);
-      return newUser;
-    } catch (error) {
-      throw error;
-    }
-  }
-
-  async sendVerificationCode(userDestine: User) {
-    try {
-      const codeVerification = this.generateRandomFourDigitNumber();
-
-      const newCodeVerification = new RecoveryPassword();
-      newCodeVerification.id = uuidv4();
-      newCodeVerification.userId = userDestine.id;
-      newCodeVerification.codeValidation = codeVerification;
-
-      const codeCreated = this.restoreRepo.create(newCodeVerification);
-      await this.restoreRepo.save(codeCreated);
-      console.log(codeCreated.codeValidation);
-      return [];
-    } catch (error) {
-      console.log(error);
-      throw new ServiceUnavailableException('Error al enviar código');
-    }
-  }
-
-  generateRandomFourDigitNumber(): number {
-    const min = 1000; // El valor mínimo (1000) para asegurar 4 dígitos
-    const max = 9999; // El valor máximo (9999) para 4 dígitos
-
-    // Genera un número aleatorio entre min y max (ambos incluidos)
-    return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 }

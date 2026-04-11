@@ -6,7 +6,7 @@ import {
   IsPositive,
   IsOptional,
 } from 'class-validator';
-import { PartialType, ApiProperty } from '@nestjs/swagger';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateUserDto {
   @IsString()
@@ -40,14 +40,8 @@ export class CreateUserDto {
   @ApiProperty({ description: 'the password of user' })
   readonly password: string;
 
-  @IsNotEmpty()
-  @ApiProperty({ description: 'Roles of user: customer, admin, pro' })
-  readonly role: string;
-
   @IsOptional()
   @IsPositive()
   @ApiProperty()
   readonly needToChangepassword: boolean;
 }
-
-export class UpdateUserDto extends PartialType(CreateUserDto) {}

@@ -5,7 +5,9 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   PrimaryColumn,
+  OneToOne,
 } from 'typeorm';
+import { Membership } from '../../membership/entities/membership.entity';
 
 @Entity()
 export class User {
@@ -31,13 +33,36 @@ export class User {
   @Column({ type: 'boolean', default: true })
   needToChangepassword: boolean;
 
-  @Column({ type: 'varchar', length: 100 })
+  /**
+   * @deprecated Legacy role field. Use UserRole entity for role management.
+   * This field is kept for backward compatibility but should not be used in new code.
+   */
+  @Column({ type: 'varchar', length: 100, nullable: true })
   role: string;
+
+  // Campos para autenticación social con Firebase
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  socialToken: string; // Firebase UID
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  firebaseProvider: string; // google.com, facebook.com, etc.
+
+  @Column({ type: 'boolean', default: false })
+  isEmailVerified: boolean;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastLoginAt: Date;
+
+  @OneToOne(() => Membership, (membership) => membership.user)
+  membership: Membership;
 
   @CreateDateColumn({
     type: 'timestamp',
   })
   createAt: Date;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  fcmToken: string;
 
   @UpdateDateColumn({
     type: 'timestamp',
