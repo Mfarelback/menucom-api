@@ -2,40 +2,4 @@
 > pickmeup-api@0.0.1 start
 > nest start
 
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +17ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +1ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +15ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +5ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mCloudinaryModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDatabaseModule dependencies initialized[39m[38;5;3m +44ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmCoreModule dependencies initialized[39m[38;5;3m +147ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mUserModule dependencies initialized[39m[38;5;3m +2ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mMenuModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/auth}:[39m[38;5;3m +22ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/login, POST} route[39m[38;5;3m +3ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/register, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/create/client, POST} route[39m[38;5;3m +1ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/auth/social, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mUserController {/user}:[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/me, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/user/:id, GET} route[39m[38;5;3m +1ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/admin/:email, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/password, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/change-password, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/update/:id, PATCH} route[39m[38;5;3m +1ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user/:id, DELETE} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/user, DELETE} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mCloudinaryController {/cloudinary}:[39m[38;5;3m +1ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/cloudinary/upload, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/cloudinary/uploads, POST} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mMenuController {/menu}:[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/menu/bydining/:id, GET} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/menu/create, POST} route[39m[38;5;3m +1ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/menu/edit, PUT} route[39m[38;5;3m +0ms[39m
-[32m[Nest] 6056  - [39m25/07/2024, 21:32:22 [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +2ms[39m
 ¨Desea terminar el trabajo por lotes (S/N)? 
