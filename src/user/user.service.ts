@@ -72,7 +72,7 @@ export class UserService {
     });
 
     if (userCreate) {
-      if (data.role == 'client') {
+      if ((data as any).role == 'client') {
         return userCreate;
       } else {
         throw new HttpException(
