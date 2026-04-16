@@ -26,6 +26,9 @@ export class MembershipService {
   constructor(private readonly membershipRepository: MembershipRepository) {}
 
   async createMembership(userId: string): Promise<Membership> {
+    if (!userId || typeof userId !== 'string') {
+      throw new Error('Invalid userId: must be a non-empty string');
+    }
     const existingMembership =
       await this.membershipRepository.findByUserId(userId);
 

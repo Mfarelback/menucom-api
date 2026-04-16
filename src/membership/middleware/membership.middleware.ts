@@ -20,9 +20,9 @@ export class MembershipMiddleware implements NestMiddleware {
   async use(req: RequestWithUser, res: Response, next: NextFunction) {
     try {
       // Only add membership info if user is authenticated
-      if (req.user && req.user.id) {
+      if (req.user && req.user.userId) {
         const membership = await this.membershipService.getUserMembership(
-          req.user.id,
+          req.user.userId,
         );
         req.membership = membership;
 

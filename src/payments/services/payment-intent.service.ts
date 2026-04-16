@@ -68,6 +68,8 @@ export class PaymentIntentService {
     anonymousId?: string,
     orderId?: string,
     marketplaceFeeAmount?: number,
+    customerName?: string,
+    customerLastName?: string,
   ): Promise<PaymentIntent> {
     try {
       if (!phone || !amount) {
@@ -130,6 +132,10 @@ export class PaymentIntentService {
 
       // Crear la preferencia con o sin collector_id
       let paymentMpID;
+      const payer = {
+        ...(customerName && { first_name: customerName }),
+        ...(customerLastName && { last_name: customerLastName }),
+      };
       if (accountData) {
         this.logger.log(
           `Creando preferencia con collector_id: ${accountData.collectorId} para owner: ${ownerId}`,
@@ -143,6 +149,7 @@ export class PaymentIntentService {
               collector_id: accountData.collectorId,
               marketplace_fee: marketplaceFeeAmount, // <-- Propagamos el fee para Checkout Pro
               metadata,
+              payer,
             },
             accountData.accessToken,
           );
@@ -155,6 +162,7 @@ export class PaymentIntentService {
           items,
           external_reference: paymentCreated.id,
           metadata,
+          payer,
         });
       }
 

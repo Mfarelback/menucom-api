@@ -9,6 +9,13 @@ async function bootstrap() {
   try {
     const app = await NestFactory.create(AppModule);
 
+    const httpServer = app.getHttpServer();
+    httpServer.on('request', (req: any, res: any) => {
+      if (req.url === '/' || req.url === '/favicon.ico') {
+        res.redirect(302, '/docs');
+      }
+    });
+
     // Obtener instancia del LoggerService para el filtro de excepciones
     const loggerService = app.get(LoggerService);
 

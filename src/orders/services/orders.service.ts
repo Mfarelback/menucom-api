@@ -112,7 +112,13 @@ export class OrdersService {
       // Asignar datos falsos si no se proveen y corregir si el email es un teléfono
       const fakeEmail = 'anon@fake.com';
       const fakePhone = '0000000000';
-      let { customerEmail, customerPhone, ownerId } = createOrderDto;
+      let {
+        customerEmail,
+        customerPhone,
+        ownerId,
+        customerName,
+        customerLastName,
+      } = createOrderDto;
       const { createdBy } = createOrderDto;
       const { items, ...rest } = createOrderDto;
 
@@ -124,6 +130,13 @@ export class OrdersService {
             // Si el usuario tiene email y/o phone, usarlos
             customerEmail = user.email || customerEmail;
             customerPhone = user.phone || customerPhone;
+            // Obtener nombre y apellido del usuario para MercadoPago
+            if (!customerName && user.name) {
+              const nameParts = user.name.trim().split(' ');
+              customerName = nameParts[0];
+              customerLastName =
+                nameParts.slice(1).join(' ') || customerLastName;
+            }
           }
         } catch (e) {
           // Si no se encuentra el usuario, continuar con los datos originales
@@ -180,6 +193,8 @@ export class OrdersService {
         orderData.createdBy, // anonymousId o userId para trazabilidad
         savedOrder.id, // orderId para trazabilidad
         orderData.marketplaceFeeAmount, // <-- Pasamos el fee
+        customerName,
+        customerLastName,
       );
       savedOrder.operationID = paymentIntent.id; // Asignar el ID del pago a la orden
 

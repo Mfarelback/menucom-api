@@ -5,7 +5,9 @@ import {
   Length,
   IsPositive,
   IsOptional,
+  IsBoolean,
 } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateUserDto {
@@ -26,7 +28,6 @@ export class CreateUserDto {
   readonly email: string;
 
   @IsString()
-  @IsEmail()
   @ApiProperty({ description: 'the name of user' })
   readonly name: string;
 
@@ -41,7 +42,17 @@ export class CreateUserDto {
   readonly password: string;
 
   @IsOptional()
-  @IsPositive()
+  @IsBoolean()
   @ApiProperty()
   readonly needToChangepassword: boolean;
+
+  /**
+   * @deprecated Rol legacy para compatibilidad. Usar el sistema de UserRole para asignación de roles.
+   */
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional({
+    description: 'Rol del usuario (legacy). Valores: client | admin | operador',
+  })
+  readonly role?: string;
 }

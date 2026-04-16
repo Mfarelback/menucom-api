@@ -45,6 +45,8 @@ export class PaymentsService {
     anonymousId?: string,
     orderId?: string,
     marketplaceFeeAmount?: number,
+    customerName?: string,
+    customerLastName?: string,
   ): Promise<PaymentIntent> {
     return this.paymentIntentService.createPayment(
       phone,
@@ -54,6 +56,8 @@ export class PaymentsService {
       anonymousId,
       orderId,
       marketplaceFeeAmount,
+      customerName,
+      customerLastName,
     );
   }
 

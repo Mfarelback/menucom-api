@@ -33,7 +33,7 @@ export class MembershipController {
 
   @Get()
   async getUserMembership(@Request() req): Promise<MembershipResponseDto> {
-    return this.membershipService.getUserMembership(req.user.id);
+    return this.membershipService.getUserMembership(req.user.userId);
   }
 
   @Post('subscribe')
@@ -43,7 +43,7 @@ export class MembershipController {
     @Body() subscribeDto: SubscribeMembershipDto,
   ): Promise<MembershipResponseDto> {
     const membership = await this.membershipService.subscribeToPlan(
-      req.user.id,
+      req.user.userId,
       subscribeDto,
     );
     return this.membershipService.formatMembershipResponse(membership);
@@ -55,7 +55,7 @@ export class MembershipController {
     @Body() updateDto: UpdateMembershipDto,
   ): Promise<MembershipResponseDto> {
     const membership = await this.membershipService.updateMembership(
-      req.user.id,
+      req.user.userId,
       updateDto,
     );
     return this.membershipService.formatMembershipResponse(membership);
@@ -65,19 +65,19 @@ export class MembershipController {
   @HttpCode(HttpStatus.OK)
   async cancelMembership(@Request() req): Promise<MembershipResponseDto> {
     const membership = await this.membershipService.cancelMembership(
-      req.user.id,
+      req.user.userId,
     );
     return this.membershipService.formatMembershipResponse(membership);
   }
 
   @Get('limits')
   async getPlanLimits(@Request() req): Promise<any> {
-    return this.membershipService.getPlanLimits(req.user.id);
+    return this.membershipService.getPlanLimits(req.user.userId);
   }
 
   @Get('audit')
   async getAuditHistory(@Request() req): Promise<any[]> {
-    return this.membershipService.getAuditHistory(req.user.id);
+    return this.membershipService.getAuditHistory(req.user.userId);
   }
 
   @Get('stats')
@@ -167,7 +167,7 @@ export class MembershipController {
 
     // Crear una membership asociada al plan personalizado
     const membership = await this.membershipService.subscribeToCustomPlan(
-      req.user.id,
+      req.user.userId,
       plan,
       subscribeDto,
     );
@@ -186,7 +186,7 @@ export class MembershipController {
 
     const payment = await this.mercadoPagoService.createPayment({
       plan: body.plan,
-      userId: req.user.id,
+      userId: req.user.userId,
       userEmail: req.user.email,
     });
 

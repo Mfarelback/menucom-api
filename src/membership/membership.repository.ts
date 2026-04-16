@@ -28,6 +28,9 @@ export class MembershipRepository {
     userId: string,
     membershipData: Partial<Membership>,
   ): Promise<Membership> {
+    if (!userId) {
+      throw new Error('userId is required to create a membership');
+    }
     const membership = this.membershipRepository.create({
       userId,
       ...membershipData,

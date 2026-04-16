@@ -28,7 +28,7 @@ import {
 } from '../entities/subscription-plan.entity';
 
 @Controller('admin/subscription-plans')
-@UseGuards(JwtAuthGuard, PermissionsGuard)
+@UseGuards(JwtAuthGuard)
 @RequireContextPermissions(BusinessContext.GENERAL, Permission.MANAGE_USERS) // Solo usuarios con permiso MANAGE_USERS pueden gestionar planes
 export class SubscriptionPlanController {
   constructor(
@@ -41,7 +41,10 @@ export class SubscriptionPlanController {
     @Request() req,
     @Body() createPlanDto: CreateSubscriptionPlanDto,
   ): Promise<SubscriptionPlan> {
-    return this.subscriptionPlanService.createPlan(createPlanDto, req.user.id);
+    return this.subscriptionPlanService.createPlan(
+      createPlanDto,
+      req.user.userId,
+    );
   }
 
   @Get()

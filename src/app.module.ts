@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { PaymentsGateway } from './ws/payments.gateway';
 import { environment } from './enviroment';
 import { DatabaseModule } from './database/database.module';
@@ -16,6 +17,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { CatalogModule } from './catalog/catalog.module';
 // import { MigrationModule } from './scripts/migration.module'; // Módulo temporal de migraciones
 import { LoggerModule } from './core/logger';
+import { RootController } from './core/controllers/root.controller';
+import { PermissionsGuard } from './auth/guards/permissions.guard';
 
 @Module({
   imports: [
@@ -25,6 +28,7 @@ import { LoggerModule } from './core/logger';
       isGlobal: true,
     }),
     LoggerModule,
+    AppDataModule,
     AuthModule,
     UserModule,
     DatabaseModule,
@@ -33,12 +37,18 @@ import { LoggerModule } from './core/logger';
 
     OrdersModule,
     PaymentsModule,
-    AppDataModule,
     MembershipModule,
     NotificationsModule,
     CatalogModule,
     // MigrationModule, // Módulo temporal - deshabilitado
   ],
-  providers: [PaymentsGateway],
+  controllers: [RootController],
+  providers: [
+    PaymentsGateway,
+    {
+      provide: APP_GUARD,
+      useClass: PermissionsGuard,
+    },
+  ],
 })
 export class AppModule {}

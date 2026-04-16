@@ -21,6 +21,16 @@ export class CreateOrderDto {
   @IsString()
   customerPhone?: string;
 
+  @ApiProperty({ example: 'Juan', required: false })
+  @IsOptional()
+  @IsString()
+  customerName?: string;
+
+  @ApiProperty({ example: 'Pérez', required: false })
+  @IsOptional()
+  @IsString()
+  customerLastName?: string;
+
   @ApiProperty({ example: 'anonymous-user-123', required: false })
   @IsOptional()
   @IsString()

@@ -58,20 +58,61 @@ export class AuthService {
     try {
       const userRegister = await this.usersService.create(userData);
 
+      // Determinar el contexto y tipo de rol basado en el role enviado
+      let roleType: RoleType;
+      let businessContext: BusinessContext;
+
+      switch (userData.role) {
+        // Clothes -> WARDROBE
+        case 'clothes':
+          roleType = RoleType.OWNER;
+          businessContext = BusinessContext.WARDROBE;
+          break;
+        // Food/Restaurant -> RESTAURANT
+        case 'dinning':
+        case 'food':
+          roleType = RoleType.OWNER;
+          businessContext = BusinessContext.RESTAURANT;
+          break;
+        // Wholesale/Marketplace -> MARKETPLACE
+        case 'retail':
+        case 'water_distributor':
+        case 'grocery':
+        case 'accessories':
+        case 'electronics':
+        case 'construction':
+        case 'pets':
+          roleType = RoleType.OWNER;
+          businessContext = BusinessContext.MARKETPLACE;
+          break;
+        // Services -> GENERAL
+        case 'pharmacy':
+        case 'beauty':
+        case 'automotive':
+          roleType = RoleType.OWNER;
+          businessContext = BusinessContext.GENERAL;
+          break;
+        // Admin roles
+        case 'admin':
+          roleType = RoleType.ADMIN;
+          businessContext = BusinessContext.GENERAL;
+          break;
+        case 'operador':
+          roleType = RoleType.OPERATOR;
+          businessContext = BusinessContext.GENERAL;
+          break;
+        // Default -> CUSTOMER
+        default:
+          roleType = RoleType.CUSTOMER;
+          businessContext = BusinessContext.GENERAL;
+      }
+
       // Asignar rol usando el nuevo sistema UserRole
       try {
-        // Determinar el tipo de rol basado en el rol legacy
-        const roleType =
-          userRegister.role === 'admin'
-            ? RoleType.ADMIN
-            : userRegister.role === 'operador'
-              ? RoleType.OPERATOR
-              : RoleType.CUSTOMER;
-
         await this.userRoleService.assignRole(
           userRegister.id,
           roleType,
-          BusinessContext.GENERAL,
+          businessContext,
           {
             grantedBy: 'system',
             metadata: {
@@ -81,7 +122,7 @@ export class AuthService {
           },
         );
         this.logger.log(
-          `Rol ${roleType} asignado al usuario ${userRegister.id}`,
+          `Rol ${roleType} asignado al usuario ${userRegister.id} en contexto ${businessContext}`,
         );
       } catch (roleError) {
         this.logger.warn(

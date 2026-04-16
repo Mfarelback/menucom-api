@@ -42,14 +42,36 @@ export class FirebaseAdmin {
           };
 
           // Validar que todas las variables estén presentes
+          const isDummy =
+            serviceAccount.projectId === 'dummy' ||
+            serviceAccount.privateKey === 'dummy' ||
+            serviceAccount.clientEmail === 'dummy';
+
+          if (isDummy) {
+            console.log(
+              '⚠️ Firebase configurado en modo dummy (omitiendo inicialización)',
+            );
+            return null;
+          }
+
           if (
             !serviceAccount.projectId ||
             !serviceAccount.privateKey ||
             !serviceAccount.clientEmail
           ) {
-            throw new Error(
-              'Faltan variables de entorno de Firebase. Verifica FIREBASE_PROJECT_ID, FIREBASE_PRIVATE_KEY y FIREBASE_CLIENT_EMAIL',
-            );
+            console.log('⚠️ Firebase no configurado (inicialización omitida)');
+            return null;
+          }
+
+          return null;
+
+          if (
+            !serviceAccount.projectId ||
+            !serviceAccount.privateKey ||
+            !serviceAccount.clientEmail
+          ) {
+            console.log('⚠️ Firebase no configurado (inicialización omitida)');
+            return null;
           }
         }
 

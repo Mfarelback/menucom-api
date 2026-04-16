@@ -39,7 +39,6 @@ export class AppDataController {
   constructor(private readonly appDataService: AppDataService) {}
 
   @Post()
-  @UseGuards(PermissionsGuard)
   @RequireContextPermissions(BusinessContext.GENERAL, Permission.MANAGE_USERS)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({
@@ -164,7 +163,6 @@ export class AppDataController {
   }
 
   @Patch(':id')
-  @UseGuards(PermissionsGuard)
   @RequireContextPermissions(BusinessContext.GENERAL, Permission.MANAGE_USERS)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({
@@ -198,7 +196,6 @@ export class AppDataController {
   }
 
   @Patch(':id/toggle-active')
-  @UseGuards(PermissionsGuard)
   @RequireContextPermissions(BusinessContext.GENERAL, Permission.MANAGE_USERS)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({
@@ -230,7 +227,6 @@ export class AppDataController {
   }
 
   @Delete(':id')
-  @UseGuards(PermissionsGuard)
   @RequireContextPermissions(BusinessContext.GENERAL, Permission.MANAGE_USERS)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({
@@ -285,7 +281,6 @@ export class AppDataController {
   }
 
   @Post('marketplace-fee')
-  @UseGuards(PermissionsGuard)
   @RequireContextPermissions(BusinessContext.GENERAL, Permission.MANAGE_USERS)
   @ApiBearerAuth('JWT-auth')
   @ApiOperation({
