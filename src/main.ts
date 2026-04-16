@@ -9,17 +9,8 @@ async function bootstrap() {
   try {
     const app = await NestFactory.create(AppModule);
 
-    app.use((req, res, next) => {
-      if (req.url === '/' || req.url === '/favicon.ico') {
-        return res.redirect(302, '/docs');
-      }
-      next();
-    });
-
-    // Obtener instancia del LoggerService para el filtro de excepciones
     const loggerService = app.get(LoggerService);
 
-    // Registrar filtro global de excepciones
     app.useGlobalFilters(new GlobalExceptionFilter(loggerService));
 
     const config = new DocumentBuilder()
@@ -31,7 +22,6 @@ async function bootstrap() {
     SwaggerModule.setup('docs', app, document);
     app.enableCors();
 
-    // Habilitar validación y transformación global
     app.useGlobalPipes(
       new ValidationPipe({
         transform: true,
@@ -41,6 +31,15 @@ async function bootstrap() {
         whitelist: true,
       }),
     );
+
+    const expressInstance = app.getHttpAdapter().getInstance();
+
+    expressInstance.use((req: any, res: any, next: any) => {
+      if (req.url === '/' || req.url === '/favicon.ico') {
+        return res.redirect(302, '/docs');
+      }
+      next();
+    });
 
     await app.listen(process.env.PORT || 3001);
   } catch (error) {
