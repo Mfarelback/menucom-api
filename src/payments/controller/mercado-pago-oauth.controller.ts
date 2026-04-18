@@ -5,9 +5,12 @@ import {
   Body,
   Query,
   Req,
+  Res,
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -24,7 +27,10 @@ import { MercadoPagoAccount } from '../entities/mercado-pago-account.entity';
 @ApiTags('Mercado Pago OAuth')
 @Controller('payments/oauth')
 export class MercadoPagoOAuthController {
-  constructor(private readonly mpOAuthService: MercadoPagoOAuthService) {}
+  constructor(
+    private readonly mpOAuthService: MercadoPagoOAuthService,
+    private readonly configService: ConfigService,
+  ) {}
 
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
@@ -305,6 +311,7 @@ export class MercadoPagoOAuthController {
   async handleDirectCallback(
     @Query('code') code: string,
     @Query('state') state: string,
+    @Res() res: Response,
     @Query('error') error?: string,
   ) {
     console.log('=== OAUTH GET CALLBACK RECEIVED ===');
@@ -316,11 +323,8 @@ export class MercadoPagoOAuthController {
 
     if (error) {
       console.log('OAuth error received:', error);
-      return {
-        success: false,
-        message: `OAuth error: ${error}`,
-        redirectUrl: `/oauth/error?error=${error}`,
-      };
+      const backUrl = this.configService.get('MP_BACK_URL') || '';
+      return res.redirect(`${backUrl}/dashboard?oauth=error&error=${error}`);
     }
 
     if (!code || !state) {
@@ -357,8 +361,10 @@ export class MercadoPagoOAuthController {
 
       console.log('Using userId for linking:', userId);
 
-      // Usar la misma redirect URI que se configuró en MP
+      // Usar la redirect URI de la configuración o la de por defecto
       const redirectUri =
+        this.configService.get('MERCADO_PAGO_REDIRECT_URI') ||
+        this.configService.get('MP_REDIRECT_URI') ||
         'https://menucom-api.onrender.com/payments/oauth/callback';
 
       console.log('Calling linkAccount with:', { userId, redirectUri });
@@ -374,22 +380,12 @@ export class MercadoPagoOAuthController {
         collectorId: account.collectorId,
       });
 
-      return {
-        success: true,
-        message: 'Cuenta vinculada exitosamente',
-        redirectUrl: '/dashboard?oauth=success',
-        account: {
-          id: account.id,
-          collectorId: account.collectorId,
-        },
-      };
+      const backUrl = this.configService.get('MP_BACK_URL') || '';
+      return res.redirect(`${backUrl}/dashboard?oauth=success`);
     } catch (error) {
       console.error('Error in OAuth callback:', error.message);
-      return {
-        success: false,
-        message: `Error linking account: ${error.message}`,
-        redirectUrl: '/dashboard?oauth=error',
-      };
+      const backUrl = this.configService.get('MP_BACK_URL') || '';
+      return res.redirect(`${backUrl}/dashboard?oauth=error&message=${encodeURIComponent(error.message)}`);
     }
   }
 }
