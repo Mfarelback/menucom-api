@@ -5,6 +5,7 @@ import {
   Inject,
   forwardRef,
   UnauthorizedException,
+  NotFoundException,
 } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { MercadopagoService } from './mercado_pago.service';

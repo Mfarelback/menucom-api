@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, InternalServerErrorException } from '@
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Order } from '../entities/order.entity';
-import { OrderItem } from '../entities/order.item.entity';
+import { OrderItem, OrderSourceType } from '../entities/order.item.entity';
 import { CreateOrderDto } from '../dtos/create.order.dto';
 import { PaymentsService } from 'src/payments/services/payments.service';
 import { UserService } from 'src/user/user.service';
@@ -181,7 +181,11 @@ export class OrdersService {
 
         // Crear los ítems con los precios validados
         const orderItems = secureAmounts.itemsWithFixedPrices.map((item) =>
-          manager.create(OrderItem, { ...item, order: savedOrder }),
+          manager.create(OrderItem, {
+            ...item,
+            sourceType: item.sourceType as OrderSourceType,
+            order: savedOrder,
+          }),
         );
         await manager.save(OrderItem, orderItems);
 
@@ -336,7 +340,11 @@ export class OrdersService {
         await this.orderItemRepository.delete({ order: { id } });
         // Add new items
         const newItems = updateOrderDto.items.map((itemDto) =>
-          this.orderItemRepository.create({ ...itemDto, order }),
+          this.orderItemRepository.create({
+            ...itemDto,
+            sourceType: itemDto.sourceType as OrderSourceType,
+            order,
+          }),
         );
         await this.orderItemRepository.save(newItems);
       }
