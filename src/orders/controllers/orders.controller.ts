@@ -12,7 +12,7 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { OrdersService } from '../services/orders.service';
 import { CreateOrderDto } from '../dtos/create.order.dto';
@@ -20,6 +20,7 @@ import { Order } from '../entities/order.entity';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
 
 @ApiTags('orders')
+@ApiBearerAuth('JWT-auth')
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly orderService: OrdersService) {}
@@ -27,11 +28,13 @@ export class OrdersController {
   @Get('byOwner')
   @UseGuards(JwtAuthGuard)
   @ApiOperation({
-    summary: 'Obtener todas las órdenes del usuario autenticado',
+    summary: 'Obtener todas las órdenes del usuario autenticado con paginación',
   })
   async findAll(@Req() req: Request): Promise<Order[]> {
     const userId = req['user']['userId'];
-    return this.orderService.findByUserId(userId);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    return this.orderService.findByUserId(userId, page, limit);
   }
 
   @Get('byAnonymous')
@@ -48,12 +51,18 @@ export class OrdersController {
   }
 
   @Get('byBusinessOwner/:ownerId')
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary:
-      'Obtener todas las órdenes recibidas por un propietario de negocio',
+      'Obtener todas las órdenes recibidas por un propietario de negocio con paginación',
   })
-  async findByOwnerId(@Param('ownerId') ownerId: string): Promise<Order[]> {
-    return this.orderService.findByOwnerId(ownerId);
+  async findByOwnerId(
+    @Param('ownerId') ownerId: string,
+    @Req() req: Request,
+  ): Promise<Order[]> {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    return this.orderService.findByOwnerId(ownerId, page, limit);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -76,11 +85,13 @@ export class OrdersController {
     return this.orderService.create(orderWithCreator);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Put(':id')
   update(@Param('id') id: string) {
     return `This action updates order #${id}`;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return `This action removes order #${id}`;

@@ -35,7 +35,7 @@ export class MembershipProvider {
 
   async checkResourceLimit(
     userId: string,
-    resourceType: 'maxMenuItems' | 'maxLocations' | 'analyticsRetention',
+    resourceType: 'maxCatalogs' | 'maxCatalogItems' | 'analyticsRetention',
     currentCount: number,
   ): Promise<boolean> {
     try {
@@ -57,7 +57,7 @@ export class MembershipProvider {
 
   async getResourceLimit(
     userId: string,
-    resourceType: 'maxMenuItems' | 'maxLocations' | 'analyticsRetention',
+    resourceType: 'maxCatalogs' | 'maxCatalogItems' | 'analyticsRetention',
   ): Promise<number> {
     try {
       const limits = await this.membershipService.getPlanLimits(userId);

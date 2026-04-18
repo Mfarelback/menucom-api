@@ -22,6 +22,18 @@ export class SubscribeMembershipDto {
   amount: number;
 
   @IsOptional()
+  @IsNumber()
+  originalAmount?: number;
+
+  @IsOptional()
+  @IsString()
+  discountCode?: string;
+
+  @IsOptional()
+  @IsNumber()
+  discountPercentage?: number;
+
+  @IsOptional()
   @IsString()
   currency?: string = 'ARS';
 

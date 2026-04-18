@@ -3,6 +3,7 @@ import { PaymentsRepository } from '../repository/payment_repository';
 import { PaymentIntent } from '../entities/payment_intent_entity';
 import { PaymentStatusType } from 'src/config';
 import { LoggerService } from 'src/core/logger/logger.service';
+import { OrderStatus } from 'src/orders/enums/order-status.enum';
 
 /**
  * Servicio especializado en manejo de estados de pagos
@@ -51,6 +52,12 @@ export class PaymentStatusService {
       this.logger.log(
         `Actualizando PaymentIntent ${paymentIntentId}: ${mpPaymentStatus} → ${newStatus}`,
       );
+
+      const intent = await this.paymentIntentRepository.getPaymentById(paymentIntentId);
+      if (intent && intent.state === newStatus) {
+        this.logger.debug(`PaymentIntent ${paymentIntentId} ya está en estado ${newStatus}. Saltando update.`);
+        return intent;
+      }
 
       return await this.paymentIntentRepository.changeStatusPayment(
         paymentIntentId,
@@ -112,22 +119,22 @@ export class PaymentStatusService {
    * - pending/in_process → pending (orden pendiente)
    * - rejected/cancelled/refunded → cancelled (orden cancelada)
    */
-  mapPaymentStatusToOrderStatus(mpPaymentStatus: string): string {
+  mapPaymentStatusToOrderStatus(mpPaymentStatus: string): OrderStatus {
     switch (mpPaymentStatus) {
       case 'approved':
-        return 'confirmed';
+        return OrderStatus.CONFIRMED;
       case 'pending':
       case 'in_process':
-        return 'pending';
+        return OrderStatus.PENDING;
       case 'rejected':
       case 'cancelled':
       case 'refunded':
-        return 'cancelled';
+        return OrderStatus.CANCELLED;
       default:
         this.logger.warn(
           `Estado de pago desconocido para mapeo a orden: ${mpPaymentStatus}`,
         );
-        return 'pending';
+        return OrderStatus.PENDING;
     }
   }
 }

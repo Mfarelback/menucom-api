@@ -1,4 +1,4 @@
-import { IsString, IsNumber, IsPositive, IsOptional } from 'class-validator';
+import { IsString, IsNumber, IsPositive, IsOptional, IsEnum } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class CreateOrderItemDto {
@@ -32,6 +32,6 @@ export class CreateOrderItemDto {
     enum: ['menu', 'wardrobe'],
   })
   @IsOptional()
-  @IsString()
+  @IsEnum(['menu', 'wardrobe'])
   sourceType?: 'menu' | 'wardrobe';
 }

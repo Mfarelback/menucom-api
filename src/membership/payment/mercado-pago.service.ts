@@ -32,7 +32,10 @@ export class MercadoPagoService {
   };
 
   constructor(private configService: ConfigService) {
-    this.accessToken = this.configService.get('MERCADOPAGO_ACCESS_TOKEN');
+    this.accessToken = this.configService.get('MP_ACCESS_TOKEN');
+    if (!this.accessToken) {
+      throw new Error('MP_ACCESS_TOKEN not configured');
+    }
   }
 
   async createPayment(request: PaymentRequest): Promise<PaymentResponse> {

@@ -65,15 +65,13 @@ export class SubscriptionPlan {
   // Resource Limits
   @Column({ type: 'json' })
   limits: {
-    maxMenus: number; // Límite de menús
-    maxMenuItems: number; // Límite de items por menú
-    maxWardrobes: number; // Límite de wardrobes
-    maxClothingItems: number; // Límite de items de ropa
-    maxLocations: number; // Límite de ubicaciones
-    analyticsRetention: number; // Días de retención de analytics
-    maxUsers: number; // Usuarios por cuenta (para planes empresariales)
-    maxApiCalls: number; // Llamadas API por mes
-    storageLimit: number; // Límite de almacenamiento en MB
+    maxCatalogs: number;
+    maxCatalogItems: number;
+    maxLocations: number;
+    analyticsRetention: number;
+    maxUsers: number;
+    maxApiCalls: number;
+    storageLimit: number;
   };
 
   // Metadata for additional configuration

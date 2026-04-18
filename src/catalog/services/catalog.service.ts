@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, Logger } from '@nestjs/common';
+import { Injectable, ConflictException, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere } from 'typeorm';
 import { Catalog } from '../entities/catalog.entity';
@@ -15,6 +15,7 @@ import {
   UpdateCatalogItemDto,
 } from '../dto/catalog-item.dto';
 import { MembershipProvider } from '../../membership/membership.provider';
+import { ResourceLimitService } from '../../membership/services/resource-limit.service';
 import {
   CatalogNotFoundException,
   CatalogItemNotFoundException,
@@ -32,6 +33,7 @@ export class CatalogService {
     @InjectRepository(CatalogItem)
     private readonly catalogItemRepository: Repository<CatalogItem>,
     private readonly membershipProvider: MembershipProvider,
+    private readonly resourceLimitService: ResourceLimitService,
   ) {}
 
   /**
@@ -42,6 +44,8 @@ export class CatalogService {
     createCatalogDto: CreateCatalogDto,
   ): Promise<Catalog> {
     try {
+      await this.resourceLimitService.validateResourceCreation(ownerId, 'catalog');
+
       // Generar slug si no se proporciona
       const slug =
         createCatalogDto.slug || this.generateSlug(createCatalogDto.name || '');
@@ -59,22 +63,11 @@ export class CatalogService {
         }
       }
 
-      // Obtener capacidad basada en la membresía y tipo de catálogo
-      let capacity: number;
-      if (createCatalogDto.catalogType === CatalogType.MENU) {
-        capacity = await this.membershipProvider.getResourceLimit(
-          ownerId,
-          'maxMenuItems',
-        );
-      } else if (createCatalogDto.catalogType === CatalogType.WARDROBE) {
-        // Por ahora usar el mismo límite que menu items
-        capacity = await this.membershipProvider.getResourceLimit(
-          ownerId,
-          'maxMenuItems',
-        );
-      } else {
-        capacity = 50; // Fallback
-      }
+      // Obtener capacidad basada en la membresía
+      const capacity = await this.membershipProvider.getResourceLimit(
+        ownerId,
+        'maxCatalogItems',
+      );
 
       const catalog = this.catalogRepository.create({
         id: uuidv4(),
@@ -250,6 +243,11 @@ export class CatalogService {
     ownerId: string,
     createItemDto: CreateCatalogItemDto,
   ): Promise<CatalogItem> {
+    await this.resourceLimitService.validateResourceCreation(
+      ownerId,
+      'catalogItem',
+    );
+
     const catalog = await this.getCatalogById(
       createItemDto.catalogId,
       ownerId,

@@ -7,6 +7,12 @@ import {
   OneToMany,
 } from 'typeorm';
 import { OrderItem } from './order.item.entity';
+import { OrderStatus } from '../enums/order-status.enum';
+
+const ColumnNumericTransformer = {
+  to: (data: number): number => data,
+  from: (data: string): number => parseFloat(data),
+};
 
 @Entity('orders')
 export class Order {
@@ -35,20 +41,47 @@ export class Order {
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true })
   items: OrderItem[];
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    transformer: ColumnNumericTransformer,
+  })
   total: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    default: 0,
+    transformer: ColumnNumericTransformer,
+  })
   subtotal: number;
 
-  @Column({ type: 'decimal', precision: 5, scale: 2, default: 0 })
+  @Column({
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    default: 0,
+    transformer: ColumnNumericTransformer,
+  })
   marketplaceFeePercentage: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    default: 0,
+    transformer: ColumnNumericTransformer,
+  })
   marketplaceFeeAmount: number;
 
-  @Column({ default: 'pending' })
-  status: string;
+  @Column({
+    type: 'enum',
+    enum: OrderStatus,
+    default: OrderStatus.PENDING,
+  })
+  status: OrderStatus;
 
   @CreateDateColumn()
   createdAt: Date;

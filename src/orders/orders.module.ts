@@ -7,11 +7,12 @@ import { OrderItem } from './entities/order.item.entity';
 import { PaymentsModule } from 'src/payments/payments.module';
 import { UserModule } from 'src/user/user.module';
 import { Catalog } from 'src/catalog/entities/catalog.entity';
+import { CatalogItem } from 'src/catalog/entities/catalog-item.entity';
 import { AppDataModule } from 'src/app-data/app-data.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Order, OrderItem, Catalog]),
+    TypeOrmModule.forFeature([Order, OrderItem, Catalog, CatalogItem]),
     forwardRef(() => PaymentsModule),
     UserModule,
     AppDataModule,

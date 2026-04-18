@@ -46,6 +46,14 @@ export class MembershipRepository {
     return this.findById(id);
   }
 
+  async updateMembershipByUserId(
+    userId: string,
+    updateData: Partial<Membership>,
+  ): Promise<Membership> {
+    await this.membershipRepository.update({ userId }, updateData);
+    return this.findByUserId(userId);
+  }
+
   async findById(id: string): Promise<Membership | null> {
     return this.membershipRepository.findOne({
       where: { id },

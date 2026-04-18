@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { Order } from '../entities/order.entity';
 import { OrderItem } from '../entities/order.item.entity';
 import { CreateOrderDto } from '../dtos/create.order.dto';
@@ -9,7 +9,9 @@ import { UserService } from 'src/user/user.service';
 import { AppConfigService } from 'src/app-data';
 import { AppDataService } from 'src/app-data/services/app-data.service';
 import { Catalog } from 'src/catalog/entities/catalog.entity';
+import { CatalogItem } from 'src/catalog/entities/catalog-item.entity';
 import { LoggerService } from 'src/core/logger';
+import { OrderStatus } from '../enums/order-status.enum';
 
 @Injectable()
 export class OrdersService {
@@ -20,206 +22,197 @@ export class OrdersService {
     private readonly orderItemRepository: Repository<OrderItem>,
     @InjectRepository(Catalog)
     private readonly catalogRepository: Repository<Catalog>,
+    @InjectRepository(CatalogItem)
+    private readonly catalogItemRepository: Repository<CatalogItem>,
 
     private paymentService: PaymentsService,
     private userService: UserService,
     private readonly appConfig: AppConfigService,
     private readonly appDataService: AppDataService,
     private readonly logger: LoggerService,
+    private readonly dataSource: DataSource,
   ) {
     this.logger.setContext('OrdersService');
   }
 
   /**
    * Determina automáticamente el ownerId basado en los items de la orden
+   * y valida que todos los items pertenezcan al mismo propietario.
    */
-  private async determineOwnerId(
+  private async determineOwnerIdAndValidate(
     items: CreateOrderDto['items'],
-  ): Promise<string | null> {
+  ): Promise<string> {
     try {
-      // Buscar el primer item que tenga sourceId y sourceType definidos
+      let foundOwnerId: string | null = null;
+
       for (const item of items) {
-        if (item.sourceId && item.sourceType) {
-          // Ambos sourceType 'menu' y 'wardrobe' ahora buscan en la tabla catalog
-          if (item.sourceType === 'menu' || item.sourceType === 'wardrobe') {
-            const catalog = await this.catalogRepository.findOne({
-              where: { id: item.sourceId },
-            });
-            if (catalog) {
-              return catalog.ownerId;
-            }
+        if (item.sourceId && (item.sourceType === 'menu' || item.sourceType === 'wardrobe')) {
+          const catalogItem = await this.catalogItemRepository.findOne({
+            where: { id: item.sourceId },
+            relations: ['catalog'],
+          });
+
+          if (!catalogItem || !catalogItem.catalog) {
+            throw new BadRequestException(`Item con ID ${item.sourceId} no encontrado o no tiene catálogo asociado.`);
           }
+
+          const currentOwnerId = catalogItem.catalog.ownerId;
+
+          if (foundOwnerId && foundOwnerId !== currentOwnerId) {
+            throw new BadRequestException('No se permiten órdenes con productos de diferentes negocios.');
+          }
+
+          foundOwnerId = currentOwnerId;
         }
       }
-      return null;
+
+      if (!foundOwnerId) {
+        throw new BadRequestException('No se pudo determinar el propietario del negocio para esta orden.');
+      }
+
+      return foundOwnerId;
     } catch (error) {
-      this.logger.error(
-        `Error determining owner ID: ${error.message}`,
-        error.stack,
-      );
-      return null;
+      if (error instanceof BadRequestException) throw error;
+      this.logger.error(`Error validating owner ID: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('Error al validar el propietario del negocio.');
     }
   }
 
   /**
-   * Calcula los montos de la orden incluyendo la comisión del marketplace
-   * @param subtotal El subtotal de la orden antes de comisiones
-   * @returns Objeto con subtotal, porcentaje de comisión, monto de comisión y total
+   * Calcula los montos de la orden basándose en los precios REALES de la base de datos
    */
-  private async calculateOrderAmounts(subtotal: number): Promise<{
+  private async calculateSecureOrderAmounts(items: CreateOrderDto['items']): Promise<{
     subtotal: number;
     marketplaceFeePercentage: number;
     marketplaceFeeAmount: number;
     total: number;
+    itemsWithFixedPrices: any[];
   }> {
-    try {
-      // Obtener el porcentaje de comisión del marketplace
-      const marketplaceFeePercentage =
-        await this.appDataService.getMarketplaceFeePercentage();
+    let subtotal = 0;
+    const itemsWithFixedPrices = [];
 
-      // Calcular el monto de la comisión
-      const marketplaceFeeAmount = (subtotal * marketplaceFeePercentage) / 100;
+    for (const item of items) {
+      const dbItem = await this.catalogItemRepository.findOne({
+        where: { id: item.sourceId }
+      });
 
-      // Calcular el total final
-      const total = subtotal + marketplaceFeeAmount;
+      if (!dbItem) {
+        throw new BadRequestException(`Producto ${item.productName} no encontrado.`);
+      }
 
-      return {
-        subtotal,
-        marketplaceFeePercentage,
-        marketplaceFeeAmount,
-        total,
-      };
-    } catch (error) {
-      this.logger.error(
-        `Error calculating order amounts for subtotal ${subtotal}: ${error.message}`,
-        error.stack,
-      );
-      // En caso de error, devolver valores por defecto (sin comisión)
-      return {
-        subtotal,
-        marketplaceFeePercentage: 0,
-        marketplaceFeeAmount: 0,
-        total: subtotal,
-      };
+      // IMPORTANTE: Usamos el precio de la base de datos, no el del frontend
+      const price = dbItem.discountPrice ?? dbItem.price;
+      subtotal += price * item.quantity;
+
+      itemsWithFixedPrices.push({
+        ...item,
+        price, // Sobreescribimos con el precio real
+      });
     }
+
+    const marketplaceFeePercentage = await this.appDataService.getMarketplaceFeePercentage();
+    const marketplaceFeeAmount = (subtotal * marketplaceFeePercentage) / 100;
+    const total = subtotal + marketplaceFeeAmount;
+
+    return {
+      subtotal,
+      marketplaceFeePercentage,
+      marketplaceFeeAmount,
+      total,
+      itemsWithFixedPrices
+    };
   }
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
-    try {
-      // Verificar configuraciones del sistema antes de procesar la orden
-      await this.checkOrderingConfig();
+    // 1. Verificar configuraciones del sistema
+    await this.checkOrderingConfig();
 
-      // Asignar datos falsos si no se proveen y corregir si el email es un teléfono
-      const fakeEmail = 'anon@fake.com';
-      const fakePhone = '0000000000';
-      let {
-        customerEmail,
-        customerPhone,
-        ownerId,
-        customerName,
-        customerLastName,
-      } = createOrderDto;
-      const { createdBy } = createOrderDto;
-      const { items, ...rest } = createOrderDto;
+    // 2. Validar límites de items
+    await this.validateOrderLimits(createOrderDto.items);
 
-      // Si createdBy está presente, buscar info del usuario
-      if (createdBy) {
-        try {
-          const user = await this.userService.findOne(createdBy);
-          if (user) {
-            // Si el usuario tiene email y/o phone, usarlos
-            customerEmail = user.email || customerEmail;
-            customerPhone = user.phone || customerPhone;
-            // Obtener nombre y apellido del usuario para MercadoPago
-            if (!customerName && user.name) {
-              const nameParts = user.name.trim().split(' ');
-              customerName = nameParts[0];
-              customerLastName =
-                nameParts.slice(1).join(' ') || customerLastName;
-            }
+    // 3. Determinar Owner y validar integridad (mismo dueño para todos los items)
+    const ownerId = await this.determineOwnerIdAndValidate(createOrderDto.items);
+
+    // 4. Calcular montos seguros (precios de servidor)
+    const secureAmounts = await this.calculateSecureOrderAmounts(createOrderDto.items);
+
+    // 5. Preparar datos del cliente
+    let { customerEmail, customerPhone, customerName, customerLastName } = createOrderDto;
+    const { createdBy } = createOrderDto;
+
+    if (createdBy) {
+      try {
+        const user = await this.userService.findOne(createdBy);
+        if (user) {
+          customerEmail = user.email || customerEmail;
+          customerPhone = user.phone || customerPhone;
+          if (!customerName && user.name) {
+            const nameParts = user.name.trim().split(' ');
+            customerName = nameParts[0];
+            customerLastName = nameParts.slice(1).join(' ') || customerLastName;
           }
-        } catch (e) {
-          // Si no se encuentra el usuario, continuar con los datos originales
         }
-      }
-
-      // Detectar si customerEmail es un número de teléfono (solo dígitos, 8-15 caracteres)
-      const phoneRegex = /^\d{8,15}$/;
-      if (customerEmail && phoneRegex.test(customerEmail)) {
-        customerPhone = customerEmail;
-        customerEmail = fakeEmail;
-      }
-
-      customerEmail = customerEmail || fakeEmail;
-      customerPhone = customerPhone || fakePhone;
-
-      // Determinar automáticamente el ownerId si no se proporciona
-      if (!ownerId) {
-        ownerId = await this.determineOwnerId(items);
-      }
-
-      // Validar límites de orden según configuración
-      await this.validateOrderLimits(items);
-
-      // Calcular los montos incluyendo la comisión del marketplace
-      // Nota: rest.total se considera como el subtotal original
-      const calculatedAmounts = await this.calculateOrderAmounts(rest.total);
-
-      const orderData = {
-        ...rest,
-        customerEmail,
-        customerPhone,
-        ownerId,
-        createdBy,
-        subtotal: calculatedAmounts.subtotal,
-        marketplaceFeePercentage: calculatedAmounts.marketplaceFeePercentage,
-        marketplaceFeeAmount: calculatedAmounts.marketplaceFeeAmount,
-        total: calculatedAmounts.total, // Total final con comisión incluida
-      };
-
-      // Crear instancia de Order (TypeORM generará automáticamente el ID)
-      const order = this.orderRepository.create(orderData);
-
-      // Guardar la orden primero para obtener el ID
-      const savedOrder = await this.orderRepository.save(order);
-
-      // Crear el pago y obtener el intent (ahora con el orderId disponible)
-      // Usar el total final que incluye la comisión del marketplace
-      const paymentIntent = await this.paymentService.createPayment(
-        orderData.customerEmail,
-        orderData.total,
-        undefined, // description
-        orderData.ownerId, // ownerId para buscar collector_id
-        orderData.createdBy, // anonymousId o userId para trazabilidad
-        savedOrder.id, // orderId para trazabilidad
-        orderData.marketplaceFeeAmount, // <-- Pasamos el fee
-        customerName,
-        customerLastName,
-      );
-      savedOrder.operationID = paymentIntent.id; // Asignar el ID del pago a la orden
-
-      // Generar la URL de checkout de Mercado Pago usando el transaction_id
-      if (paymentIntent.transaction_id) {
-        savedOrder.paymentUrl = paymentIntent.init_point;
-      }
-
-      // Actualizar la orden con los datos del pago
-      await this.orderRepository.save(savedOrder);
-
-      // Crear y guardar los ítems asociados a la orden
-      const orderItems = items.map((itemDto) =>
-        this.orderItemRepository.create({ ...itemDto, order: savedOrder }),
-      );
-      await this.orderItemRepository.save(orderItems);
-
-      // Recuperar la orden con los ítems guardados
-      return await this.orderRepository.findOne({
-        where: { id: savedOrder.id },
-        relations: ['items'],
-      });
-    } catch (error) {
-      throw new Error(`Error creating order: ${error.message}`);
+      } catch (e) {}
     }
+
+    // Fallback para datos faltantes
+    customerEmail = customerEmail || 'anon@fake.com';
+    customerPhone = customerPhone || '0000000000';
+
+    // 6. Ejecutar todo en una transacción atómica
+    return await this.dataSource.transaction(async (manager) => {
+      try {
+        // Crear la orden inicial
+        const order = manager.create(Order, {
+          customerEmail,
+          customerPhone,
+          customerName,
+          customerLastName,
+          ownerId,
+          createdBy,
+          subtotal: secureAmounts.subtotal,
+          marketplaceFeePercentage: secureAmounts.marketplaceFeePercentage,
+          marketplaceFeeAmount: secureAmounts.marketplaceFeeAmount,
+          total: secureAmounts.total,
+          status: OrderStatus.PENDING,
+        });
+
+        const savedOrder = await manager.save(Order, order);
+
+        // Crear los ítems con los precios validados
+        const orderItems = secureAmounts.itemsWithFixedPrices.map((item) =>
+          manager.create(OrderItem, { ...item, order: savedOrder }),
+        );
+        await manager.save(OrderItem, orderItems);
+
+        // Generar el intento de pago con Mercado Pago
+        const paymentIntent = await this.paymentService.createPayment(
+          customerEmail,
+          secureAmounts.total,
+          `Orden #${savedOrder.id.substring(0, 8)}`,
+          ownerId,
+          createdBy,
+          savedOrder.id,
+          secureAmounts.marketplaceFeeAmount,
+          customerName,
+          customerLastName,
+        );
+
+        // Actualizar la orden con los datos de pago
+        savedOrder.operationID = paymentIntent.id;
+        if (paymentIntent.transaction_id) {
+          savedOrder.paymentUrl = paymentIntent.init_point;
+        }
+
+        const finalOrder = await manager.save(Order, savedOrder);
+        finalOrder.items = orderItems;
+        
+        return finalOrder;
+      } catch (error) {
+        this.logger.error(`Error en transacción de creación de orden: ${error.message}`, error.stack);
+        throw new InternalServerErrorException(`No se pudo procesar la orden: ${error.message}`);
+      }
+    });
   }
 
   // Otros métodos (findOne, findAll, update, delete) pueden seguir este patrón
@@ -237,9 +230,15 @@ export class OrdersService {
       throw new Error(`Error finding order: ${error.message}`);
     }
   }
-  async findAll(): Promise<Order[]> {
+  async findAll(page: number = 1, limit: number = 10): Promise<Order[]> {
     try {
-      return await this.orderRepository.find({ relations: ['items'] });
+      const skip = (page - 1) * limit;
+      return await this.orderRepository.find({
+        relations: ['items'],
+        skip,
+        take: limit,
+        order: { createdAt: 'DESC' },
+      });
     } catch (error) {
       throw new Error(`Error finding orders: ${error.message}`);
     }
@@ -257,7 +256,7 @@ export class OrdersService {
     }
   }
 
-  async findByUserId(userId: string): Promise<Order[]> {
+  async findByUserId(userId: string, page: number = 1, limit: number = 10): Promise<Order[]> {
     try {
       // Get user's email
       const user = await this.userService.findOne(userId);
@@ -265,8 +264,15 @@ export class OrdersService {
         throw new Error(`User with id ${userId} not found`);
       }
       this.logger.debug(`Finding orders for user: ${user.email}`);
-      // Find orders by user's email
-      return await this.findByOwner(user.email);
+      
+      const skip = (page - 1) * limit;
+      return await this.orderRepository.find({
+        where: { customerEmail: user.email },
+        relations: ['items'],
+        order: { createdAt: 'DESC' },
+        skip,
+        take: limit,
+      });
     } catch (error) {
       throw new Error(`Error finding orders by user ID: ${error.message}`);
     }
@@ -284,15 +290,24 @@ export class OrdersService {
     }
   }
 
-  async findByOwnerId(ownerId: string): Promise<Order[]> {
+  async findByOwnerId(
+    ownerId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<Order[]> {
     try {
       if (!ownerId) {
         throw new Error('Owner ID is required');
       }
+
+      const skip = (page - 1) * limit;
+
       return await this.orderRepository.find({
         where: { ownerId },
         relations: ['items'],
         order: { createdAt: 'DESC' },
+        skip,
+        take: limit,
       });
     } catch (error) {
       throw new Error(`Error finding orders by owner ID: ${error.message}`);
@@ -354,7 +369,7 @@ export class OrdersService {
   /**
    * Actualiza el estado de una orden
    */
-  async updateOrderStatus(orderId: string, status: string): Promise<Order> {
+  async updateOrderStatus(orderId: string, status: OrderStatus): Promise<Order> {
     try {
       const order = await this.orderRepository.findOne({
         where: { id: orderId },
@@ -362,6 +377,18 @@ export class OrdersService {
 
       if (!order) {
         throw new Error(`Order with id ${orderId} not found`);
+      }
+
+      // Idempotencia: si ya tiene el mismo estado, no hacer nada
+      if (order.status === status) {
+        this.logger.debug(`Order ${orderId} ya está en estado ${status}. Saltando update.`);
+        return order;
+      }
+
+      // Si la orden ya está en un estado final, no permitir cambios (a menos que sea una corrección específica)
+      if (order.status === OrderStatus.CONFIRMED && status === OrderStatus.PENDING) {
+        this.logger.warn(`Intento de cambiar orden CONFIRMED ${orderId} a PENDING bloqueado.`);
+        return order;
       }
 
       order.status = status;

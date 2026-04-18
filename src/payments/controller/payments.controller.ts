@@ -8,8 +8,9 @@ import {
   UseGuards,
   Headers,
   HttpCode,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiHeader, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
 import { PaymentsService } from '../services/payments.service';
 import { PaymentsGateway } from '../../ws/payments.gateway';
@@ -47,14 +48,43 @@ export class PaymentsController {
   })
   @Post('webhooks')
   @HttpCode(200)
+  @ApiHeader({
+    name: 'x-signature',
+    description: 'Firma de seguridad de Mercado Pago',
+    required: false,
+  })
   async recibeNotification(
     @Body() payload: any,
+    @Headers('x-signature') xSignature: string,
+    @Headers('x-request-id') xRequestId: string,
     @Headers('x-idempotency-key') idempotencyKey: string,
     @Req() req: any,
   ) {
     try {
       console.log('[MP Webhook] Payload recibido:', JSON.stringify(payload));
       console.log('[MP Webhook] Query params:', JSON.stringify(req.query));
+
+      // 1. Determinar ID y Tipo para validación de firma
+      const dataId = payload?.data?.id || req.query?.['data.id'] || payload?.id || req.query?.id;
+
+      // 2. Validar firma si el header está presente
+      if (xSignature && dataId && xRequestId) {
+        const isValid = this.paymentsService.validateSignature(
+          xSignature,
+          xRequestId,
+          dataId,
+        );
+        if (!isValid) {
+          console.error('[MP Webhook] Firma inválida detectada.');
+          throw new UnauthorizedException('Invalid signature');
+        }
+      } else if (process.env.ENV === 'prod' || process.env.NODE_ENV === 'production') {
+        // En producción, es OBLIGATORIO validar la firma
+        console.error('[MP Webhook] Firma ausente en entorno de producción.');
+        throw new UnauthorizedException('Signature is required in production');
+      } else {
+        console.warn('[MP Webhook] Probable notificación sin firma (entorno no-prod).');
+      }
 
       let paymentId: string | null = null;
       let merchantOrderId: string | number | null = null;

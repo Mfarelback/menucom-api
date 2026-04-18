@@ -1,5 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, Index } from 'typeorm';
 import { Order } from './order.entity';
+
+export enum OrderSourceType {
+  MENU = 'menu',
+  WARDROBE = 'wardrobe',
+}
 
 @Entity()
 export class OrderItem {
@@ -18,8 +23,13 @@ export class OrderItem {
   @Column({ nullable: true })
   sourceId: string; // ID del menú o wardrobe
 
-  @Column({ nullable: true })
-  sourceType: string; // 'menu' o 'wardrobe'
+  @Index()
+  @Column({
+    type: 'enum',
+    enum: OrderSourceType,
+    nullable: true,
+  })
+  sourceType: OrderSourceType; // 'menu' o 'wardrobe'
 
   @ManyToOne(() => Order, (order) => order.items, { onDelete: 'CASCADE' })
   order: Order;

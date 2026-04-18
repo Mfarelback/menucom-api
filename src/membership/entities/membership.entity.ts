@@ -7,6 +7,7 @@ import {
   OneToOne,
   ManyToOne,
   JoinColumn,
+  OneToMany,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import {
@@ -14,6 +15,7 @@ import {
   MembershipFeature,
 } from '../enums/membership-plan.enum';
 import { SubscriptionPlan } from './subscription-plan.entity';
+import { SubscriptionDiscount } from './subscription-discount.entity';
 
 @Entity()
 export class Membership {
@@ -52,7 +54,6 @@ export class Membership {
   @Column({ type: 'varchar', nullable: true })
   subscriptionId: string;
 
-  // Relación con el plan de suscripción personalizable
   @ManyToOne(() => SubscriptionPlan, { nullable: true })
   @JoinColumn()
   subscriptionPlan: SubscriptionPlan;
@@ -69,14 +70,47 @@ export class Membership {
   @Column({ type: 'json', nullable: true })
   metadata: Record<string, any>;
 
-  @CreateDateColumn({
-    type: 'timestamp',
-  })
+  // === Campos de Suscripción MP ===
+
+  @Column({ type: 'varchar', nullable: true })
+  mpPreapprovalId: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  mpSubscriptionId: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  mpSubscriberId: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  paymentMethodId: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  nextBillingDate: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastPaymentAt: Date;
+
+  @Column({ type: 'varchar', nullable: true })
+  subscriptionStatus: string;
+
+  // Descuento aplicado
+  @ManyToOne(() => SubscriptionDiscount, { nullable: true })
+  @JoinColumn()
+  discount: SubscriptionDiscount;
+
+  @Column({ type: 'varchar', nullable: true })
+  discountId: string;
+
+  @Column({ type: 'decimal', precision: 5, scale: 2, nullable: true })
+  discountPercentage: number;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  originalPrice: number;
+
+  @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
 
-  @UpdateDateColumn({
-    type: 'timestamp',
-  })
+  @UpdateDateColumn({ type: 'timestamp' })
   updatedAt: Date;
 
   // Helper methods
@@ -99,6 +133,26 @@ export class Membership {
     if (!this.expiresAt) return -1;
     const now = new Date();
     const diffTime = this.expiresAt.getTime() - now.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  }
+
+  hasActiveSubscription(): boolean {
+    return (
+      this.mpPreapprovalId != null &&
+      this.subscriptionStatus === 'authorized' &&
+      this.isActive
+    );
+  }
+
+  hasValidDiscount(): boolean {
+    if (!this.discount) return false;
+    return this.discount.isValid();
+  }
+
+  getDaysUntilNextBilling(): number {
+    if (!this.nextBillingDate) return -1;
+    const now = new Date();
+    const diffTime = this.nextBillingDate.getTime() - now.getTime();
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   }
 }

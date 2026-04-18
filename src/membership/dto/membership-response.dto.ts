@@ -13,5 +13,22 @@ export class MembershipResponseDto {
   isExpired: boolean;
   createdAt: Date;
   updatedAt: Date;
-  subscriptionPlanId?: string; // Para planes personalizables
+  subscriptionPlanId?: string;
+
+  // Subscription fields
+  mpPreapprovalId?: string;
+  mpSubscriptionId?: string;
+  subscriptionStatus?: string;
+  amount?: number;
+  originalPrice?: number;
+  discountPercentage?: number;
+  currency?: string;
+  nextBillingDate?: Date;
+  lastPaymentAt?: Date;
+  paymentMethodId?: string;
+  discount?: {
+    id: string;
+    code: string;
+    displayName?: string;
+  };
 }

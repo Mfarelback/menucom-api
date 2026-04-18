@@ -139,4 +139,20 @@ export class PaymentsService {
       merchantOrderId,
     );
   }
+
+  /**
+   * Valida la firma de una notificación de Mercado Pago
+   * @delegate PaymentWebhookService.validateSignature
+   */
+  validateSignature(
+    xSignature: string,
+    xRequestId: string,
+    dataId: string,
+  ): boolean {
+    return this.paymentWebhookService.validateSignature(
+      xSignature,
+      xRequestId,
+      dataId,
+    );
+  }
 }

@@ -44,16 +44,14 @@ export class SubscriptionPlanService {
         billingCycle: 'monthly',
         features: PLAN_FEATURES[MembershipPlan.FREE],
         limits: {
-          maxMenus: 1,
-          maxMenuItems: PLAN_LIMITS[MembershipPlan.FREE].maxMenuItems,
-          maxWardrobes: 1,
-          maxClothingItems: 10,
+          maxCatalogs: PLAN_LIMITS[MembershipPlan.FREE].maxCatalogs,
+          maxCatalogItems: PLAN_LIMITS[MembershipPlan.FREE].maxCatalogItems,
           maxLocations: PLAN_LIMITS[MembershipPlan.FREE].maxLocations,
           analyticsRetention:
             PLAN_LIMITS[MembershipPlan.FREE].analyticsRetention,
-          maxUsers: 1,
-          maxApiCalls: 100,
-          storageLimit: 100, // 100MB
+          maxUsers: PLAN_LIMITS[MembershipPlan.FREE].maxUsers,
+          maxApiCalls: PLAN_LIMITS[MembershipPlan.FREE].maxApiCalls,
+          storageLimit: PLAN_LIMITS[MembershipPlan.FREE].storageLimit,
         },
         metadata: {
           color: '#6B7280',
@@ -72,16 +70,14 @@ export class SubscriptionPlanService {
         billingCycle: 'monthly',
         features: PLAN_FEATURES[MembershipPlan.PREMIUM],
         limits: {
-          maxMenus: 5,
-          maxMenuItems: PLAN_LIMITS[MembershipPlan.PREMIUM].maxMenuItems,
-          maxWardrobes: 5,
-          maxClothingItems: 500,
+          maxCatalogs: PLAN_LIMITS[MembershipPlan.PREMIUM].maxCatalogs,
+          maxCatalogItems: PLAN_LIMITS[MembershipPlan.PREMIUM].maxCatalogItems,
           maxLocations: PLAN_LIMITS[MembershipPlan.PREMIUM].maxLocations,
           analyticsRetention:
             PLAN_LIMITS[MembershipPlan.PREMIUM].analyticsRetention,
-          maxUsers: 3,
-          maxApiCalls: 10000,
-          storageLimit: 1000, // 1GB
+          maxUsers: PLAN_LIMITS[MembershipPlan.PREMIUM].maxUsers,
+          maxApiCalls: PLAN_LIMITS[MembershipPlan.PREMIUM].maxApiCalls,
+          storageLimit: PLAN_LIMITS[MembershipPlan.PREMIUM].storageLimit,
         },
         metadata: {
           color: '#3B82F6',
@@ -103,15 +99,13 @@ export class SubscriptionPlanService {
         billingCycle: 'monthly',
         features: PLAN_FEATURES[MembershipPlan.ENTERPRISE],
         limits: {
-          maxMenus: -1, // Unlimited
-          maxMenuItems: -1,
-          maxWardrobes: -1,
-          maxClothingItems: -1,
-          maxLocations: -1,
-          analyticsRetention: 365,
-          maxUsers: -1,
-          maxApiCalls: -1,
-          storageLimit: -1,
+          maxCatalogs: PLAN_LIMITS[MembershipPlan.ENTERPRISE].maxCatalogs,
+          maxCatalogItems: PLAN_LIMITS[MembershipPlan.ENTERPRISE].maxCatalogItems,
+          maxLocations: PLAN_LIMITS[MembershipPlan.ENTERPRISE].maxLocations,
+          analyticsRetention: PLAN_LIMITS[MembershipPlan.ENTERPRISE].analyticsRetention,
+          maxUsers: PLAN_LIMITS[MembershipPlan.ENTERPRISE].maxUsers,
+          maxApiCalls: PLAN_LIMITS[MembershipPlan.ENTERPRISE].maxApiCalls,
+          storageLimit: PLAN_LIMITS[MembershipPlan.ENTERPRISE].storageLimit,
         },
         metadata: {
           color: '#7C3AED',

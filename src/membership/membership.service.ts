@@ -81,7 +81,12 @@ export class MembershipService {
         paymentId: subscribeDto.paymentId,
         subscriptionId: subscribeDto.subscriptionId,
         amount: subscribeDto.amount,
+        originalPrice: subscribeDto.originalAmount,
+        discountPercentage: subscribeDto.discountPercentage,
         currency: subscribeDto.currency,
+        subscriptionStatus: 'authorized',
+        mpPreapprovalId: subscribeDto.metadata?.mpPreapprovalId,
+        paymentMethodId: subscribeDto.metadata?.paymentMethodId,
         metadata: subscribeDto.metadata,
       },
     );
@@ -395,6 +400,30 @@ export class MembershipService {
       createdAt: membership.createdAt,
       updatedAt: membership.updatedAt,
       subscriptionPlanId: membership.subscriptionPlanId,
+      mpPreapprovalId: membership.mpPreapprovalId,
+      mpSubscriptionId: membership.mpSubscriptionId,
+      subscriptionStatus: membership.subscriptionStatus,
+      amount: membership.amount,
+      originalPrice: membership.originalPrice,
+      discountPercentage: membership.discountPercentage,
+      currency: membership.currency,
+      nextBillingDate: membership.nextBillingDate,
+      lastPaymentAt: membership.lastPaymentAt,
+      paymentMethodId: membership.paymentMethodId,
+      discount: membership.discount
+        ? {
+            id: membership.discount.id,
+            code: membership.discount.code,
+            displayName: membership.discount.displayName,
+          }
+        : undefined,
     };
+  }
+
+  async updateMembershipFields(
+    userId: string,
+    fields: Partial<Membership>,
+  ): Promise<Membership> {
+    return this.membershipRepository.updateMembershipByUserId(userId, fields);
   }
 }

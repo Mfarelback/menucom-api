@@ -4,7 +4,9 @@ import {
   InternalServerErrorException,
   Inject,
   forwardRef,
+  UnauthorizedException,
 } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { MercadopagoService } from './mercado_pago.service';
 import { PaymentsRepository } from '../repository/payment_repository';
 import { PaymentIntent } from '../entities/payment_intent_entity';
@@ -12,6 +14,7 @@ import { MerchantOrderResponse } from 'mercadopago/dist/clients/merchantOrder/co
 import { OrdersService } from 'src/orders/services/orders.service';
 import { LoggerService } from 'src/core/logger/logger.service';
 import { PaymentStatusService } from './payment-status.service';
+import { OrderStatus } from 'src/orders/enums/order-status.enum';
 
 /**
  * Servicio especializado en procesamiento de webhooks de MercadoPago
@@ -40,6 +43,49 @@ export class PaymentWebhookService {
     private readonly logger: LoggerService,
   ) {
     this.logger.setContext('PaymentWebhookService');
+  }
+
+  /**
+   * Valida la firma x-signature enviada por Mercado Pago
+   * @param xSignature Header x-signature
+   * @param xRequestId Header x-request-id
+   * @param dataId ID de los datos (de la notificación)
+   */
+  validateSignature(
+    xSignature: string,
+    xRequestId: string,
+    dataId: string,
+  ): boolean {
+    const secret = process.env.MP_WEBHOOK_SECRET;
+    if (!secret) {
+      this.logger.warn(
+        'MP_WEBHOOK_SECRET no está configurado. Saltando validación de firma (NO RECOMENDADO en producción).',
+      );
+      return true;
+    }
+
+    try {
+      const parts = xSignature.split(',');
+      const tsPart = parts.find((p) => p.startsWith('ts='));
+      const v1Part = parts.find((p) => p.startsWith('v1='));
+
+      if (!tsPart || !v1Part) return false;
+
+      const ts = tsPart.split('=')[1];
+      const receivedHash = v1Part.split('=')[1];
+
+      const manifest = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+
+      const generatedHash = crypto
+        .createHmac('sha256', secret)
+        .update(manifest)
+        .digest('hex');
+
+      return generatedHash === receivedHash;
+    } catch (error) {
+      this.logger.error('Error validando firma de MP', error.stack);
+      return false;
+    }
   }
 
   /**
@@ -177,7 +223,7 @@ export class PaymentWebhookService {
             if (order) {
               updatedOrder = await this.ordersService.updateOrderStatus(
                 order.id,
-                'confirmed',
+                OrderStatus.CONFIRMED,
               );
               this.logger.log(
                 `Order confirmada via merchant_order: ${order.id}`,
@@ -269,7 +315,11 @@ export class PaymentWebhookService {
         `Error verificando estado de pago ${idReference}`,
         error.stack,
       );
-      // No lanzamos excepción para permitir que continúe el flujo
+      // Re-lanzamos excepciones de NestJS si ya están formadas, o creamos una genérica
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new InternalServerErrorException('Error al verificar el estado del pago.');
     }
   }
 

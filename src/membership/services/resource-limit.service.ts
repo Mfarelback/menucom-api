@@ -1,14 +1,12 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository } from 'typeorm';
 import { MembershipProvider } from '../membership.provider';
 import { SubscriptionPlanService } from './subscription-plan.service';
 import { PLAN_LIMITS } from '../enums/membership-plan.enum';
 
-// Import entities for counting
 import { Catalog } from '../../catalog/entities/catalog.entity';
 import { CatalogItem } from '../../catalog/entities/catalog-item.entity';
-import { CatalogType } from '../../catalog/enums/catalog-type.enum';
 
 @Injectable()
 export class ResourceLimitService {
@@ -23,101 +21,44 @@ export class ResourceLimitService {
     private readonly catalogItemRepository: Repository<CatalogItem>,
   ) {}
 
-  /**
-   * Verificar si un usuario puede crear un nuevo menú
-   */
-  async canCreateMenu(userId: string): Promise<boolean> {
-    const membership =
-      await this.membershipProvider.getMembershipStatus(userId);
+  async canCreateCatalog(userId: string): Promise<boolean> {
+    const membership = await this.membershipProvider.getMembershipStatus(userId);
     if (membership.subscriptionPlanId) {
-      const currentMenuCount = await this.getCurrentMenuCount(userId);
+      const currentCount = await this.getCurrentCatalogCount(userId);
       return this.subscriptionPlanService.canCreateResource(
         membership.subscriptionPlanId,
-        'maxMenuItems',
-        currentMenuCount,
+        'maxCatalogs',
+        currentCount,
       );
     }
-    const limit = await this.membershipProvider.getResourceLimit(
-      userId,
-      'maxMenuItems',
-    );
-    const currentCount = await this.getCurrentMenuCount(userId);
+    const limit = await this.membershipProvider.getResourceLimit(userId, 'maxCatalogs');
+    const currentCount = await this.getCurrentCatalogCount(userId);
     return limit === -1 || currentCount < limit;
   }
 
-  /**
-   * Verificar si un usuario puede crear un nuevo item de menú
-   */
-  async canCreateMenuItem(
+  async canCreateCatalogItem(
     userId: string,
     additionalItems: number = 1,
   ): Promise<boolean> {
-    const membership =
-      await this.membershipProvider.getMembershipStatus(userId);
+    const membership = await this.membershipProvider.getMembershipStatus(userId);
     if (membership.subscriptionPlanId) {
-      const currentItemCount = await this.getCurrentMenuItemCount(userId);
+      const currentCount = await this.getCurrentCatalogItemCount(userId);
       return this.subscriptionPlanService.canCreateResource(
         membership.subscriptionPlanId,
-        'maxMenuItems',
-        currentItemCount + additionalItems,
+        'maxCatalogItems',
+        currentCount + additionalItems,
       );
     }
     return this.membershipProvider.checkResourceLimit(
       userId,
-      'maxMenuItems',
-      additionalItems + (await this.getCurrentMenuItemCount(userId)),
+      'maxCatalogItems',
+      additionalItems + (await this.getCurrentCatalogItemCount(userId)),
     );
   }
 
-  /**
-   * Verificar si un usuario puede crear un nuevo wardrobe
-   */
-  async canCreateWardrobe(userId: string): Promise<boolean> {
-    const membership =
-      await this.membershipProvider.getMembershipStatus(userId);
-    if (membership.subscriptionPlanId) {
-      const currentWardrobeCount = await this.getCurrentWardrobeCount(userId);
-      return this.subscriptionPlanService.canCreateResource(
-        membership.subscriptionPlanId,
-        'maxWardrobes',
-        currentWardrobeCount,
-      );
-    }
-    const limit = await this.getWardrobeLimit(userId);
-    const currentCount = await this.getCurrentWardrobeCount(userId);
-    return limit === -1 || currentCount < limit;
-  }
-
-  /**
-   * Verificar si un usuario puede crear un nuevo item de ropa
-   */
-  async canCreateClothingItem(
-    userId: string,
-    additionalItems: number = 1,
-  ): Promise<boolean> {
-    const membership =
-      await this.membershipProvider.getMembershipStatus(userId);
-    if (membership.subscriptionPlanId) {
-      const currentItemCount = await this.getCurrentClothingItemCount(userId);
-      return this.subscriptionPlanService.canCreateResource(
-        membership.subscriptionPlanId,
-        'maxClothingItems',
-        currentItemCount + additionalItems,
-      );
-    }
-    const limit = await this.getClothingItemLimit(userId);
-    const currentCount = await this.getCurrentClothingItemCount(userId);
-    return limit === -1 || currentCount + additionalItems <= limit;
-  }
-
-  /**
-   * Obtener límites completos para un usuario
-   */
   async getUserLimits(userId: string): Promise<any> {
-    const membership =
-      await this.membershipProvider.getMembershipStatus(userId);
+    const membership = await this.membershipProvider.getMembershipStatus(userId);
 
-    // Si tiene un plan personalizado, devolver sus límites
     if (membership.subscriptionPlanId) {
       const plan = await this.subscriptionPlanService.getPlanById(
         membership.subscriptionPlanId,
@@ -127,60 +68,40 @@ export class ResourceLimitService {
         type: 'custom',
         limits: plan.limits,
         usage: {
-          menus: await this.getCurrentMenuCount(userId),
-          menuItems: await this.getCurrentMenuItemCount(userId),
-          wardrobes: await this.getCurrentWardrobeCount(userId),
-          clothingItems: await this.getCurrentClothingItemCount(userId),
+          catalogs: await this.getCurrentCatalogCount(userId),
+          catalogItems: await this.getCurrentCatalogItemCount(userId),
         },
       };
     }
 
-    // Límites del plan estándar
     const standardLimits = PLAN_LIMITS[membership.plan];
     return {
       plan: membership.plan,
       type: 'standard',
-      limits: {
-        ...standardLimits,
-        maxWardrobes: await this.getWardrobeLimit(userId),
-        maxClothingItems: await this.getClothingItemLimit(userId),
-      },
+      limits: standardLimits,
       usage: {
-        menus: await this.getCurrentMenuCount(userId),
-        menuItems: await this.getCurrentMenuItemCount(userId),
-        wardrobes: await this.getCurrentWardrobeCount(userId),
-        clothingItems: await this.getCurrentClothingItemCount(userId),
+        catalogs: await this.getCurrentCatalogCount(userId),
+        catalogItems: await this.getCurrentCatalogItemCount(userId),
       },
     };
   }
 
-  /**
-   * Validar y lanzar excepción si se exceden los límites
-   */
   async validateResourceCreation(
     userId: string,
-    resourceType: 'menu' | 'menuItem' | 'wardrobe' | 'clothingItem',
+    resourceType: 'catalog' | 'catalogItem',
     quantity: number = 1,
   ): Promise<void> {
     let canCreate = false;
     let resourceName = '';
 
     switch (resourceType) {
-      case 'menu':
-        canCreate = await this.canCreateMenu(userId);
-        resourceName = 'menú';
+      case 'catalog':
+        canCreate = await this.canCreateCatalog(userId);
+        resourceName = 'catálogos';
         break;
-      case 'menuItem':
-        canCreate = await this.canCreateMenuItem(userId, quantity);
-        resourceName = 'items de menú';
-        break;
-      case 'wardrobe':
-        canCreate = await this.canCreateWardrobe(userId);
-        resourceName = 'wardrobe';
-        break;
-      case 'clothingItem':
-        canCreate = await this.canCreateClothingItem(userId, quantity);
-        resourceName = 'items de ropa';
+      case 'catalogItem':
+        canCreate = await this.canCreateCatalogItem(userId, quantity);
+        resourceName = 'items de catálogo';
         break;
     }
 
@@ -192,70 +113,23 @@ export class ResourceLimitService {
     }
   }
 
-  // Métodos privados para obtener conteos actuales
-  private async getCurrentMenuCount(userId: string): Promise<number> {
+  private async getCurrentCatalogCount(userId: string): Promise<number> {
     return await this.catalogRepository.count({
-      where: { ownerId: userId, catalogType: CatalogType.MENU },
+      where: { ownerId: userId },
     });
   }
 
-  private async getCurrentMenuItemCount(userId: string): Promise<number> {
-    // Obtener todos los catálogos tipo MENU del usuario
-    const userMenus = await this.catalogRepository.find({
-      where: { ownerId: userId, catalogType: CatalogType.MENU },
+  private async getCurrentCatalogItemCount(userId: string): Promise<number> {
+    const catalogs = await this.catalogRepository.find({
+      where: { ownerId: userId },
       select: ['id'],
     });
-    if (userMenus.length === 0) {
+    if (catalogs.length === 0) {
       return 0;
     }
-    const menuIds = userMenus.map((menu) => menu.id);
+    const catalogIds = catalogs.map((c) => c.id);
     return await this.catalogItemRepository.count({
-      where: { catalogId: In(menuIds) },
+      where: { catalogId: { $in: catalogIds as any } } as any,
     });
-  }
-
-  private async getCurrentWardrobeCount(userId: string): Promise<number> {
-    return await this.catalogRepository.count({
-      where: { ownerId: userId, catalogType: CatalogType.WARDROBE },
-    });
-  }
-
-  private async getCurrentClothingItemCount(userId: string): Promise<number> {
-    // Obtener todos los catálogos tipo WARDROBE del usuario
-    const userWardrobes = await this.catalogRepository.find({
-      where: { ownerId: userId, catalogType: CatalogType.WARDROBE },
-      select: ['id'],
-    });
-    if (userWardrobes.length === 0) {
-      return 0;
-    }
-    const wardrobeIds = userWardrobes.map((wardrobe) => wardrobe.id);
-    return await this.catalogItemRepository.count({
-      where: { catalogId: In(wardrobeIds) },
-    });
-  }
-
-  private async getWardrobeLimit(userId: string): Promise<number> {
-    const membership =
-      await this.membershipProvider.getMembershipStatus(userId);
-    // Mapear desde los límites estándar nuevos
-    const limits = {
-      free: 1,
-      premium: 5,
-      enterprise: -1,
-    };
-    return limits[membership.plan] || 1;
-  }
-
-  private async getClothingItemLimit(userId: string): Promise<number> {
-    const membership =
-      await this.membershipProvider.getMembershipStatus(userId);
-    // Mapear desde los límites estándar nuevos
-    const limits = {
-      free: 10,
-      premium: 500,
-      enterprise: -1,
-    };
-    return limits[membership.plan] || 10;
   }
 }
