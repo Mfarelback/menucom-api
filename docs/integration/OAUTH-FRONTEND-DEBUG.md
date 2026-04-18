@@ -177,7 +177,7 @@ OAuth callback received: {
 
 ### 1. **Probar Initiate**
 ```bash
-curl -X POST "https://menucom-api-60e608ae2f99.herokuapp.com/payments/oauth/initiate" \
+curl -X POST "https://menucom-api.onrender.com/payments/oauth/initiate" \
   -H "Authorization: Bearer TU_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -196,7 +196,7 @@ curl -X POST "https://menucom-api-60e608ae2f99.herokuapp.com/payments/oauth/init
 
 ### 2. **Simular Callback**
 ```bash
-curl -X POST "https://menucom-api-60e608ae2f99.herokuapp.com/payments/oauth/callback" \
+curl -X POST "https://menucom-api.onrender.com/payments/oauth/callback" \
   -H "Content-Type: application/json" \
   -d '{
     "authorizationCode": "CODIGO_DE_MERCADOPAGO",
@@ -246,7 +246,7 @@ curl -X POST "https://menucom-api-60e608ae2f99.herokuapp.com/payments/oauth/call
 Si quieres probar rápidamente, usa el **callback GET** que ya tienes implementado:
 
 ```
-https://menucom-api-60e608ae2f99.herokuapp.com/payments/oauth/callback?code=CODIGO&state=user_f6894e2e-38e7-40e4-89d1-b05018b9fdf3_123456789
+https://menucom-api.onrender.com/payments/oauth/callback?code=CODIGO&state=user_f6894e2e-38e7-40e4-89d1-b05018b9fdf3_123456789
 ```
 
 Este endpoint extrae el `userId` del `state` automáticamente.

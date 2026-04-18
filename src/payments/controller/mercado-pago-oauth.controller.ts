@@ -359,7 +359,7 @@ export class MercadoPagoOAuthController {
 
       // Usar la misma redirect URI que se configuró en MP
       const redirectUri =
-        'https://menucom-api-60e608ae2f99.herokuapp.com/payments/oauth/callback';
+        'https://menucom-api.onrender.com/payments/oauth/callback';
 
       console.log('Calling linkAccount with:', { userId, redirectUri });
 
