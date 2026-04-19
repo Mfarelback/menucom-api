@@ -472,6 +472,53 @@ export class CatalogService {
   }
 
   /**
+   * Obtiene todos los catálogos públicos de un owner (sin validación de ownership)
+   */
+  async getPublicCatalogsByOwnerId(ownerId: string): Promise<any> {
+    const catalogs = await this.catalogRepository.find({
+      where: { ownerId, status: CatalogStatus.ACTIVE, isPublic: true },
+      relations: ['items', 'owner'],
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!catalogs || catalogs.length === 0) {
+      throw new CatalogNotFoundException(ownerId, {
+        searchType: 'public',
+        isPublic: true,
+      });
+    }
+
+    return catalogs.map((catalog) => {
+      const availableItems = catalog.items
+        ? catalog.items.filter(
+            (item) =>
+              item.isAvailable && item.status === CatalogItemStatus.AVAILABLE,
+          )
+        : [];
+
+      return {
+        id: catalog.id,
+        type: catalog.catalogType,
+        name: catalog.name,
+        description: catalog.description,
+        coverImageUrl: catalog.coverImageUrl,
+        tags: catalog.tags,
+        slug: catalog.slug,
+        metadata: catalog.metadata,
+        owner: {
+          id: catalog.owner.id,
+          name: catalog.owner.name,
+          photoURL: catalog.owner.photoURL,
+        },
+        items: availableItems,
+        itemCount: availableItems.length,
+        viewCount: catalog.viewCount,
+        createdAt: catalog.createdAt,
+      };
+    });
+  }
+
+  /**
    * Busca catálogos públicos por tipo y/o tags
    */
   async searchPublicCatalogs(

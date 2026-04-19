@@ -409,13 +409,13 @@ export class CatalogController {
   }
 
   /**
-   * Obtener catálogo público por ID (sin autenticación)
+   * Obtener catálogos públicos por ownerId (sin autenticación)
    */
-  @Get('public/id/:catalogId')
-  @ApiOperation({ summary: 'Obtener catálogo público por ID sin autenticación' })
-  @ApiResponse({ status: 200, description: 'Catálogo encontrado' })
-  @ApiResponse({ status: 404, description: 'Catálogo no encontrado' })
-  async getPublicCatalogById(@Param('catalogId') catalogId: string) {
-    return await this.catalogService.getPublicCatalogById(catalogId);
+  @Get('public/owner/:ownerId')
+  @ApiOperation({ summary: 'Obtener catálogos públicos por ownerId sin autenticación' })
+  @ApiResponse({ status: 200, description: 'Catálogos encontrados' })
+  @ApiResponse({ status: 404, description: 'No se encontraron catálogos' })
+  async getPublicCatalogsByOwnerId(@Param('ownerId') ownerId: string) {
+    return await this.catalogService.getPublicCatalogsByOwnerId(ownerId);
   }
 }
