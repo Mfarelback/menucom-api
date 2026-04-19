@@ -407,4 +407,15 @@ export class CatalogController {
   async getPublicCatalog(@Param('slug') slug: string) {
     return await this.catalogService.getPublicCatalog(slug);
   }
+
+  /**
+   * Obtener catálogo público por ID (sin autenticación)
+   */
+  @Get('public/id/:catalogId')
+  @ApiOperation({ summary: 'Obtener catálogo público por ID sin autenticación' })
+  @ApiResponse({ status: 200, description: 'Catálogo encontrado' })
+  @ApiResponse({ status: 404, description: 'Catálogo no encontrado' })
+  async getPublicCatalogById(@Param('catalogId') catalogId: string) {
+    return await this.catalogService.getPublicCatalogById(catalogId);
+  }
 }
