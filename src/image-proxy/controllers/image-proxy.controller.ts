@@ -46,10 +46,14 @@ export class ImageProxyController {
         'Cache-Control': 'public, max-age=3600', // Cache por 1 hora
         ETag: imageResponse.etag || '',
         'Last-Modified': imageResponse.lastModified?.toUTCString() || '',
-        // Headers CORS
+        // Headers CORS para Flutter Web / CanvasKit
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Headers': 'Content-Type, Origin, Cache-Control, Accept',
+        'Access-Control-Allow-Credentials': 'false',
+        'Cross-Origin-Resource-Policy': 'cross-origin',
+        'Cross-Origin-Embedder-Policy': 'require-corp',
+        'Cross-Origin-Opener-Policy': 'same-origin',
       });
 
       // Si el cliente envía If-None-Match o If-Modified-Since, verificar cache

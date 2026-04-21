@@ -19,19 +19,17 @@ export class CreateOrderItemDto {
   @ApiProperty({
     example: 'menu-uuid-123',
     description: 'ID del menú o wardrobe del cual viene este item',
-    required: false,
+    required: true,
   })
-  @IsOptional()
   @IsString()
-  sourceId?: string; // ID del menú o wardrobe
+  sourceId: string; // ID del menú o wardrobe
 
   @ApiProperty({
     example: 'menu',
     description: 'Tipo de fuente: menu o wardrobe',
-    required: false,
+    required: true,
     enum: ['menu', 'wardrobe'],
   })
-  @IsOptional()
   @IsEnum(['menu', 'wardrobe'])
-  sourceType?: 'menu' | 'wardrobe';
+  sourceType: 'menu' | 'wardrobe';
 }

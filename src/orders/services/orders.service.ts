@@ -46,35 +46,44 @@ export class OrdersService {
       let foundOwnerId: string | null = null;
 
       for (const item of items) {
-        if (item.sourceId && (item.sourceType === 'menu' || item.sourceType === 'wardrobe')) {
-          const catalogItem = await this.catalogItemRepository.findOne({
-            where: { id: item.sourceId },
-            relations: ['catalog'],
-          });
+        const catalogItem = await this.catalogItemRepository.findOne({
+          where: { id: item.sourceId },
+          relations: ['catalog'],
+        });
 
-          if (!catalogItem || !catalogItem.catalog) {
-            throw new BadRequestException(`Item con ID ${item.sourceId} no encontrado o no tiene catálogo asociado.`);
-          }
-
-          const currentOwnerId = catalogItem.catalog.ownerId;
-
-          if (foundOwnerId && foundOwnerId !== currentOwnerId) {
-            throw new BadRequestException('No se permiten órdenes con productos de diferentes negocios.');
-          }
-
-          foundOwnerId = currentOwnerId;
+        if (!catalogItem || !catalogItem.catalog) {
+          throw new BadRequestException(
+            `Item con ID ${item.sourceId} no encontrado o no tiene catálogo asociado.`,
+          );
         }
+
+        const currentOwnerId = catalogItem.catalog.ownerId;
+
+        if (foundOwnerId && foundOwnerId !== currentOwnerId) {
+          throw new BadRequestException(
+            'No se permiten órdenes con productos de diferentes negocios.',
+          );
+        }
+
+        foundOwnerId = currentOwnerId;
       }
 
       if (!foundOwnerId) {
-        throw new BadRequestException('No se pudo determinar el propietario del negocio para esta orden.');
+        throw new BadRequestException(
+          'No se pudo determinar el propietario del negocio para esta orden.',
+        );
       }
 
       return foundOwnerId;
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
-      this.logger.error(`Error validating owner ID: ${error.message}`, error.stack);
-      throw new InternalServerErrorException('Error al validar el propietario del negocio.');
+      this.logger.error(
+        `Error validating owner ID: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'Error al validar el propietario del negocio.',
+      );
     }
   }
 
@@ -93,20 +102,22 @@ export class OrdersService {
 
     for (const item of items) {
       const dbItem = await this.catalogItemRepository.findOne({
-        where: { id: item.sourceId }
+        where: { id: item.sourceId },
       });
 
       if (!dbItem) {
-        throw new BadRequestException(`Producto ${item.productName} no encontrado.`);
+        throw new BadRequestException(
+          `Producto ${item.productName} (ID: ${item.sourceId}) no encontrado en el catálogo.`,
+        );
       }
 
-      // IMPORTANTE: Usamos el precio de la base de datos, no el del frontend
+      // IMPORTANTE: Siempre usamos el precio de la base de datos (servidor)
       const price = dbItem.discountPrice ?? dbItem.price;
       subtotal += price * item.quantity;
 
       itemsWithFixedPrices.push({
         ...item,
-        price, // Sobreescribimos con el precio real
+        price, // Sobreescribimos con el precio real validado
       });
     }
 
