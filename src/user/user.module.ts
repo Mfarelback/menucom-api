@@ -1,4 +1,4 @@
-import { Global, Module } from '@nestjs/common';
+import { Global, Module, forwardRef } from '@nestjs/common';
 import { CatalogModule } from '../catalog/catalog.module';
 import { AuthModule } from '../auth/auth.module';
 import { UserService } from './user.service';
@@ -17,7 +17,7 @@ import { UserQueryService } from './services/user-query.service';
 @Global()
 @Module({
   imports: [
-    AuthModule,
+    forwardRef(() => AuthModule),
     TypeOrmModule.forFeature([User, RecoveryPassword, Membership]),
     ImageProxyModule,
     CloudinaryModule,
