@@ -11,6 +11,7 @@ import {
   Patch,
   UseInterceptors,
   UploadedFile,
+  Query,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UserProfileService } from './services/user-profile.service';
@@ -31,9 +32,15 @@ import { ChangePasswordDto } from './dto/password.dto';
 import { GetUsersByRolesDto } from './dto/get-users-by-roles.dto';
 import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { QueryUsersAdminDto } from './dto/query-users-admin.dto';
+import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
+import { RequireContextPermissions } from 'src/auth/decorators/permissions.decorator';
+import { Permission, BusinessContext } from 'src/auth/models/permissions.model';
+import { Public } from 'src/auth/decorators/public.decorator';
 
 @ApiTags('user')
 @Controller('user')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class UserController {
   constructor(
     private readonly userService: UserService,
@@ -48,16 +55,19 @@ export class UserController {
     return this.userService.findOne(req['user']['userId']);
   }
 
+  @Public()
   @Get('/user/:id')
   async getProfileUser(@Param('id') id: string) {
     return this.userService.findOne(id);
   }
 
+  @Public()
   @Post('admin/:email')
   async getAdminUseremail(@Param('email') email: string) {
     return this.userService.getadminUser(email);
   }
 
+  @Public()
   @Post('change-password')
   async changePassword(@Body() password: ChangePasswordDto) {
     return this.userRecoveryService.changePasswordByUser(password);
@@ -168,5 +178,52 @@ export class UserController {
     } catch (error) {
       throw new InternalServerErrorException('Failed to update FCM token');
     }
+  }
+
+  @Get('admin/all')
+  @RequireContextPermissions(BusinessContext.GENERAL, Permission.MANAGE_USERS)
+  @ApiOperation({
+    summary: 'Obtener todos los usuarios (admin)',
+    description:
+      'Lista todos los usuarios del sistema con filtros avanzados, búsqueda, paginación y ordenamiento. Requiere permiso MANAGE_USERS.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de usuarios obtenida exitosamente',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'No tienes permisos para acceder a este recurso',
+  })
+  async getAllUsersAdmin(@Query() query: QueryUsersAdminDto) {
+    try {
+      return await this.userService.queryAdmin(query);
+    } catch (error) {
+      throw new InternalServerErrorException('Failed to get users: ' + error.message);
+    }
+  }
+
+  @Get('admin/count')
+  @RequireContextPermissions(BusinessContext.GENERAL, Permission.MANAGE_USERS)
+  @ApiOperation({
+    summary: 'Contar usuarios (admin)',
+    description:
+      'Retorna el total de usuarios en el sistema con opciones de filtro. Requiere permiso MANAGE_USERS.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Conteo de usuarios',
+  })
+  async countUsersAdmin(
+    @Query('plan') plan?: string,
+    @Query('withActiveMembership') withActiveMembership?: boolean,
+    @Query('withVinculedAccount') withVinculedAccount?: boolean,
+  ) {
+    const filters = {
+      plan,
+      withActiveMembership: withActiveMembership === true,
+      withVinculedAccount: withVinculedAccount === true,
+    };
+    return await this.userService.countAdmin(filters);
   }
 }

@@ -9,11 +9,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 import { User } from './entities/user.entity';
+import { Membership } from '../membership/entities/membership.entity';
 
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 import { UrlTransformService } from 'src/image-proxy/services/url-transform.service';
 import { LoggerService } from '../core/logger';
+import { QueryUsersAdminDto } from './dto/query-users-admin.dto';
+import { MembershipPlan } from '../membership/enums/membership-plan.enum';
 
 /**
  * UserService - CRUD básico de usuarios
@@ -157,5 +160,96 @@ export class UserService {
   async deleteAllusers() {
     const users = await this.userRepo.clear();
     return users;
+  }
+
+  async queryAdmin(query: QueryUsersAdminDto) {
+    const { page = 1, limit = 20, search, plan, createdAfter, createdBefore, withActiveMembership, withVinculedAccount, sortBy = 'createdAt', sortOrder = 'DESC' } = query;
+
+    const qb = this.userRepo
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.membership', 'membership');
+
+    if (search) {
+      qb.andWhere(
+        '(user.name ILIKE :search OR user.email ILIKE :search)',
+        { search: `%${search}%` }
+      );
+    }
+
+    if (plan) {
+      qb.andWhere('membership.plan = :plan', { plan });
+    }
+
+    if (createdAfter) {
+      qb.andWhere('user.createAt >= :createdAfter', { createdAfter: new Date(createdAfter) });
+    }
+
+    if (createdBefore) {
+      qb.andWhere('user.createAt <= :createdBefore', { createdBefore: new Date(createdBefore) });
+    }
+
+    if (withActiveMembership) {
+      qb.andWhere('membership.isActive = :isActive', { isActive: true });
+    }
+
+    if (withVinculedAccount) {
+      qb.andWhere(
+        '(membership.paymentId IS NOT NULL OR membership.subscriptionId IS NOT NULL OR membership.mpPreapprovalId IS NOT NULL)'
+      );
+    }
+
+    const validSortFields = ['createdAt', 'name', 'email', 'plan'];
+    const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    
+    if (sortField === 'plan') {
+      qb.orderBy('membership.plan', sortOrder);
+    } else {
+      qb.orderBy(`user.${sortField}`, sortOrder);
+    }
+
+    const total = await qb.getCount();
+    const totalPages = Math.ceil(total / limit);
+    const offset = (page - 1) * limit;
+
+    qb.skip(offset).take(limit);
+
+    const users = await qb.getMany();
+
+    const data = users.map(user => {
+      const { password, ...userWithoutPassword } = user;
+      return this.urlTransformService.transformDataUrls(userWithoutPassword);
+    });
+
+    return {
+      data,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
+      },
+    };
+  }
+
+  async countAdmin(filters: { plan?: string; withActiveMembership?: boolean; withVinculedAccount?: boolean }) {
+    const qb = this.userRepo
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.membership', 'membership');
+
+    if (filters.plan) {
+      qb.andWhere('membership.plan = :plan', { plan: filters.plan });
+    }
+    if (filters.withActiveMembership) {
+      qb.andWhere('membership.isActive = :isActive', { isActive: true });
+    }
+    if (filters.withVinculedAccount) {
+      qb.andWhere(
+        '(membership.paymentId IS NOT NULL OR membership.subscriptionId IS NOT NULL OR membership.mpPreapprovalId IS NOT NULL)',
+      );
+    }
+
+    return { total: await qb.getCount() };
   }
 }
