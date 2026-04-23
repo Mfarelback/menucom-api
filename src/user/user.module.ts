@@ -1,5 +1,6 @@
 import { Global, Module } from '@nestjs/common';
 import { CatalogModule } from '../catalog/catalog.module';
+import { AuthModule } from '../auth/auth.module';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -16,6 +17,7 @@ import { UserQueryService } from './services/user-query.service';
 @Global()
 @Module({
   imports: [
+    AuthModule,
     TypeOrmModule.forFeature([User, RecoveryPassword, Membership]),
     ImageProxyModule,
     CloudinaryModule,
