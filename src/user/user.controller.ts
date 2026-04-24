@@ -226,4 +226,27 @@ export class UserController {
     };
     return await this.userService.countAdmin(filters);
   }
+
+  @Delete('admin/:id')
+  @RequireContextPermissions(BusinessContext.GENERAL, Permission.MANAGE_USERS)
+  @ApiOperation({
+    summary: 'Eliminar usuario (admin)',
+    description:
+      'Elimina un usuario del sistema permanentemente. Requiere permiso MANAGE_USERS.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Usuario eliminado exitosamente',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Usuario no encontrado',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Error interno del servidor',
+  })
+  async deleteUserAdmin(@Param('id') id: string) {
+    return await this.userService.remove(id);
+  }
 }

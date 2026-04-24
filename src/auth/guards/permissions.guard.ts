@@ -7,6 +7,7 @@ import {
 import { Reflector } from '@nestjs/core';
 import { Permission, BusinessContext } from '../models/permissions.model';
 import { UserRoleService } from '../services/user-role.service';
+import { LoggerService } from 'src/core/logger/logger.service';
 
 export const PERMISSIONS_KEY = 'permissions';
 export const CONTEXT_KEY = 'business_context';
@@ -26,6 +27,7 @@ export class PermissionsGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
     private userRoleService: UserRoleService,
+    private logger: LoggerService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -51,6 +53,11 @@ export class PermissionsGuard implements CanActivate {
     const user = request.user;
 
     if (!user || !user.userId) {
+      this.logger.warn(
+        `Acceso denegado: Usuario no presente en el request o sin userId. ` +
+        `User object: ${JSON.stringify(user || 'null')}`,
+        'PermissionsGuard'
+      );
       throw new ForbiddenException('Usuario no autenticado');
     }
 

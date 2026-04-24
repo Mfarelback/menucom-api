@@ -56,8 +56,8 @@ export class UserService {
           password VARCHAR(255),
           "needToChangepassword" BOOLEAN DEFAULT true,
           role VARCHAR(100),
-          "createAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          "updateAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          "createdAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
       `);
     }
@@ -181,11 +181,11 @@ export class UserService {
     }
 
     if (createdAfter) {
-      qb.andWhere('user.createAt >= :createdAfter', { createdAfter: new Date(createdAfter) });
+      qb.andWhere('user.createdAt >= :createdAfter', { createdAfter: new Date(createdAfter) });
     }
 
     if (createdBefore) {
-      qb.andWhere('user.createAt <= :createdBefore', { createdBefore: new Date(createdBefore) });
+      qb.andWhere('user.createdAt <= :createdBefore', { createdBefore: new Date(createdBefore) });
     }
 
     if (withActiveMembership) {

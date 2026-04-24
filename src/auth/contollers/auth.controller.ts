@@ -199,4 +199,28 @@ export class AuthController {
 
     return result;
   }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('/refresh')
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Refrescar el token JWT',
+    description: 'Genera un nuevo access_token basado en el token actual válido.',
+  })
+  @ApiResponse({
+    status: 201,
+    description: 'Token refrescado exitosamente',
+    schema: {
+      type: 'object',
+      properties: {
+        access_token: { type: 'string' },
+        user: { type: 'object' },
+      },
+    },
+  })
+  async refresh(@Req() req: AuthenticatedRequest) {
+    this.logger.debug('Petición de refresco de token recibida');
+    const userId = req.user.userId;
+    return this.authService.refresh(userId);
+  }
 }

@@ -26,7 +26,7 @@ export class Catalog {
   @Column({ type: 'varchar' })
   ownerId: string;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   owner: User;
 
   @Column({

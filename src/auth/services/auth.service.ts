@@ -268,6 +268,36 @@ export class AuthService {
   }
 
   /**
+   * Refresca el token JWT para el usuario actual
+   * @param userId - ID del usuario extraído del token actual
+   * @returns Nuevo token JWT y datos del usuario actualizados
+   */
+  async refresh(userId: string) {
+    this.logger.debug(`Refrescando token para usuario: ${userId}`);
+    const user = await this.usersService.findOne(userId);
+
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    const payload = {
+      username: user.role,
+      sub: user.id,
+    };
+
+    return {
+      access_token: this.jwtService.sign(payload),
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        photoURL: user.photoURL,
+        role: user.role,
+      },
+    };
+  }
+
+  /**
    * Registro de usuario social mejorado
    * @param firebaseUserData - Datos del usuario de Firebase
    * @returns Usuario creado

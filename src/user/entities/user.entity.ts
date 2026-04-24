@@ -59,7 +59,7 @@ export class User {
   @CreateDateColumn({
     type: 'timestamp',
   })
-  createAt: Date;
+  createdAt: Date;
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   fcmToken: string;
@@ -67,5 +67,5 @@ export class User {
   @UpdateDateColumn({
     type: 'timestamp',
   })
-  updateAt: Date;
+  updatedAt: Date;
 }

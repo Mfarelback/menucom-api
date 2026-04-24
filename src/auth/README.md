@@ -263,10 +263,10 @@ export class User {
   membership: Membership;
 
   @CreateDateColumn()
-  createAt: Date;
+  createdAt: Date;
 
   @UpdateDateColumn()
-  updateAt: Date;
+  updatedAt: Date;
 }
 ```
 

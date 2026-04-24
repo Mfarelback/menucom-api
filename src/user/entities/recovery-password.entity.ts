@@ -20,10 +20,10 @@ export class RecoveryPassword {
   @CreateDateColumn({
     type: 'timestamp',
   })
-  createAt: Date;
+  createdAt: Date;
 
   @UpdateDateColumn({
     type: 'timestamp',
   })
-  updateAt: Date;
+  updatedAt: Date;
 }
