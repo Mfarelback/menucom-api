@@ -8,8 +8,8 @@ import {
 import { MembershipPlan } from '../enums/membership-plan.enum';
 
 export class SubscribeMembershipDto {
-  @IsEnum(MembershipPlan)
-  plan: MembershipPlan;
+  @IsString()
+  plan: string;
 
   @IsString()
   paymentId: string;

@@ -30,11 +30,10 @@ export class Membership {
   userId: string;
 
   @Column({
-    type: 'enum',
-    enum: MembershipPlan,
+    type: 'varchar',
     default: MembershipPlan.FREE,
   })
-  plan: MembershipPlan;
+  plan: string;
 
   @Column({ type: 'simple-array', nullable: true })
   features: MembershipFeature[];

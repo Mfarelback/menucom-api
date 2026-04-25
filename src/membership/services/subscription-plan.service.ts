@@ -152,10 +152,20 @@ export class SubscriptionPlanService {
       );
     }
 
+    const { isActive, maxCatalogs, maxItems, ...rest } = createPlanDto;
+
+    // Mapear los límites si no vienen en el formato objeto (compatibilidad con request aplanado)
+    const limits = rest.limits || {
+      ...PLAN_LIMITS[MembershipPlan.FREE],
+      maxCatalogs: (maxCatalogs !== undefined && maxCatalogs !== null) ? maxCatalogs : PLAN_LIMITS[MembershipPlan.FREE].maxCatalogs,
+      maxCatalogItems: (maxItems !== undefined && maxItems !== null) ? maxItems : PLAN_LIMITS[MembershipPlan.FREE].maxCatalogItems,
+    };
+
     const plan = this.subscriptionPlanRepository.create({
-      ...createPlanDto,
+      ...rest,
       createdByUserId,
-      status: PlanStatus.ACTIVE,
+      status: isActive === false ? PlanStatus.INACTIVE : PlanStatus.ACTIVE,
+      limits,
     });
 
     const savedPlan = await this.subscriptionPlanRepository.save(plan);
@@ -235,9 +245,37 @@ export class SubscriptionPlanService {
       );
     }
 
-    Object.assign(plan, updatePlanDto);
-    const updatedPlan = await this.subscriptionPlanRepository.save(plan);
+    const { isActive, maxCatalogs, maxItems, limits, ...rest } = updatePlanDto;
 
+    // Actualizar campos básicos
+    Object.assign(plan, rest);
+
+    // Mapear isActive a status
+    if (isActive !== undefined && isActive !== null) {
+      plan.status = isActive === false ? PlanStatus.INACTIVE : PlanStatus.ACTIVE;
+    }
+
+    // Actualizar límites con soporte para formato aplanado
+    if (limits) {
+      plan.limits = { ...plan.limits, ...limits };
+    } else if (
+      (maxCatalogs !== undefined && maxCatalogs !== null) ||
+      (maxItems !== undefined && maxItems !== null)
+    ) {
+      plan.limits = {
+        ...plan.limits,
+        maxCatalogs:
+          maxCatalogs !== undefined && maxCatalogs !== null
+            ? maxCatalogs
+            : plan.limits.maxCatalogs,
+        maxCatalogItems:
+          maxItems !== undefined && maxItems !== null
+            ? maxItems
+            : plan.limits.maxCatalogItems,
+      };
+    }
+
+    const updatedPlan = await this.subscriptionPlanRepository.save(plan);
     this.logger.log(`Updated plan: ${updatedPlan.name}`);
     return updatedPlan;
   }

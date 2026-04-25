@@ -4,7 +4,7 @@ import { Repository, LessThan, Not } from 'typeorm';
 import { Membership } from '../entities/membership.entity';
 import { MembershipAudit, MembershipAuditAction } from '../entities/membership-audit.entity';
 import { SubscriptionPlan, PlanStatus, PlanType } from '../entities/subscription-plan.entity';
-import { MembershipPlan, MembershipFeature, PLAN_FEATURES, PLAN_LIMITS } from '../enums/membership-plan.enum';
+import { MembershipPlan, MembershipFeature } from '../enums/membership-plan.enum';
 import {
   QueryMembershipsAdminDto,
   UpdateMembershipAdminDto,
@@ -98,7 +98,11 @@ export class MembershipAdminService {
 
     if (dto.plan !== undefined) {
       updateData.plan = dto.plan;
-      updateData.features = PLAN_FEATURES[dto.plan];
+      const dbPlan = await this.planRepo.findOne({ where: { name: dto.plan } });
+      updateData.features = dbPlan?.features || [];
+      if (dbPlan) {
+        updateData.subscriptionPlanId = dbPlan.id;
+      }
     }
     if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
     if (dto.expiresAt !== undefined) updateData.expiresAt = new Date(dto.expiresAt);
@@ -179,26 +183,31 @@ export class MembershipAdminService {
 
   async assignPlanToUser(
     userId: string,
-    plan: MembershipPlan,
+    plan: string,
     adminId: string,
     options?: { expiresAt?: Date; reason?: string },
   ) {
     let membership = await this.membershipRepo.findOne({ where: { userId } });
     const previousPlan = membership?.plan || MembershipPlan.FREE;
 
+    const dbPlan = await this.planRepo.findOne({ where: { name: plan } });
+    const features = dbPlan?.features || [];
+
     if (!membership) {
       membership = this.membershipRepo.create({
         userId,
         plan,
-        features: PLAN_FEATURES[plan],
+        features,
         isActive: true,
         expiresAt: options?.expiresAt,
+        subscriptionPlanId: dbPlan?.id,
       });
     } else {
       await this.membershipRepo.update(membership.id, {
         plan,
-        features: PLAN_FEATURES[plan],
+        features,
         expiresAt: options?.expiresAt ?? membership.expiresAt,
+        subscriptionPlanId: dbPlan?.id,
       });
     }
 
@@ -254,7 +263,7 @@ export class MembershipAdminService {
       currency: dto.currency || 'ARS',
       billingCycle: dto.billingCycle || 'monthly',
       features: (dto.features || []) as MembershipFeature[],
-      limits: dto.limits ? { ...PLAN_LIMITS[MembershipPlan.PREMIUM], ...dto.limits } : PLAN_LIMITS[MembershipPlan.PREMIUM],
+      limits: dto.limits || {},
       metadata: dto.metadata,
       status: PlanStatus.ACTIVE,
       createdByUserId: adminId,
@@ -320,12 +329,11 @@ export class MembershipAdminService {
     };
   }
 
-  private getStandardPlans() {
-    return [
-      { name: MembershipPlan.FREE, price: 0, features: PLAN_FEATURES[MembershipPlan.FREE], limits: PLAN_LIMITS[MembershipPlan.FREE] },
-      { name: MembershipPlan.PREMIUM, price: 1500, features: PLAN_FEATURES[MembershipPlan.PREMIUM], limits: PLAN_LIMITS[MembershipPlan.PREMIUM] },
-      { name: MembershipPlan.ENTERPRISE, price: 5000, features: PLAN_FEATURES[MembershipPlan.ENTERPRISE], limits: PLAN_LIMITS[MembershipPlan.ENTERPRISE] },
-    ];
+  private async getStandardPlans() {
+    return this.planRepo.find({
+      where: { type: PlanType.STANDARD, status: PlanStatus.ACTIVE },
+      order: { price: 'ASC' },
+    });
   }
 
   private applyStatusFilter(qb: any, status?: string) {
@@ -394,8 +402,8 @@ export class MembershipAdminService {
     userId: string;
     membershipId: string;
     action: MembershipAuditAction;
-    previousPlan: MembershipPlan;
-    newPlan: MembershipPlan;
+    previousPlan: string;
+    newPlan: string;
     description: string;
     metadata?: Record<string, any>;
   }) {
@@ -403,10 +411,23 @@ export class MembershipAdminService {
     return this.auditRepo.save(audit);
   }
 
-  private determineAuditAction(previous: MembershipPlan, next: MembershipPlan): MembershipAuditAction {
-    const hierarchy = { [MembershipPlan.FREE]: 0, [MembershipPlan.PREMIUM]: 1, [MembershipPlan.ENTERPRISE]: 2 };
-    return hierarchy[next] > hierarchy[previous] ? MembershipAuditAction.UPGRADED
-      : hierarchy[next] < hierarchy[previous] ? MembershipAuditAction.DOWNGRADED
-      : MembershipAuditAction.RENEWED;
+  private determineAuditAction(previous: string, next: string): MembershipAuditAction {
+    if (previous === next) return MembershipAuditAction.RENEWED;
+
+    const hierarchy: Record<string, number> = {
+      [MembershipPlan.FREE]: 0,
+      [MembershipPlan.PREMIUM]: 1,
+      [MembershipPlan.ENTERPRISE]: 2,
+    };
+
+    if (hierarchy[next] !== undefined && hierarchy[previous] !== undefined) {
+      return hierarchy[next] > hierarchy[previous]
+        ? MembershipAuditAction.UPGRADED
+        : hierarchy[next] < hierarchy[previous]
+        ? MembershipAuditAction.DOWNGRADED
+        : MembershipAuditAction.RENEWED;
+    }
+
+    return MembershipAuditAction.UPGRADED;
   }
 }

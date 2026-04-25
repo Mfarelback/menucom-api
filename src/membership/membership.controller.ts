@@ -13,6 +13,7 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.gards';
 import { Public } from '../auth/decorators/public.decorator';
 import { MembershipService } from './membership.service';
@@ -27,6 +28,8 @@ import {
   CancelSubscriptionResponseDto,
 } from './dto/subscription.dto';
 
+@ApiTags('Membership')
+@ApiBearerAuth()
 @Controller('membership')
 @UseGuards(JwtAuthGuard)
 export class MembershipController {
@@ -70,7 +73,10 @@ export class MembershipController {
       return this.membershipService.formatMembershipResponse(membership);
     }
 
-    const basePrice = this.mpSubscriptionService.getPlanPrice(dto.plan);
+    // Obtener información del plan desde la base de datos para asegurar precio dinámico
+    const planInfo = await this.subscriptionPlanService.getPlanByName(dto.plan);
+    const basePrice = planInfo.price;
+
     const preapproval = await this.mpSubscriptionService.createPreapproval({
       userId: req.user.userId,
       userEmail: req.user.email,
@@ -132,48 +138,26 @@ export class MembershipController {
 
   /**
    * GET /membership/plans
-   * Obtiene los planes estándar disponibles.
+   * Obtiene los planes disponibles desde la base de datos.
    * Público - no requiere autenticación.
    */
   @Get('plans')
   @Public()
   async getAvailablePlans(): Promise<any> {
+    const plans = await this.subscriptionPlanService.getActivePlans();
     return {
-      plans: [
-        {
-          name: MembershipPlan.FREE,
-          price: 0,
-          features: [
-            'Basic menu management',
-            'Up to 10 items',
-            '1 wardrobe',
-            '10 clothing items',
-            '7 days analytics',
-          ],
-        },
-        {
-          name: MembershipPlan.PREMIUM,
-          price: this.mpSubscriptionService.getPlanPrice(MembershipPlan.PREMIUM),
-          features: [
-            'Advanced analytics',
-            'Custom branding',
-            'Up to 500 menu items',
-            '5 wardrobes',
-            'Priority support',
-          ],
-        },
-        {
-          name: MembershipPlan.ENTERPRISE,
-          price: this.mpSubscriptionService.getPlanPrice(MembershipPlan.ENTERPRISE),
-          features: [
-            'Unlimited menu items',
-            'Unlimited wardrobes',
-            'API access',
-            'White label',
-            'Dedicated support',
-          ],
-        },
-      ],
+      plans: plans.map((plan) => ({
+        id: plan.id,
+        name: plan.name,
+        displayName: plan.displayName || plan.name,
+        description: plan.description,
+        price: plan.price,
+        currency: plan.currency,
+        billingCycle: plan.billingCycle,
+        features: plan.features,
+        limits: plan.limits,
+        metadata: plan.metadata,
+      })),
       currency: 'ARS',
     };
   }
@@ -191,7 +175,7 @@ export class MembershipController {
       plans: customPlans.map((plan) => ({
         id: plan.id,
         name: plan.name,
-        displayName: plan.displayName,
+        displayName: plan.displayName || plan.name,
         description: plan.description,
         price: plan.price,
         currency: plan.currency,

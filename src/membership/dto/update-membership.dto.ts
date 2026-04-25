@@ -1,4 +1,4 @@
-import { IsEnum, IsOptional } from 'class-validator';
+import { IsString, IsBoolean, IsOptional, IsEnum } from 'class-validator';
 import { MembershipPlan } from '../enums/membership-plan.enum';
 
 export class UpdateMembershipDto {
@@ -7,5 +7,6 @@ export class UpdateMembershipDto {
   plan?: MembershipPlan;
 
   @IsOptional()
+  @IsBoolean()
   isActive?: boolean;
 }

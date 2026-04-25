@@ -2,8 +2,8 @@ import { IsEnum, IsString, IsOptional, IsBoolean } from 'class-validator';
 import { MembershipPlan } from '../enums/membership-plan.enum';
 
 export class SubscribeWithCardDto {
-  @IsEnum(MembershipPlan)
-  plan: MembershipPlan;
+  @IsString()
+  plan: string;
 
   @IsString()
   cardTokenId?: string;

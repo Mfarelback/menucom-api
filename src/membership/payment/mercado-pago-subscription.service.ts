@@ -5,7 +5,7 @@ import { MembershipPlan } from '../enums/membership-plan.enum';
 export interface CreatePreapprovalRequest {
   userId: string;
   userEmail: string;
-  plan: MembershipPlan;
+  plan: string;
   price: number;
   discountCode?: string;
   discountValue?: number;
@@ -346,12 +346,12 @@ export class MercadoPagoSubscriptionService {
     }
   }
 
-  getPlanPrice(plan: MembershipPlan): number {
+  getPlanPrice(plan: string): number {
     return this.planPrices[plan] || 0;
   }
 
   calculateFinalPrice(
-    plan: MembershipPlan,
+    plan: string,
     discountPercentage?: number,
   ): number {
     const price = this.getPlanPrice(plan);

@@ -46,17 +46,16 @@ export class MembershipAudit {
   action: MembershipAuditAction;
 
   @Column({
-    type: 'enum',
-    enum: MembershipPlan,
+    type: 'varchar',
     nullable: true,
   })
-  previousPlan: MembershipPlan;
+  previousPlan: string;
 
   @Column({
-    type: 'enum',
-    enum: MembershipPlan,
+    type: 'varchar',
+    nullable: true,
   })
-  newPlan: MembershipPlan;
+  newPlan: string;
 
   @Column({ type: 'varchar', nullable: true })
   paymentId: string;

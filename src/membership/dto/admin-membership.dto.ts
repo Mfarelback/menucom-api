@@ -1,6 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsOptional, IsString, IsEnum, IsInt, IsBoolean, IsNumber, IsDateString, Min, Max, ValidateNested, IsObject } from 'class-validator';
-import { MembershipPlan, MembershipFeature } from '../enums/membership-plan.enum';
+import { MembershipFeature } from '../enums/membership-plan.enum';
 import { PlanStatus, PlanType } from '../entities/subscription-plan.entity';
 
 export class PlanLimitsDto {
@@ -39,8 +39,8 @@ export class QueryMembershipsAdminDto {
   search?: string;
 
   @IsOptional()
-  @IsEnum(MembershipPlan)
-  plan?: MembershipPlan;
+  @IsString()
+  plan?: string;
 
   @IsOptional()
   @IsString()
@@ -70,8 +70,8 @@ export class QueryMembershipsAdminDto {
 
 export class UpdateMembershipAdminDto {
   @IsOptional()
-  @IsEnum(MembershipPlan)
-  plan?: MembershipPlan;
+  @IsString()
+  plan?: string;
 
   @IsOptional()
   @IsBoolean()

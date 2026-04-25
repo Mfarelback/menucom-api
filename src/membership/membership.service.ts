@@ -10,9 +10,8 @@ import { MembershipAuditAction } from './entities/membership-audit.entity';
 import {
   MembershipPlan,
   MembershipFeature,
-  PLAN_FEATURES,
-  PLAN_LIMITS,
 } from './enums/membership-plan.enum';
+import { SubscriptionPlanService } from './services/subscription-plan.service';
 import {
   MembershipNotFoundException,
   DuplicateMembershipException,
@@ -23,7 +22,10 @@ import {
 export class MembershipService {
   private readonly logger = new Logger(MembershipService.name);
 
-  constructor(private readonly membershipRepository: MembershipRepository) {}
+  constructor(
+    private readonly membershipRepository: MembershipRepository,
+    private readonly subscriptionPlanService: SubscriptionPlanService,
+  ) {}
 
   async createMembership(userId: string): Promise<Membership> {
     if (!userId || typeof userId !== 'string') {
@@ -36,11 +38,22 @@ export class MembershipService {
       throw new DuplicateMembershipException(userId);
     }
 
+    // Buscar el plan FREE en la base de datos
+    let planData;
+    try {
+      planData = await this.subscriptionPlanService.getPlanByName(
+        MembershipPlan.FREE,
+      );
+    } catch (error) {
+      this.logger.warn('Standard FREE plan not found in DB, using empty features');
+    }
+
     const membership = await this.membershipRepository.createMembership(
       userId,
       {
         plan: MembershipPlan.FREE,
-        features: PLAN_FEATURES[MembershipPlan.FREE],
+        features: planData?.features || [],
+        subscriptionPlanId: planData?.id,
         isActive: true,
       },
     );
@@ -68,22 +81,31 @@ export class MembershipService {
     }
 
     const previousPlan = membership.plan;
-    const expiresAt = this.calculateExpirationDate(subscribeDto.plan);
+
+    // Resolver el plan desde la base de datos
+    const plan = await this.subscriptionPlanService.getPlanByName(
+      subscribeDto.plan,
+    );
+
+    const expiresAt = plan.billingCycle
+      ? this.calculateExpirationDateFromBillingCycle(plan.billingCycle)
+      : this.calculateExpirationDate(subscribeDto.plan);
 
     const updatedMembership = await this.membershipRepository.updateMembership(
       membership.id,
       {
         plan: subscribeDto.plan,
-        features: PLAN_FEATURES[subscribeDto.plan],
+        features: plan.features,
+        subscriptionPlanId: plan.id,
         expiresAt,
         isActive: true,
         lastUpgradeAt: new Date(),
         paymentId: subscribeDto.paymentId,
         subscriptionId: subscribeDto.subscriptionId,
-        amount: subscribeDto.amount,
+        amount: subscribeDto.amount || plan.price,
         originalPrice: subscribeDto.originalAmount,
         discountPercentage: subscribeDto.discountPercentage,
-        currency: subscribeDto.currency,
+        currency: subscribeDto.currency || plan.currency,
         subscriptionStatus: 'authorized',
         mpPreapprovalId: subscribeDto.metadata?.mpPreapprovalId,
         paymentMethodId: subscribeDto.metadata?.paymentMethodId,
@@ -132,7 +154,7 @@ export class MembershipService {
     const updatedMembership = await this.membershipRepository.updateMembership(
       membership.id,
       {
-        plan: plan.name as MembershipPlan, // Para compatibilidad con el enum existente
+        plan: plan.name, // Ya no es necesario el cast
         features: plan.features,
         expiresAt,
         isActive: true,
@@ -161,7 +183,7 @@ export class MembershipService {
       membershipId: membership.id,
       action,
       previousPlan,
-      newPlan: plan.name as MembershipPlan,
+      newPlan: plan.name,
       paymentId: subscribeDto.paymentId,
       amount: plan.price,
       currency: plan.currency,
@@ -210,11 +232,22 @@ export class MembershipService {
       throw new MembershipNotFoundException(userId, { operation: 'cancel' });
     }
 
+    // Buscar el plan FREE para el downgrade
+    let freePlan;
+    try {
+      freePlan = await this.subscriptionPlanService.getPlanByName(
+        MembershipPlan.FREE,
+      );
+    } catch (error) {
+      this.logger.warn('FREE plan not found for cancellation fallback');
+    }
+
     const updatedMembership = await this.membershipRepository.updateMembership(
       membership.id,
       {
         plan: MembershipPlan.FREE,
-        features: PLAN_FEATURES[MembershipPlan.FREE],
+        features: freePlan?.features || [],
+        subscriptionPlanId: freePlan?.id,
         isActive: false,
         expiresAt: null,
       },
@@ -240,7 +273,14 @@ export class MembershipService {
     const membership = await this.membershipRepository.findByUserId(userId);
 
     if (!membership) {
-      return PLAN_FEATURES[MembershipPlan.FREE].includes(feature);
+      try {
+        const freePlan = await this.subscriptionPlanService.getPlanByName(
+          MembershipPlan.FREE,
+        );
+        return freePlan.features.includes(feature);
+      } catch (error) {
+        return false;
+      }
     }
 
     return membership.canAccess(feature);
@@ -268,8 +308,23 @@ export class MembershipService {
 
   async getPlanLimits(userId: string): Promise<any> {
     const membership = await this.membershipRepository.findByUserId(userId);
-    const plan = membership?.plan || MembershipPlan.FREE;
-    return PLAN_LIMITS[plan];
+
+    if (membership?.subscriptionPlanId) {
+      const plan = await this.subscriptionPlanService.getPlanById(
+        membership.subscriptionPlanId,
+      );
+      return plan.limits;
+    }
+
+    // Fallback to searching by plan name if no plan ID is associated
+    try {
+      const planName = membership?.plan || MembershipPlan.FREE;
+      const plan = await this.subscriptionPlanService.getPlanByName(planName);
+      return plan.limits;
+    } catch (error) {
+      this.logger.error(`Could not fetch limits for user ${userId}`);
+      return {};
+    }
   }
 
   async getMembershipStats(): Promise<any> {
@@ -283,13 +338,23 @@ export class MembershipService {
   async handleExpiredMemberships(): Promise<void> {
     this.logger.log('Checking for expired memberships...');
 
-    const expiredMemberships =
-      await this.membershipRepository.findExpiredMemberships();
+    const expiredMemberships = await this.membershipRepository.findExpiredMemberships();
+
+    // Buscar el plan FREE para el downgrade automático
+    let freePlan;
+    try {
+      freePlan = await this.subscriptionPlanService.getPlanByName(
+        MembershipPlan.FREE,
+      );
+    } catch (error) {
+      this.logger.error('CRITICAL: FREE plan not found for expiration downgrade');
+    }
 
     for (const membership of expiredMemberships) {
       await this.membershipRepository.updateMembership(membership.id, {
         plan: MembershipPlan.FREE,
-        features: PLAN_FEATURES[MembershipPlan.FREE],
+        features: freePlan?.features || [],
+        subscriptionPlanId: freePlan?.id,
         isActive: false,
       });
 
@@ -329,7 +394,7 @@ export class MembershipService {
     );
   }
 
-  private calculateExpirationDate(plan: MembershipPlan): Date | null {
+  private calculateExpirationDate(plan: string): Date | null {
     if (plan === MembershipPlan.FREE) {
       return null;
     }
@@ -370,8 +435,8 @@ export class MembershipService {
   }
 
   private getAuditAction(
-    previousPlan: MembershipPlan,
-    newPlan: MembershipPlan,
+    previousPlanName: string,
+    newPlanName: string,
   ): MembershipAuditAction {
     const planHierarchy = {
       [MembershipPlan.FREE]: 0,
@@ -379,9 +444,12 @@ export class MembershipService {
       [MembershipPlan.ENTERPRISE]: 2,
     };
 
-    if (planHierarchy[newPlan] > planHierarchy[previousPlan]) {
+    const prevLevel = planHierarchy[previousPlanName] ?? -1;
+    const newLevel = planHierarchy[newPlanName] ?? -1;
+
+    if (newLevel > prevLevel) {
       return MembershipAuditAction.UPGRADED;
-    } else if (planHierarchy[newPlan] < planHierarchy[previousPlan]) {
+    } else if (newLevel < prevLevel) {
       return MembershipAuditAction.DOWNGRADED;
     } else {
       return MembershipAuditAction.RENEWED;

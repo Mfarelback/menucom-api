@@ -85,8 +85,8 @@ export class MembershipRepository {
     userId: string;
     membershipId?: string;
     action: MembershipAuditAction;
-    previousPlan?: MembershipPlan;
-    newPlan: MembershipPlan;
+    previousPlan?: string;
+    newPlan: string;
     paymentId?: string;
     amount?: number;
     currency?: string;

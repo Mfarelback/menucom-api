@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { MembershipService } from '../membership.service';
 import { SubscriptionPlanService } from './subscription-plan.service';
-import { PLAN_LIMITS } from '../enums/membership-plan.enum';
+import { MembershipPlan } from '../enums/membership-plan.enum';
 
 import { Catalog } from '../../catalog/entities/catalog.entity';
 import { CatalogItem } from '../../catalog/entities/catalog-item.entity';
@@ -74,16 +74,30 @@ export class ResourceLimitService {
       };
     }
 
-    const standardLimits = PLAN_LIMITS[membership.plan];
-    return {
-      plan: membership.plan,
-      type: 'standard',
-      limits: standardLimits,
-      usage: {
-        catalogs: await this.getCurrentCatalogCount(userId),
-        catalogItems: await this.getCurrentCatalogItemCount(userId),
-      },
-    };
+    const planName = membership.plan || MembershipPlan.FREE;
+    try {
+      const plan = await this.subscriptionPlanService.getPlanByName(planName);
+      return {
+        plan: plan.name,
+        type: 'standard',
+        limits: plan.limits,
+        usage: {
+          catalogs: await this.getCurrentCatalogCount(userId),
+          catalogItems: await this.getCurrentCatalogItemCount(userId),
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Plan ${planName} not found for user ${userId}`);
+      return {
+        plan: planName,
+        type: 'standard',
+        limits: {},
+        usage: {
+          catalogs: await this.getCurrentCatalogCount(userId),
+          catalogItems: await this.getCurrentCatalogItemCount(userId),
+        },
+      };
+    }
   }
 
   async validateResourceCreation(

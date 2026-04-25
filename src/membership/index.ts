@@ -24,8 +24,6 @@ export {
 export {
   MembershipPlan,
   MembershipFeature,
-  PLAN_FEATURES,
-  PLAN_LIMITS,
 } from './enums/membership-plan.enum';
 
 // DTOs

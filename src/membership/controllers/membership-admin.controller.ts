@@ -13,6 +13,7 @@ import {
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { RequirePermissions, InBusinessContext } from '../../auth/decorators/permissions.decorator';
@@ -26,6 +27,8 @@ import {
   UpdateCustomPlanDto,
 } from '../dto/admin-membership.dto';
 
+@ApiTags('Admin Membership')
+@ApiBearerAuth()
 @Controller('admin/memberships')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 @InBusinessContext(BusinessContext.GENERAL)
@@ -79,15 +82,9 @@ export class MembershipAdminController {
     @Param('plan') plan: string,
     @Request() req,
   ) {
-    const normalizedPlan = plan.toLowerCase();
-    if (!Object.values(MembershipPlan).includes(normalizedPlan as MembershipPlan)) {
-      throw new BadRequestException(
-        `Invalid plan. Valid options: ${Object.values(MembershipPlan).join(', ')}`,
-      );
-    }
     return this.membershipAdminService.assignPlanToUser(
       userId,
-      normalizedPlan as MembershipPlan,
+      plan,
       req.user.userId,
     );
   }
