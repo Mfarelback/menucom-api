@@ -32,7 +32,7 @@ import { QueryUserRolesDto } from '../dto/query-user-roles.dto';
 @ApiTags('User Roles Management')
 @Controller('user-roles')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class UserRoleController {
   constructor(private readonly userRoleService: UserRoleService) {}
 

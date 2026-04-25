@@ -21,8 +21,11 @@ import { MembershipAdminService } from './services/membership-admin.service';
 import { Catalog } from '../catalog/entities/catalog.entity';
 import { CatalogItem } from '../catalog/entities/catalog-item.entity';
 
+import { AuthModule } from '../auth/auth.module';
+
 @Module({
   imports: [
+    AuthModule,
     TypeOrmModule.forFeature([
       Membership,
       MembershipAudit,

@@ -5,9 +5,11 @@ import { AppConfigService } from './services/app-config.service';
 import { AppDataController } from './controllers/app-data.controller';
 import { AppData } from './entities/app-data.entity';
 
+import { AuthModule } from 'src/auth/auth.module';
+
 @Global()
 @Module({
-  imports: [TypeOrmModule.forFeature([AppData])],
+  imports: [AuthModule, TypeOrmModule.forFeature([AppData])],
   controllers: [AppDataController],
   providers: [AppDataService, AppConfigService],
   exports: [AppDataService, AppConfigService],

@@ -34,7 +34,7 @@ import {
 
 @ApiTags('App Data')
 @Controller('app-data')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class AppDataController {
   constructor(private readonly appDataService: AppDataService) {}
 

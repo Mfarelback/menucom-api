@@ -28,7 +28,7 @@ import {
 } from '../entities/subscription-plan.entity';
 
 @Controller('admin/subscription-plans')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 @RequireContextPermissions(BusinessContext.GENERAL, Permission.MANAGE_USERS) // Solo usuarios con permiso MANAGE_USERS pueden gestionar planes
 export class SubscriptionPlanController {
   constructor(
