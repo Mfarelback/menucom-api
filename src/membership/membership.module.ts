@@ -5,7 +5,6 @@ import { MembershipWebhookController } from './controllers/membership-webhook.co
 import { SubscriptionPlanController } from './controllers/subscription-plan.controller';
 import { MembershipService } from './membership.service';
 import { MembershipRepository } from './membership.repository';
-import { MembershipProvider } from './membership.provider';
 import { MercadoPagoService } from './payment/mercado-pago.service';
 import { MercadoPagoSubscriptionService } from './payment/mercado-pago-subscription.service';
 import { SubscriptionDiscountService } from './payment/subscription-discount.service';
@@ -17,6 +16,8 @@ import { SubscriptionPlan } from './entities/subscription-plan.entity';
 import { SubscriptionDiscount } from './entities/subscription-discount.entity';
 import { SubscriptionPayment } from './entities/subscription-payment.entity';
 
+import { MembershipAdminController } from './controllers/membership-admin.controller';
+import { MembershipAdminService } from './services/membership-admin.service';
 import { Catalog } from '../catalog/entities/catalog.entity';
 import { CatalogItem } from '../catalog/entities/catalog-item.entity';
 
@@ -36,20 +37,21 @@ import { CatalogItem } from '../catalog/entities/catalog-item.entity';
     MembershipController,
     MembershipWebhookController,
     SubscriptionPlanController,
+    MembershipAdminController,
   ],
   providers: [
     MembershipService,
     MembershipRepository,
-    MembershipProvider,
     MercadoPagoService,
     MercadoPagoSubscriptionService,
     SubscriptionDiscountService,
     SubscriptionPlanService,
     ResourceLimitService,
+    MembershipAdminService,
   ],
   exports: [
     MembershipService,
-    MembershipProvider,
+    MembershipAdminService,
     MercadoPagoService,
     MercadoPagoSubscriptionService,
     SubscriptionDiscountService,

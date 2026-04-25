@@ -1,4 +1,4 @@
-import { IsEnum, IsString, IsOptional, IsNumber, Min } from 'class-validator';
+import { IsEnum, IsString, IsOptional, IsBoolean } from 'class-validator';
 import { MembershipPlan } from '../enums/membership-plan.enum';
 
 export class SubscribeWithCardDto {
@@ -6,7 +6,7 @@ export class SubscribeWithCardDto {
   plan: MembershipPlan;
 
   @IsString()
-  cardTokenId: string;
+  cardTokenId?: string;
 
   @IsOptional()
   @IsString()
@@ -24,7 +24,7 @@ export class SubscriptionStatusResponseDto {
   nextBillingDate?: Date;
   lastPaymentAt?: Date;
   paymentMethodId?: string;
-  hasDiscount: boolean;
+  hasDiscount?: boolean;
   discountCode?: string;
 }
 

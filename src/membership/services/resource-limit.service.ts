@@ -1,7 +1,7 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { MembershipProvider } from '../membership.provider';
+import { MembershipService } from '../membership.service';
 import { SubscriptionPlanService } from './subscription-plan.service';
 import { PLAN_LIMITS } from '../enums/membership-plan.enum';
 
@@ -13,7 +13,7 @@ export class ResourceLimitService {
   private readonly logger = new Logger(ResourceLimitService.name);
 
   constructor(
-    private readonly membershipProvider: MembershipProvider,
+    private readonly membershipService: MembershipService,
     private readonly subscriptionPlanService: SubscriptionPlanService,
     @InjectRepository(Catalog)
     private readonly catalogRepository: Repository<Catalog>,
@@ -22,7 +22,7 @@ export class ResourceLimitService {
   ) {}
 
   async canCreateCatalog(userId: string): Promise<boolean> {
-    const membership = await this.membershipProvider.getMembershipStatus(userId);
+    const membership = await this.membershipService.getUserMembership(userId);
     if (membership.subscriptionPlanId) {
       const currentCount = await this.getCurrentCatalogCount(userId);
       return this.subscriptionPlanService.canCreateResource(
@@ -31,7 +31,8 @@ export class ResourceLimitService {
         currentCount,
       );
     }
-    const limit = await this.membershipProvider.getResourceLimit(userId, 'maxCatalogs');
+    const limits = await this.membershipService.getPlanLimits(userId);
+    const limit = limits.maxCatalogs;
     const currentCount = await this.getCurrentCatalogCount(userId);
     return limit === -1 || currentCount < limit;
   }
@@ -40,7 +41,7 @@ export class ResourceLimitService {
     userId: string,
     additionalItems: number = 1,
   ): Promise<boolean> {
-    const membership = await this.membershipProvider.getMembershipStatus(userId);
+    const membership = await this.membershipService.getUserMembership(userId);
     if (membership.subscriptionPlanId) {
       const currentCount = await this.getCurrentCatalogItemCount(userId);
       return this.subscriptionPlanService.canCreateResource(
@@ -49,15 +50,14 @@ export class ResourceLimitService {
         currentCount + additionalItems,
       );
     }
-    return this.membershipProvider.checkResourceLimit(
-      userId,
-      'maxCatalogItems',
-      additionalItems + (await this.getCurrentCatalogItemCount(userId)),
-    );
+    const limits = await this.membershipService.getPlanLimits(userId);
+    const limit = limits.maxCatalogItems;
+    const currentCount = await this.getCurrentCatalogItemCount(userId);
+    return limit === -1 || currentCount + additionalItems < limit;
   }
 
   async getUserLimits(userId: string): Promise<any> {
-    const membership = await this.membershipProvider.getMembershipStatus(userId);
+    const membership = await this.membershipService.getUserMembership(userId);
 
     if (membership.subscriptionPlanId) {
       const plan = await this.subscriptionPlanService.getPlanById(

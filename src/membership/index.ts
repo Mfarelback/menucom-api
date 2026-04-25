@@ -38,26 +38,17 @@ export {
   ApplyDiscountDto,
   ValidateDiscountResponseDto,
 } from './dto/subscription-discount.dto';
+export * from './dto/admin-membership.dto';
 
-// Services and Providers
+// Services
 export { MembershipService } from './membership.service';
 export { MembershipRepository } from './membership.repository';
-export { MembershipProvider } from './membership.provider';
+export { MembershipAdminService } from './services/membership-admin.service';
 export { SubscriptionPlanService } from './services/subscription-plan.service';
+export { ResourceLimitService } from './services/resource-limit.service';
 export { MercadoPagoService } from './payment/mercado-pago.service';
 export { MercadoPagoSubscriptionService } from './payment/mercado-pago-subscription.service';
 export { SubscriptionDiscountService } from './payment/subscription-discount.service';
-
-// Guards and Decorators
-export {
-  RequireMembershipFeature,
-  MEMBERSHIP_FEATURE_KEY,
-} from '../auth/guards/membership.guard';
-export {
-  CurrentMembership,
-  CurrentUserPlan,
-  CurrentUserFeatures,
-} from './decorators/membership.decorator';
 
 // Module
 export { MembershipModule } from './membership.module';

@@ -249,4 +249,43 @@ export class UserController {
   async deleteUserAdmin(@Param('id') id: string) {
     return await this.userService.remove(id);
   }
+
+  @Patch('admin/:id')
+  @RequireContextPermissions(BusinessContext.GENERAL, Permission.MANAGE_USERS)
+  @UseInterceptors(FileInterceptor('photo'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'User update data with optional photo file upload (admin)',
+    type: UpdateUserWithFileDto,
+  })
+  @ApiOperation({
+    summary: 'Actualizar usuario (admin)',
+    description:
+      'Actualiza la información de un usuario desde la vista de administrador. Permite subir una foto que reemplazará la actual. Requiere permiso MANAGE_USERS.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Usuario actualizado exitosamente',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Usuario no encontrado',
+  })
+  @ApiResponse({
+    status: 500,
+    description: 'Error interno del servidor',
+  })
+  async updateUserAdmin(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+    @UploadedFile() photo?: Express.Multer.File,
+  ) {
+    try {
+      return await this.userProfileService.update(id, updateUserDto, photo);
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Failed to update user: ' + error.message,
+      );
+    }
+  }
 }

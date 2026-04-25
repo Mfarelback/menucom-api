@@ -14,7 +14,6 @@ import {
   CreateCatalogItemDto,
   UpdateCatalogItemDto,
 } from '../dto/catalog-item.dto';
-import { MembershipProvider } from '../../membership/membership.provider';
 import { ResourceLimitService } from '../../membership/services/resource-limit.service';
 import {
   CatalogNotFoundException,
@@ -32,7 +31,6 @@ export class CatalogService {
     private readonly catalogRepository: Repository<Catalog>,
     @InjectRepository(CatalogItem)
     private readonly catalogItemRepository: Repository<CatalogItem>,
-    private readonly membershipProvider: MembershipProvider,
     private readonly resourceLimitService: ResourceLimitService,
   ) {}
 
@@ -64,10 +62,8 @@ export class CatalogService {
       }
 
       // Obtener capacidad basada en la membresía
-      const capacity = await this.membershipProvider.getResourceLimit(
-        ownerId,
-        'maxCatalogItems',
-      );
+      const limits = await this.resourceLimitService.getUserLimits(ownerId);
+      const capacity = limits.limits.maxCatalogItems;
 
       const catalog = this.catalogRepository.create({
         id: uuidv4(),
