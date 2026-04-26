@@ -198,6 +198,7 @@ export class MembershipAdminService {
     const features = dbPlan?.features || [];
 
     if (!membership) {
+      this.logger.log(`Creating new membership for user ${userId} with plan ${plan}`);
       membership = this.membershipRepo.create({
         userId,
         plan,
@@ -206,7 +207,15 @@ export class MembershipAdminService {
         expiresAt: options?.expiresAt,
         subscriptionPlanId: dbPlan.id,
       });
+      try {
+        membership = await this.membershipRepo.save(membership);
+        this.logger.log(`Created membership ${membership.id} for user ${userId}`);
+      } catch (error) {
+        this.logger.error(`Failed to save membership for user ${userId}: ${error.message}`);
+        throw new InternalServerErrorException(`Failed to create membership: ${error.message}`);
+      }
     } else {
+      this.logger.log(`Updating membership ${membership.id} for user ${userId} to plan ${plan}`);
       await this.membershipRepo.update(membership.id, {
         plan,
         features,
@@ -219,6 +228,7 @@ export class MembershipAdminService {
 
     if (!membership) {
       this.logger.error(`Failed to create or update membership for user ${userId}`);
+      this.logger.error(`Membership not found after create/save operation`);
       throw new InternalServerErrorException(`Failed to assign plan to user`);
     }
 
