@@ -327,25 +327,41 @@ export class UserRoleService {
    * Cambia el rol legacy (rubro) del usuario y sincroniza con user_roles
    * Mapea categorías de negocio a roles del sistema
    *
-   * Mapeo:
-   * - 'grocery', 'beauty', 'food' -> 'owner'
-   * - 'customer' -> 'customer'
-   * - 'admin' -> 'admin'
-   */
+* Mapeo (sincronizado con frontend TypeComerceModel):
+    * - 'retail', 'water_distributor', 'grocery', 'food', 'clothes', 'accessories',
+    *   'electronics', 'pharmacy', 'beauty', 'construction', 'automotive', 'pets' -> 'owner'
+    * - 'customer' -> 'customer'
+    * - 'admin' -> 'admin'
+    */
   async changeOwnRole(
     userId: string,
     newLegacyRole: string,
   ): Promise<{ userRole: string; userRolesUpdated: boolean }> {
-    // Mapear rol legacy a rol del sistema
-    const roleMapping: Record<string, RoleType> = {
-      grocery: RoleType.OWNER,
-      beauty: RoleType.OWNER,
-      food: RoleType.OWNER,
-      customer: RoleType.CUSTOMER,
-      admin: RoleType.ADMIN,
-    };
+    const ownerRoles = [
+      'retail',
+      'water_distributor',
+      'grocery',
+      'food',
+      'clothes',
+      'accessories',
+      'electronics',
+      'pharmacy',
+      'beauty',
+      'construction',
+      'automotive',
+      'pets',
+    ];
 
-    const systemRole = roleMapping[newLegacyRole] || RoleType.CUSTOMER;
+    let systemRole: RoleType;
+    if (newLegacyRole === 'customer') {
+      systemRole = RoleType.CUSTOMER;
+    } else if (newLegacyRole === 'admin') {
+      systemRole = RoleType.ADMIN;
+    } else if (ownerRoles.includes(newLegacyRole)) {
+      systemRole = RoleType.OWNER;
+    } else {
+      systemRole = RoleType.CUSTOMER;
+    }
 
     // 1. Actualizar user.role en tabla user
     await this.userRoleRepository.manager.query(

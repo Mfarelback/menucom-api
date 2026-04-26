@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, Not } from 'typeorm';
 import { Membership } from '../entities/membership.entity';
@@ -190,7 +190,7 @@ export class MembershipAdminService {
     const dbPlan = await this.planRepo.findOne({ where: { name: plan } });
     if (!dbPlan) {
       this.logger.warn(`Plan "${plan}" not found for assignment to user ${userId}`);
-      return null;
+      throw new NotFoundException(`Plan "${plan}" not found`);
     }
 
     let membership = await this.membershipRepo.findOne({ where: { userId } });
@@ -219,7 +219,7 @@ export class MembershipAdminService {
 
     if (!membership) {
       this.logger.error(`Failed to create or update membership for user ${userId}`);
-      return null;
+      throw new InternalServerErrorException(`Failed to assign plan to user`);
     }
 
     await this.logAudit({
