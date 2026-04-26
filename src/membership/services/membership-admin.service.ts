@@ -187,10 +187,14 @@ export class MembershipAdminService {
     adminId: string,
     options?: { expiresAt?: Date; reason?: string },
   ) {
+    const dbPlan = await this.planRepo.findOne({ where: { name: plan } });
+    if (!dbPlan) {
+      this.logger.warn(`Plan "${plan}" not found for assignment to user ${userId}`);
+      return null;
+    }
+
     let membership = await this.membershipRepo.findOne({ where: { userId } });
     const previousPlan = membership?.plan || MembershipPlan.FREE;
-
-    const dbPlan = await this.planRepo.findOne({ where: { name: plan } });
     const features = dbPlan?.features || [];
 
     if (!membership) {
@@ -200,18 +204,23 @@ export class MembershipAdminService {
         features,
         isActive: true,
         expiresAt: options?.expiresAt,
-        subscriptionPlanId: dbPlan?.id,
+        subscriptionPlanId: dbPlan.id,
       });
     } else {
       await this.membershipRepo.update(membership.id, {
         plan,
         features,
         expiresAt: options?.expiresAt ?? membership.expiresAt,
-        subscriptionPlanId: dbPlan?.id,
+        subscriptionPlanId: dbPlan.id,
       });
     }
 
     membership = await this.membershipRepo.findOne({ where: { userId } });
+
+    if (!membership) {
+      this.logger.error(`Failed to create or update membership for user ${userId}`);
+      return null;
+    }
 
     await this.logAudit({
       userId,
