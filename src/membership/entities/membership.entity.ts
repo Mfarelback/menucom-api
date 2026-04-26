@@ -17,6 +17,12 @@ import {
 import { SubscriptionPlan } from './subscription-plan.entity';
 import { SubscriptionDiscount } from './subscription-discount.entity';
 
+export enum BillingMode {
+  NONE = 'none',
+  MANUAL = 'manual',
+  AUTO = 'auto',
+}
+
 @Entity()
 export class Membership {
   @PrimaryGeneratedColumn('uuid')
@@ -105,6 +111,34 @@ export class Membership {
 
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   originalPrice: number;
+
+  // === BILLING MODE ===
+  @Column({
+    type: 'enum',
+    enum: BillingMode,
+    default: BillingMode.NONE,
+  })
+  billingMode: BillingMode;
+
+  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  adminSetPrice: number;
+
+  @Column({ type: 'int', default: 1 })
+  paidPeriodMonths: number;
+
+  // === PENDING PAYMENT (para links de pago manual) ===
+  @Column({ type: 'varchar', nullable: true })
+  pendingPaymentId: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  pendingPaymentLink: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  pendingPaymentExpiresAt: Date;
+
+  // === ACCESS PERIOD ===
+  @Column({ type: 'timestamp', nullable: true })
+  accessStartDate: Date;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;

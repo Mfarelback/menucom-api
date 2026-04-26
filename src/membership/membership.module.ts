@@ -18,6 +18,7 @@ import { SubscriptionPayment } from './entities/subscription-payment.entity';
 
 import { MembershipAdminController } from './controllers/membership-admin.controller';
 import { MembershipAdminService } from './services/membership-admin.service';
+import { BillingAdminService } from './services/billing-admin.service';
 import { Catalog } from '../catalog/entities/catalog.entity';
 import { CatalogItem } from '../catalog/entities/catalog-item.entity';
 
@@ -51,10 +52,12 @@ import { AuthModule } from '../auth/auth.module';
     SubscriptionPlanService,
     ResourceLimitService,
     MembershipAdminService,
+    BillingAdminService,
   ],
   exports: [
     MembershipService,
     MembershipAdminService,
+    BillingAdminService,
     MercadoPagoService,
     MercadoPagoSubscriptionService,
     SubscriptionDiscountService,

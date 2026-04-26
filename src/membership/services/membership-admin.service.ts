@@ -398,12 +398,14 @@ export class MembershipAdminService {
     };
   }
 
-  private async logAudit(data: {
+  async logAudit(data: {
     userId: string;
     membershipId: string;
     action: MembershipAuditAction;
     previousPlan: string;
     newPlan: string;
+    amount?: number;
+    currency?: string;
     description: string;
     metadata?: Record<string, any>;
   }) {

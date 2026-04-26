@@ -12,11 +12,14 @@ import {
   UseInterceptors,
   UploadedFile,
   Query,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UserProfileService } from './services/user-profile.service';
 import { UserRecoveryService } from './services/user-recovery.service';
 import { UserQueryService } from './services/user-query.service';
+import { UserRoleService } from '../auth/services/user-role.service';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UpdateUserWithFileDto } from './dto/update-user-with-file.dto';
 import {
@@ -34,9 +37,10 @@ import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { QueryUsersAdminDto } from './dto/query-users-admin.dto';
 import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
-import { RequireContextPermissions } from 'src/auth/decorators/permissions.decorator';
+import { RequireContextPermissions, DisablePermissions } from 'src/auth/decorators/permissions.decorator';
 import { Permission, BusinessContext } from 'src/auth/models/permissions.model';
 import { Public } from 'src/auth/decorators/public.decorator';
+import { ChangeOwnRoleDto } from './dto/change-own-role.dto';
 
 @ApiTags('user')
 @Controller('user')
@@ -47,6 +51,7 @@ export class UserController {
     private readonly userProfileService: UserProfileService,
     private readonly userRecoveryService: UserRecoveryService,
     private readonly userQueryService: UserQueryService,
+    private readonly userRoleService: UserRoleService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -178,6 +183,34 @@ export class UserController {
     } catch (error) {
       throw new InternalServerErrorException('Failed to update FCM token');
     }
+  }
+
+  @Patch('my-role')
+  @DisablePermissions()
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Cambiar mi rol (rubro)',
+    description:
+      'Permite al usuario autenticado cambiar su propio rol legacy (rubro). ' +
+      'Valores válidos: customer (cliente), grocery (supermercado/almacén), beauty (peluquería/estética), food (restaurante). ' +
+      'Este cambio también sincroniza el rol en la tabla user_roles del sistema de permisos.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Rol cambiado exitosamente',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Rol inválido',
+  })
+  async changeOwnRole(@Req() req: Request, @Body() changeRoleDto: ChangeOwnRoleDto) {
+    const userId = req['user']['userId'];
+    const result = await this.userRoleService.changeOwnRole(userId, changeRoleDto.role);
+    return {
+      message: 'Rol cambiado exitosamente',
+      data: result,
+    };
   }
 
   @Get('admin/all')

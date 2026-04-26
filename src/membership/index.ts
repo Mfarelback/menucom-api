@@ -1,5 +1,5 @@
 // Entities
-export { Membership } from './entities/membership.entity';
+export { Membership, BillingMode } from './entities/membership.entity';
 export {
   MembershipAudit,
   MembershipAuditAction,
@@ -37,11 +37,13 @@ export {
   ValidateDiscountResponseDto,
 } from './dto/subscription-discount.dto';
 export * from './dto/admin-membership.dto';
+export * from './dto/billing.dto';
 
 // Services
 export { MembershipService } from './membership.service';
 export { MembershipRepository } from './membership.repository';
 export { MembershipAdminService } from './services/membership-admin.service';
+export { BillingAdminService } from './services/billing-admin.service';
 export { SubscriptionPlanService } from './services/subscription-plan.service';
 export { ResourceLimitService } from './services/resource-limit.service';
 export { MercadoPagoService } from './payment/mercado-pago.service';

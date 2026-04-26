@@ -10,12 +10,24 @@ export interface PaymentRequest {
   cancelUrl?: string;
 }
 
+export interface CustomPaymentRequest {
+  amount: number;
+  description: string;
+  userId: string;
+  userEmail: string;
+  externalReference: string;
+  metadata?: Record<string, any>;
+  returnUrl?: string;
+  cancelUrl?: string;
+}
+
 export interface PaymentResponse {
   paymentId: string;
   status: 'pending' | 'approved' | 'rejected';
   amount: number;
   currency: string;
   paymentUrl?: string;
+  metadata?: Record<string, any>;
 }
 
 @Injectable()
@@ -129,6 +141,7 @@ export class MercadoPagoService {
         status: payment.status,
         amount: payment.transaction_amount,
         currency: payment.currency_id,
+        metadata: payment.metadata,
       };
     } catch (error) {
       this.logger.error('Error getting payment status:', error);
@@ -173,5 +186,62 @@ export class MercadoPagoService {
 
   getAllPlanPrices() {
     return { ...this.planPrices };
+  }
+
+  async createCustomPayment(request: CustomPaymentRequest): Promise<PaymentResponse> {
+    try {
+      const paymentData = {
+        transaction_amount: request.amount,
+        description: request.description,
+        payment_method_id: 'account_money',
+        payer: {
+          email: request.userEmail,
+        },
+        external_reference: request.externalReference,
+        notification_url: `${this.configService.get('APP_URL')}/webhook/mercadopago`,
+        back_urls: {
+          success:
+            request.returnUrl ||
+            `${this.configService.get('FRONTEND_URL')}/membership/success`,
+          failure:
+            request.cancelUrl ||
+            `${this.configService.get('FRONTEND_URL')}/membership/error`,
+          pending: `${this.configService.get('FRONTEND_URL')}/membership/pending`,
+        },
+        auto_return: 'approved',
+        metadata: request.metadata || {},
+      };
+
+      const response = await fetch(`${this.baseUrl}/v1/payments`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(paymentData),
+      });
+
+      const payment = await response.json();
+
+      if (!response.ok) {
+        this.logger.error('MercadoPago custom payment creation failed:', payment);
+        throw new Error(`Payment creation failed: ${payment.message}`);
+      }
+
+      this.logger.log(
+        `Custom payment created for user ${request.userId}: ${payment.id}`,
+      );
+
+      return {
+        paymentId: payment.id,
+        status: payment.status,
+        amount: payment.transaction_amount,
+        currency: 'ARS',
+        paymentUrl: payment.init_point || payment.sandbox_init_point,
+      };
+    } catch (error) {
+      this.logger.error('Error creating custom MercadoPago payment:', error);
+      throw error;
+    }
   }
 }

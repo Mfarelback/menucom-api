@@ -56,3 +56,14 @@ export const RequireContextPermissions = (
     SetMetadata(PERMISSIONS_KEY, permissions)(target, propertyKey, descriptor);
   };
 };
+
+/**
+ * Decorator para deshabilitar el PermissionsGuard en un endpoint específico
+ * Útil para endpoints que deben ser accesibles por cualquier usuario autenticado
+ *
+ * @example
+ * @DisablePermissionsGuard()
+ * async changeMyRole() { ... }
+ */
+export const DISABLE_PERMISSIONS_KEY = 'disable_permissions';
+export const DisablePermissions = () => SetMetadata(DISABLE_PERMISSIONS_KEY, true);

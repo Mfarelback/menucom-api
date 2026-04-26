@@ -139,9 +139,8 @@ export class MembershipWebhookController {
       `Processing payment webhook: ${paymentId}, action: ${action}`,
     );
 
-    const paymentInfo =
-      await this.mercadoPagoService.getPaymentStatus(paymentId);
-    const { status, amount, currency } = paymentInfo;
+    const paymentInfo = await this.mercadoPagoService.getPaymentStatus(paymentId);
+    const { status, amount, currency, metadata } = paymentInfo;
 
     if (status === 'approved') {
       const externalRef = paymentInfo.paymentId?.toString();
@@ -151,19 +150,79 @@ export class MembershipWebhookController {
         const userId = match[1];
         const plan = match[2];
 
-        await this.membershipService.subscribeToPlan(userId, {
-          plan: plan as any,
-          paymentId,
-          amount,
-          currency: currency || 'ARS',
-          metadata: { webhookProcessed: true },
-        });
+        const billingMode = metadata?.billing_mode;
+        const periodMonths = metadata?.period_months || 1;
 
-        this.logger.log(`Payment approved for user ${userId}: ${paymentId}`);
+        if (billingMode === 'manual') {
+          const membership = await this.membershipRepository.findOne({
+            where: { userId },
+          });
+
+          if (membership) {
+            await this.extendMembershipFromPayment(
+              membership,
+              paymentId,
+              amount,
+              periodMonths,
+            );
+            this.logger.log(`Manual payment approved for user ${userId}: ${paymentId}`);
+          }
+        } else {
+          await this.membershipService.subscribeToPlan(userId, {
+            plan: plan as any,
+            paymentId,
+            amount,
+            currency: currency || 'ARS',
+            metadata: { webhookProcessed: true },
+          });
+          this.logger.log(`Payment approved for user ${userId}: ${paymentId}`);
+        }
       }
     } else if (status === 'rejected') {
       this.logger.warn(`Payment rejected: ${paymentId}`);
     }
+  }
+
+  private async extendMembershipFromPayment(
+    membership: Membership,
+    paymentId: string,
+    amount: number,
+    periodMonths: number,
+  ): Promise<void> {
+    const currentExpires = membership.expiresAt || new Date();
+    const newExpires = new Date(currentExpires);
+    newExpires.setMonth(newExpires.getMonth() + periodMonths);
+
+    membership.expiresAt = newExpires;
+    membership.lastPaymentAt = new Date();
+    membership.isActive = true;
+    membership.accessStartDate = new Date();
+
+    if (membership.pendingPaymentId === paymentId) {
+      membership.pendingPaymentId = null;
+      membership.pendingPaymentLink = null;
+      membership.pendingPaymentExpiresAt = null;
+    }
+
+    await this.membershipRepository.save(membership);
+
+    const paymentRecord = this.paymentRepository.create({
+      membershipId: membership.id,
+      mpPaymentId: paymentId,
+      amount,
+      originalAmount: amount,
+      status: PaymentStatus.APPROVED,
+      type: PaymentType.MANUAL_PAYMENT,
+      periodMonths,
+      isAdminGenerated: true,
+      planName: membership.plan,
+      paidAt: new Date(),
+    });
+    await this.paymentRepository.save(paymentRecord);
+
+    this.logger.log(
+      `Membership ${membership.id} extended by ${periodMonths} month(s) - Payment: ${paymentId}`,
+    );
   }
 
   private async handleSubscriptionPaymentWebhook(

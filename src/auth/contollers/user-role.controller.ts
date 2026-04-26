@@ -21,13 +21,14 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../guards/jwt.auth.gards';
 import { PermissionsGuard } from '../guards/permissions.guard';
-import { RequireContextPermissions } from '../decorators/permissions.decorator';
+import { RequireContextPermissions, DisablePermissions } from '../decorators/permissions.decorator';
 import { Permission, BusinessContext } from '../models/permissions.model';
 import { UserRoleService } from '../services/user-role.service';
 import { AssignRoleDto } from '../dto/assign-role.dto';
 import { RevokeRoleDto } from '../dto/revoke-role.dto';
 import { UpdateRoleDto } from '../dto/update-role.dto';
 import { QueryUserRolesDto } from '../dto/query-user-roles.dto';
+import { ChangeOwnRoleDto } from '../../user/dto/change-own-role.dto';
 
 @ApiTags('User Roles Management')
 @Controller('user-roles')

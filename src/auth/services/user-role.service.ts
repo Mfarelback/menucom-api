@@ -4,7 +4,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { UserRole } from '../entities/user-role.entity';
 import {
   RoleType,
@@ -321,5 +321,63 @@ export class UserRoleService {
     }
 
     return roles[0].role;
+  }
+
+  /**
+   * Cambia el rol legacy (rubro) del usuario y sincroniza con user_roles
+   * Mapea categorías de negocio a roles del sistema
+   *
+   * Mapeo:
+   * - 'grocery', 'beauty', 'food' -> 'owner'
+   * - 'customer' -> 'customer'
+   * - 'admin' -> 'admin'
+   */
+  async changeOwnRole(
+    userId: string,
+    newLegacyRole: string,
+  ): Promise<{ userRole: string; userRolesUpdated: boolean }> {
+    // Mapear rol legacy a rol del sistema
+    const roleMapping: Record<string, RoleType> = {
+      grocery: RoleType.OWNER,
+      beauty: RoleType.OWNER,
+      food: RoleType.OWNER,
+      customer: RoleType.CUSTOMER,
+      admin: RoleType.ADMIN,
+    };
+
+    const systemRole = roleMapping[newLegacyRole] || RoleType.CUSTOMER;
+
+    // 1. Actualizar user.role en tabla user
+    await this.userRoleRepository.manager.query(
+      `UPDATE public.user SET role = $1, "updatedAt" = NOW() WHERE id = $2`,
+      [newLegacyRole, userId],
+    );
+
+    // 2. Sincronizar con user_roles
+    // Eliminar el rol actual en contexto 'general' y asignar el nuevo
+    const existingRole = await this.userRoleRepository.findOne({
+      where: {
+        userId,
+        context: BusinessContext.GENERAL,
+        resourceId: IsNull(),
+      },
+    });
+
+    if (existingRole) {
+      existingRole.role = systemRole;
+      existingRole.isActive = true;
+      existingRole.grantedAt = new Date();
+      await this.userRoleRepository.save(existingRole);
+    } else {
+      await this.assignRole(userId, systemRole, BusinessContext.GENERAL, {
+        grantedBy: 'system',
+        metadata: { reason: 'role_change', legacyRole: newLegacyRole },
+      });
+    }
+
+    return {
+      userRole: newLegacyRole,
+      userRolesUpdated: true,
+    };
   }
 }

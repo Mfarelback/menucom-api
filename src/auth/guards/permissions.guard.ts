@@ -5,12 +5,14 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import {
+  PERMISSIONS_KEY,
+  CONTEXT_KEY,
+  DISABLE_PERMISSIONS_KEY,
+} from '../decorators/permissions.decorator';
 import { Permission, BusinessContext } from '../models/permissions.model';
 import { UserRoleService } from '../services/user-role.service';
 import { LoggerService } from 'src/core/logger/logger.service';
-
-export const PERMISSIONS_KEY = 'permissions';
-export const CONTEXT_KEY = 'business_context';
 
 /**
  * Guard que verifica si el usuario tiene los permisos necesarios
@@ -31,6 +33,16 @@ export class PermissionsGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const disablePermissions = this.reflector.getAllAndOverride<boolean>(
+      DISABLE_PERMISSIONS_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+
+    // Si el endpoint deshabilita permisos, permitir acceso
+    if (disablePermissions) {
+      return true;
+    }
+
     const requiredPermissions = this.reflector.getAllAndOverride<Permission[]>(
       PERMISSIONS_KEY,
       [context.getHandler(), context.getClass()],

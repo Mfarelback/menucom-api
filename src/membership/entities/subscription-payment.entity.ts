@@ -22,6 +22,7 @@ export enum PaymentType {
   SUBSCRIPTION_PAYMENT = 'subscription_payment',
   FIRST_PAYMENT = 'first_payment',
   TRIAL = 'trial',
+  MANUAL_PAYMENT = 'manual_payment',
 }
 
 @Entity('subscription_payments')
@@ -88,6 +89,21 @@ export class SubscriptionPayment {
 
   @Column({ type: 'json', nullable: true })
   metadata: Record<string, any>;
+
+  @Column({ type: 'int', default: 1 })
+  periodMonths: number;
+
+  @Column({ type: 'boolean', default: false })
+  isAdminGenerated: boolean;
+
+  @Column({ type: 'varchar', nullable: true })
+  planName: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  description: string;
+
+  @Column({ type: 'json', nullable: true })
+  paymentMetadata: Record<string, any>;
 
   @CreateDateColumn({ type: 'timestamp' })
   createdAt: Date;
