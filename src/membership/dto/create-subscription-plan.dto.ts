@@ -185,4 +185,9 @@ export class CreateSubscriptionPlanDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({ description: 'Si es el plan predeterminado para nuevos registros', example: false })
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean;
 }

@@ -5,7 +5,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not } from 'typeorm';
 import {
   SubscriptionPlan,
   PlanStatus,
@@ -152,7 +152,7 @@ export class SubscriptionPlanService {
       );
     }
 
-    const { isActive, maxCatalogs, maxItems, ...rest } = createPlanDto;
+    const { isActive, maxCatalogs, maxItems, isDefault, ...rest } = createPlanDto;
 
     // Mapear los límites si no vienen en el formato objeto (compatibilidad con request aplanado)
     const limits = rest.limits || {
@@ -166,9 +166,19 @@ export class SubscriptionPlanService {
       createdByUserId,
       status: isActive === false ? PlanStatus.INACTIVE : PlanStatus.ACTIVE,
       limits,
+      isDefault: isDefault || false,
     });
 
     const savedPlan = await this.subscriptionPlanRepository.save(plan);
+
+    // Si se marcó como predeterminado, actualizar los demás
+    if (savedPlan.isDefault) {
+      await this.subscriptionPlanRepository.update(
+        { isDefault: true, id: Not(savedPlan.id) },
+        { isDefault: false },
+      );
+    }
+
     this.logger.log(
       `Created custom plan: ${savedPlan.name} by user: ${createdByUserId}`,
     );
@@ -184,6 +194,50 @@ export class SubscriptionPlanService {
       where: { status: PlanStatus.ACTIVE },
       order: { type: 'ASC', price: 'ASC' },
     });
+  }
+
+  /**
+   * Obtener el plan predeterminado para nuevos registros
+   */
+  async getDefaultPlan(): Promise<SubscriptionPlan | null> {
+    const plan = await this.subscriptionPlanRepository.findOne({
+      where: { isDefault: true, status: PlanStatus.ACTIVE },
+    });
+
+    if (plan) {
+      return plan;
+    }
+
+    // Fallback: si no hay plan por defecto, buscar FREE
+    try {
+      return await this.getPlanByName(MembershipPlan.FREE);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Establecer un plan como predeterminado (y quitar el anterior)
+   */
+  async setDefaultPlan(planId: string): Promise<SubscriptionPlan> {
+    const plan = await this.getPlanById(planId);
+
+    if (plan.status !== PlanStatus.ACTIVE) {
+      throw new BadRequestException('Cannot set inactive plan as default');
+    }
+
+    // Quitar isDefault de otros planes
+    await this.subscriptionPlanRepository.update(
+      { isDefault: true },
+      { isDefault: false },
+    );
+
+    // Establecer el nuevo plan por defecto
+    plan.isDefault = true;
+    const updatedPlan = await this.subscriptionPlanRepository.save(plan);
+    this.logger.log(`Set default plan: ${updatedPlan.name}`);
+
+    return updatedPlan;
   }
 
   /**
@@ -245,7 +299,7 @@ export class SubscriptionPlanService {
       );
     }
 
-    const { isActive, maxCatalogs, maxItems, limits, ...rest } = updatePlanDto;
+    const { isActive, maxCatalogs, maxItems, limits, isDefault, ...rest } = updatePlanDto;
 
     // Actualizar campos básicos
     Object.assign(plan, rest);
@@ -273,6 +327,20 @@ export class SubscriptionPlanService {
             ? maxItems
             : plan.limits.maxCatalogItems,
       };
+    }
+
+    // Manejar cambio de plan predeterminado
+    if (isDefault !== undefined && isDefault !== null) {
+      if (isDefault && !plan.isDefault) {
+        // Quitar isDefault de otros planes
+        await this.subscriptionPlanRepository.update(
+          { isDefault: true, id: Not(plan.id) },
+          { isDefault: false },
+        );
+        plan.isDefault = true;
+      } else if (!isDefault && plan.isDefault) {
+        plan.isDefault = false;
+      }
     }
 
     const updatedPlan = await this.subscriptionPlanRepository.save(plan);

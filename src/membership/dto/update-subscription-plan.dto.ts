@@ -1,6 +1,6 @@
 import { PartialType } from '@nestjs/mapped-types';
 import { CreateSubscriptionPlanDto } from './create-subscription-plan.dto';
-import { IsEnum, IsOptional } from 'class-validator';
+import { IsEnum, IsOptional, IsBoolean } from 'class-validator';
 import { PlanStatus } from '../entities/subscription-plan.entity';
 
 export class UpdateSubscriptionPlanDto extends PartialType(
@@ -9,4 +9,8 @@ export class UpdateSubscriptionPlanDto extends PartialType(
   @IsOptional()
   @IsEnum(PlanStatus)
   status?: PlanStatus;
+
+  @IsOptional()
+  @IsBoolean()
+  isDefault?: boolean;
 }

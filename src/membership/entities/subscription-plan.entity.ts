@@ -98,6 +98,9 @@ export class SubscriptionPlan {
   @Column({ type: 'varchar', nullable: true })
   createdByUserId: string;
 
+  @Column({ type: 'boolean', default: false })
+  isDefault: boolean;
+
   @OneToMany(() => Membership, (membership) => membership.subscriptionPlan)
   memberships: Membership[];
 

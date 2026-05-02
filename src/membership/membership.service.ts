@@ -38,20 +38,34 @@ export class MembershipService {
       throw new DuplicateMembershipException(userId);
     }
 
-    // Buscar el plan FREE en la base de datos
+    // Buscar el plan predeterminado creado por el administrador
+    const defaultPlan = await this.subscriptionPlanService.getDefaultPlan();
+
     let planData;
-    try {
-      planData = await this.subscriptionPlanService.getPlanByName(
-        MembershipPlan.FREE,
-      );
-    } catch (error) {
-      this.logger.warn('Standard FREE plan not found in DB, using empty features');
+    let planName: string;
+
+    if (defaultPlan) {
+      planData = defaultPlan;
+      planName = defaultPlan.name;
+      this.logger.log(`Using default plan: ${defaultPlan.name}`);
+    } else {
+      // Fallback: usar FREE si no hay plan por defecto
+      try {
+        planData = await this.subscriptionPlanService.getPlanByName(
+          MembershipPlan.FREE,
+        );
+        planName = MembershipPlan.FREE;
+      } catch (error) {
+        this.logger.warn('No default plan or FREE plan found, using FREE as fallback');
+        planData = null;
+        planName = MembershipPlan.FREE;
+      }
     }
 
     const membership = await this.membershipRepository.createMembership(
       userId,
       {
-        plan: MembershipPlan.FREE,
+        plan: planName,
         features: planData?.features || [],
         subscriptionPlanId: planData?.id,
         isActive: true,
@@ -62,8 +76,8 @@ export class MembershipService {
       userId,
       membershipId: membership.id,
       action: MembershipAuditAction.CREATED,
-      newPlan: MembershipPlan.FREE,
-      description: 'Initial membership created',
+      newPlan: planName,
+      description: `Initial membership created with plan: ${planName}`,
     });
 
     this.logger.log(`Created new membership for user ${userId}`);
