@@ -118,19 +118,19 @@ curl -X POST http://localhost:3000/auth/social/login \
 
 ### 1. Test para FirebaseAdmin Service
 ```typescript
-// src/auth/firebase-admin.spec.ts
+// src/auth/firebase-admin.service.spec.ts
 import { Test } from '@nestjs/testing';
-import { FirebaseAdmin } from './firebase-admin';
+import { FirebaseAdminService } from './firebase-admin.service';
 
-describe('FirebaseAdmin', () => {
-  let service: FirebaseAdmin;
+describe('FirebaseAdminService', () => {
+  let service: FirebaseAdminService;
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
-      providers: [FirebaseAdmin],
+      providers: [FirebaseAdminService],
     }).compile();
 
-    service = module.get<FirebaseAdmin>(FirebaseAdmin);
+    service = module.get<FirebaseAdminService>(FirebaseAdminService);
   });
 
   it('should be defined', () => {
@@ -160,16 +160,16 @@ import { Test } from '@nestjs/testing';
 import { GoogleIdStrategy } from './google-id.strategy';
 import { FirebaseAdmin } from '../firebase-admin';
 
-describe('GoogleIdStrategy', () => {
-  let strategy: GoogleIdStrategy;
-  let firebaseAdmin: FirebaseAdmin;
+describe('GoogleIdTokenStrategy', () => {
+  let strategy: GoogleIdTokenStrategy;
+  let firebaseAdminService: FirebaseAdminService;
 
   beforeEach(async () => {
     const module = await Test.createTestingModule({
       providers: [
-        GoogleIdStrategy,
+        GoogleIdTokenStrategy,
         {
-          provide: FirebaseAdmin,
+          provide: FirebaseAdminService,
           useValue: {
             verifyIdToken: jest.fn(),
           },
@@ -177,8 +177,8 @@ describe('GoogleIdStrategy', () => {
       ],
     }).compile();
 
-    strategy = module.get<GoogleIdStrategy>(GoogleIdStrategy);
-    firebaseAdmin = module.get<FirebaseAdmin>(FirebaseAdmin);
+    strategy = module.get<GoogleIdTokenStrategy>(GoogleIdTokenStrategy);
+    firebaseAdminService = module.get<FirebaseAdminService>(FirebaseAdminService);
   });
 
   it('should validate Firebase token', async () => {
@@ -191,7 +191,7 @@ describe('GoogleIdStrategy', () => {
       email_verified: true,
     };
 
-    jest.spyOn(firebaseAdmin, 'verifyIdToken').mockResolvedValue(mockDecodedToken);
+    jest.spyOn(firebaseAdminService, 'verifyIdToken').mockResolvedValue(mockDecodedToken as any);
 
     const result = await strategy.validate('valid-token');
     

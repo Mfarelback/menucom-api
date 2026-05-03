@@ -11,11 +11,11 @@ import { ConfigType } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 import { LocalStrategy } from './local.strategy';
 import { GoogleIdTokenStrategy } from './strategies/google-id.strategy';
-import { FirebaseAdmin } from './firebase-admin';
 import { UserRole } from './entities/user-role.entity';
 import { User } from '../user/entities/user.entity';
 import { UserRoleService } from './services/user-role.service';
 import { PermissionsGuard } from './guards/permissions.guard';
+import { FirebaseAdminService } from './firebase-admin.service';
 
 @Module({
   imports: [
@@ -41,14 +41,13 @@ import { PermissionsGuard } from './guards/permissions.guard';
     GoogleIdTokenStrategy,
     UserRoleService,
     PermissionsGuard,
-    {
-      provide: 'FIREBASE_ADMIN_INIT',
-      useFactory: (configService: ConfigService) => {
-        return FirebaseAdmin.initialize(configService);
-      },
-      inject: [ConfigService],
-    },
+    FirebaseAdminService,
   ],
-  exports: [AuthService, UserRoleService, PermissionsGuard],
+  exports: [
+    AuthService,
+    UserRoleService,
+    PermissionsGuard,
+    FirebaseAdminService,
+  ],
 })
 export class AuthModule {}

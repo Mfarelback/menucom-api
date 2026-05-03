@@ -4,7 +4,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { CreateUserDto } from 'src/user/dto/create-user.dto';
 import { SocialRegistrationDto } from 'src/user/dto/social-user.dto';
 import { AuthService } from '../services/auth.service';
-import { FirebaseAdmin } from '../firebase-admin';
+import { FirebaseAdminService } from '../firebase-admin.service';
 import { LoggerService } from 'src/core/logger/logger.service';
 import {
   ApiTags,
@@ -24,6 +24,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly logger: LoggerService,
+    private readonly firebaseAdminService: FirebaseAdminService,
   ) {
     this.logger.setContext('AuthController');
   }
@@ -34,13 +35,15 @@ export class AuthController {
   @ApiResponse({ status: 500, description: 'Firebase configuration error' })
   async checkFirebaseHealth() {
     try {
-      const projectInfo = FirebaseAdmin.getProjectInfo();
+      const isInitialized = this.firebaseAdminService.isInitialized();
       return {
-        status: 'healthy',
+        status: isInitialized ? 'healthy' : 'warning',
         firebase: {
-          configured: true,
-          projectId: projectInfo.projectId,
-          initialized: projectInfo.initialized,
+          configured: isInitialized,
+          projectId: isInitialized
+            ? this.firebaseAdminService.getApp().options.projectId
+            : 'not-initialized',
+          initialized: isInitialized,
           timestamp: new Date().toISOString(),
         },
       };

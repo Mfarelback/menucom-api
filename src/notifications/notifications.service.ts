@@ -7,13 +7,16 @@ import * as admin from 'firebase-admin';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../user/entities/user.entity';
+import { FirebaseAdminService } from '../auth/firebase-admin.service';
 
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
+  private readonly MAX_FCM_TOKENS = 500;
 
   constructor(
     @InjectRepository(User) private userRepository: Repository<User>,
+    private firebaseAdminService: FirebaseAdminService,
   ) {}
 
   async sendNotificationToUser(
@@ -21,8 +24,16 @@ export class NotificationsService {
     title: string,
     body: string,
     data?: { [key: string]: string },
+    imageUrl?: string,
   ): Promise<boolean> {
     try {
+      if (!this.firebaseAdminService.isInitialized()) {
+        this.logger.warn(
+          'Firebase no está inicializado. Omitiendo envío de notificación.',
+        );
+        return false;
+      }
+
       const user = await this.userRepository.findOne({ where: { id: userId } });
 
       if (!user || !user.fcmToken) {
@@ -36,24 +47,65 @@ export class NotificationsService {
         notification: {
           title,
           body,
+          ...(imageUrl ? { imageUrl } : {}),
         },
-        data: data || {},
+        data: this.sanitizeData(data || {}),
         token: user.fcmToken,
       };
 
-      const response = await admin.messaging().send(message);
+      const response = await this.retry(() =>
+        this.firebaseAdminService.messaging.send(message),
+      );
       this.logger.log(
-        `Notificación enviada exitosamente al usuario ${userId}: ${response}`,
+        `Notificación enviada exitosamente al usuario ${userId}. ID: ${response}`,
       );
       return true;
     } catch (error) {
+      // Manejar errores de token inválido para un solo usuario
+      if (
+        error.code === 'messaging/registration-token-not-registered' ||
+        error.code === 'messaging/invalid-registration-token'
+      ) {
+        this.logger.warn(
+          `Token FCM inválido para el usuario ${userId}. Limpiando token.`,
+        );
+        await this.clearUserFcmToken(userId);
+      }
+
       this.logger.error(
-        `Error al enviar notificación al usuario ${userId}: ${error.message}`,
+        `Error al enviar notificación al usuario ${userId} tras reintentos: ${error.message}`,
         error.stack,
       );
-      throw new InternalServerErrorException(
-        `Error al enviar notificación: ${error.message}`,
+      return false;
+    }
+  }
+
+  private async retry<T>(
+    fn: () => Promise<T>,
+    retries = 2,
+    delay = 1000,
+  ): Promise<T> {
+    try {
+      return await fn();
+    } catch (error) {
+      if (retries <= 0) throw error;
+
+      // No reintentar si el error es por token inválido o problemas de argumento
+      const nonRetryableErrors = [
+        'messaging/registration-token-not-registered',
+        'messaging/invalid-registration-token',
+        'messaging/invalid-argument',
+      ];
+
+      if (nonRetryableErrors.includes(error.code)) {
+        throw error;
+      }
+
+      this.logger.warn(
+        `Error en envío FCM. Reintentando en ${delay}ms... (${retries} intentos restantes)`,
       );
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      return this.retry(fn, retries - 1, delay * 2);
     }
   }
 
@@ -62,45 +114,127 @@ export class NotificationsService {
     title: string,
     body: string,
     data?: { [key: string]: string },
-  ): Promise<admin.messaging.BatchResponse> {
+    imageUrl?: string,
+  ): Promise<{ successCount: number; failureCount: number }> {
     try {
+      if (!this.firebaseAdminService.isInitialized()) {
+        this.logger.warn(
+          'Firebase no está inicializado. Omitiendo envío de notificaciones.',
+        );
+        return { successCount: 0, failureCount: 0 };
+      }
+
       const users = await this.userRepository.find({
         where: userIds.map((id) => ({ id })),
       });
 
-      const fcmTokens = users
+      // Mapear tokens a usuarios para poder limpiar los fallidos después
+      const userTokens = users
         .filter((user) => user.fcmToken)
-        .map((user) => user.fcmToken);
+        .map((user) => ({ userId: user.id, token: user.fcmToken }));
 
-      if (fcmTokens.length === 0) {
+      if (userTokens.length === 0) {
         this.logger.warn(
           'No hay tokens FCM válidos para enviar notificaciones.',
         );
-        return { responses: [], successCount: 0, failureCount: 0 };
+        return { successCount: 0, failureCount: 0 };
       }
 
-      const message: admin.messaging.MulticastMessage = {
-        notification: {
-          title,
-          body,
-        },
-        data: data || {},
-        tokens: fcmTokens,
-      };
+      const tokens = userTokens.map((ut) => ut.token);
+      let successCount = 0;
+      let failureCount = 0;
 
-      const response = await admin.messaging().sendEachForMulticast(message);
+      // Dividir en batches de 500 (límite de FCM)
+      for (let i = 0; i < tokens.length; i += this.MAX_FCM_TOKENS) {
+        const tokenBatch = tokens.slice(i, i + this.MAX_FCM_TOKENS);
+        const userBatch = userTokens.slice(i, i + this.MAX_FCM_TOKENS);
+
+        const message: admin.messaging.MulticastMessage = {
+          notification: {
+            title,
+            body,
+            ...(imageUrl ? { imageUrl } : {}),
+          },
+          data: this.sanitizeData(data || {}),
+          tokens: tokenBatch,
+        };
+
+        const response =
+          await this.firebaseAdminService.messaging.sendEachForMulticast(
+            message,
+          );
+
+        successCount += response.successCount;
+        failureCount += response.failureCount;
+
+        // Procesar fallos para limpiar tokens
+        if (response.failureCount > 0) {
+          await this.handleBatchFailures(userBatch, response.responses);
+        }
+      }
+
       this.logger.log(
-        `Notificaciones enviadas a múltiples usuarios. Éxitos: ${response.successCount}, Fallos: ${response.failureCount}`,
+        `Notificaciones enviadas. Éxitos: ${successCount}, Fallos: ${failureCount}`,
       );
-      return response;
+
+      return { successCount, failureCount };
     } catch (error) {
       this.logger.error(
-        `Error al enviar notificaciones a múltiples usuarios: ${error.message}`,
+        `Error crítico al enviar notificaciones múltiples: ${error.message}`,
         error.stack,
       );
-      throw new InternalServerErrorException(
-        `Error al enviar notificaciones: ${error.message}`,
-      );
+      return { successCount: 0, failureCount: 0 };
     }
+  }
+
+  private async handleBatchFailures(
+    userBatch: { userId: string; token: string }[],
+    responses: admin.messaging.SendResponse[],
+  ) {
+    const idsToClean: string[] = [];
+
+    responses.forEach((res, index) => {
+      if (!res.success) {
+        const error = res.error as any;
+        if (
+          error?.code === 'messaging/registration-token-not-registered' ||
+          error?.code === 'messaging/invalid-registration-token'
+        ) {
+          idsToClean.push(userBatch[index].userId);
+        }
+      }
+    });
+
+    if (idsToClean.length > 0) {
+      this.logger.log(`Limpiando ${idsToClean.length} tokens FCM inválidos.`);
+      await this.userRepository.update(idsToClean, { fcmToken: null });
+    }
+  }
+
+  private async clearUserFcmToken(userId: string) {
+    await this.userRepository.update(userId, { fcmToken: null });
+  }
+
+  private sanitizeData(data: { [key: string]: string }): {
+    [key: string]: string;
+  } {
+    const sensitiveKeys = [
+      'password',
+      'token',
+      'secret',
+      'key',
+      'auth',
+      'credential',
+    ];
+    const sanitized = { ...data };
+
+    Object.keys(sanitized).forEach((key) => {
+      if (sensitiveKeys.some((sk) => key.toLowerCase().includes(sk))) {
+        this.logger.warn(`Clave sensible detectada en data FCM: ${key}. Eliminando.`);
+        delete sanitized[key];
+      }
+    });
+
+    return sanitized;
   }
 }

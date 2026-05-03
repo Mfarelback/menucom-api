@@ -18,7 +18,7 @@ El módulo de autenticación es el núcleo del sistema de seguridad de la aplica
 src/auth/
 ├── auth.module.ts                    # Configuración del módulo con Firebase
 ├── constants.ts                      # Constantes de configuración
-├── firebase-admin.ts                 # Configuración de Firebase Admin SDK
+├── firebase-admin.service.ts         # Servicio inyectable de Firebase Admin SDK
 ├── jwt.strategy.ts                   # Estrategia JWT para Passport
 ├── local.strategy.ts                 # Estrategia local para Passport
 ├── controllers/
@@ -185,16 +185,12 @@ FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\ntu_clave_privada_aqui\n-----E
 ### Inicialización de Firebase Admin
 
 ```typescript
-// firebase-admin.ts
-const serviceAccount: admin.ServiceAccount = {
-  projectId: configService.get<string>('FIREBASE_PROJECT_ID'),
-  privateKey: configService.get<string>('FIREBASE_PRIVATE_KEY')?.replace(/\\n/g, '\n'),
-  clientEmail: configService.get<string>('FIREBASE_CLIENT_EMAIL'),
-};
-
-FirebaseAdmin.instance = admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-});
+// firebase-admin.service.ts
+// Ahora es un servicio inyectable gestionado por NestJS
+@Injectable()
+export class FirebaseAdminService implements OnModuleInit {
+  // ... inicialización automática en OnModuleInit
+}
 ```
 
 ### Verificación de Tokens
@@ -202,7 +198,7 @@ FirebaseAdmin.instance = admin.initializeApp({
 ```typescript
 async validate(req: Request): Promise<any> {
   const idToken = req.headers['authorization']?.replace('Bearer ', '');
-  const decodedToken = await FirebaseAdmin.verifyIdToken(idToken);
+  const decodedToken = await this.firebaseAdminService.verifyIdToken(idToken);
   
   return {
     uid: decodedToken.uid,

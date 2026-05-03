@@ -2,7 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-custom';
 import { Request } from 'express';
-import { FirebaseAdmin } from '../firebase-admin';
+import { FirebaseAdminService } from '../firebase-admin.service';
 
 /**
  * Estrategia personalizada para autenticación con Google ID Token
@@ -13,7 +13,7 @@ export class GoogleIdTokenStrategy extends PassportStrategy(
   Strategy,
   'google-id',
 ) {
-  constructor() {
+  constructor(private firebaseAdminService: FirebaseAdminService) {
     super((req: Request, done: any) => {
       this.validate(req)
         .then((user) => done(null, user))
@@ -60,7 +60,7 @@ export class GoogleIdTokenStrategy extends PassportStrategy(
       console.log('📏 [GOOGLE STRATEGY] Longitud del token:', idToken.length);
 
       // Verificar el token con Firebase Admin SDK
-      const decodedToken = await FirebaseAdmin.verifyIdToken(idToken);
+      const decodedToken = await this.firebaseAdminService.verifyIdToken(idToken);
       console.log('✅ [GOOGLE STRATEGY] Token verificado exitosamente');
       console.log('👤 [GOOGLE STRATEGY] Información del token decodificado:', {
         uid: decodedToken.uid,
