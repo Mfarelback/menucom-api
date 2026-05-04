@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -18,15 +19,23 @@ import { OrdersService } from '../services/orders.service';
 import { CreateOrderDto } from '../dtos/create.order.dto';
 import { Order } from '../entities/order.entity';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
+import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
+import {
+  RequireContextPermissions,
+} from 'src/auth/decorators/permissions.decorator';
+import {
+  Permission,
+  BusinessContext,
+} from 'src/auth/models/permissions.model';
 
 @ApiTags('orders')
 @ApiBearerAuth('JWT-auth')
 @Controller('orders')
+@UseGuards(JwtAuthGuard, PermissionsGuard)
 export class OrdersController {
   constructor(private readonly orderService: OrdersService) {}
 
   @Get('byOwner')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary: 'Obtener todas las órdenes del usuario autenticado con paginación',
   })
@@ -45,13 +54,12 @@ export class OrdersController {
     @Headers('x-anonymous-id') anonymousId: string,
   ): Promise<Order[]> {
     if (!anonymousId) {
-      throw new Error('x-anonymous-id header is required');
+      throw new BadRequestException('x-anonymous-id header is required');
     }
     return this.orderService.findByCreator(anonymousId);
   }
 
   @Get('byBusinessOwner/:ownerId')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({
     summary:
       'Obtener todas las órdenes recibidas por un propietario de negocio con paginación',
@@ -65,7 +73,6 @@ export class OrdersController {
     return this.orderService.findByOwnerId(ownerId, page, limit);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear una nueva orden con ítems' })
@@ -85,15 +92,52 @@ export class OrdersController {
     return this.orderService.create(orderWithCreator);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Put(':id')
-  update(@Param('id') id: string) {
-    return `This action updates order #${id}`;
+  update(@Param('id') id: string, @Body() updateOrderDto: Partial<CreateOrderDto>) {
+    return this.orderService.update(id, updateOrderDto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @Get(':id')
+  @ApiOperation({ summary: 'Obtener los detalles de una orden por su ID' })
+  async findOne(@Param('id') id: string): Promise<Order> {
+    return this.orderService.findOne(id);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return `This action removes order #${id}`;
+    return this.orderService.delete(id);
+  }
+
+  @Get('admin/all')
+  @RequireContextPermissions(BusinessContext.GENERAL, Permission.READ_ORDER)
+  @ApiOperation({
+    summary: 'Obtener todas las órdenes del sistema (admin)',
+    description:
+      'Lista todas las órdenes realizadas en el sistema con paginación. Requiere permiso READ_ORDER en el contexto GENERAL.',
+  })
+  async findAllAdmin(@Req() req: Request): Promise<Order[]> {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    return this.orderService.findAll(page, limit);
+  }
+
+  @Get('admin/count')
+  @RequireContextPermissions(BusinessContext.GENERAL, Permission.READ_ORDER)
+  @ApiOperation({
+    summary: 'Contar órdenes (admin)',
+    description: 'Retorna el total de órdenes en el sistema. Requiere permiso READ_ORDER.',
+  })
+  async countAdmin() {
+    return await this.orderService.countAll();
+  }
+
+  @Get('admin/revenue')
+  @RequireContextPermissions(BusinessContext.GENERAL, Permission.READ_ORDER)
+  @ApiOperation({
+    summary: 'Obtener ingresos totales (admin)',
+    description: 'Calcula la suma de todos los totales de las órdenes. Requiere permiso READ_ORDER.',
+  })
+  async getRevenueAdmin() {
+    return await this.orderService.getTotalRevenue();
   }
 }

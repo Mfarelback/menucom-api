@@ -11,6 +11,12 @@ export class OrderResponseDto {
   @ApiProperty({ example: '333-3133-333', required: false })
   customerPhone?: string;
 
+  @ApiProperty({ example: 'Juan', required: false })
+  customerName?: string;
+
+  @ApiProperty({ example: 'Pérez', required: false })
+  customerLastName?: string;
+
   @ApiProperty({ example: 'anonymous-user-123', required: false })
   createdBy?: string;
 

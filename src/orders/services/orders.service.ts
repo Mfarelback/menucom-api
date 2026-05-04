@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Order } from '../entities/order.entity';
@@ -238,11 +238,12 @@ export class OrdersService {
         relations: ['items'],
       });
       if (!order) {
-        throw new Error(`Order with id ${id} not found`);
+        throw new NotFoundException(`Orden con id ${id} no encontrada`);
       }
       return order;
     } catch (error) {
-      throw new Error(`Error finding order: ${error.message}`);
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException(`Error al buscar la orden: ${error.message}`);
     }
   }
   async findAll(page: number = 1, limit: number = 10): Promise<Order[]> {
@@ -255,7 +256,7 @@ export class OrdersService {
         order: { createdAt: 'DESC' },
       });
     } catch (error) {
-      throw new Error(`Error finding orders: ${error.message}`);
+      throw new InternalServerErrorException(`Error al obtener las órdenes: ${error.message}`);
     }
   }
 
@@ -267,18 +268,17 @@ export class OrdersService {
         order: { createdAt: 'DESC' },
       });
     } catch (error) {
-      throw new Error(`Error finding orders by owner: ${error.message}`);
+      throw new InternalServerErrorException(`Error al obtener órdenes por email: ${error.message}`);
     }
   }
 
   async findByUserId(userId: string, page: number = 1, limit: number = 10): Promise<Order[]> {
     try {
-      // Get user's email
       const user = await this.userService.findOne(userId);
       if (!user) {
-        throw new Error(`User with id ${userId} not found`);
+        throw new NotFoundException(`Usuario con id ${userId} no encontrado`);
       }
-      this.logger.debug(`Finding orders for user: ${user.email}`);
+      this.logger.debug(`Buscando órdenes para el usuario: ${user.email}`);
       
       const skip = (page - 1) * limit;
       return await this.orderRepository.find({
@@ -289,7 +289,8 @@ export class OrdersService {
         take: limit,
       });
     } catch (error) {
-      throw new Error(`Error finding orders by user ID: ${error.message}`);
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException(`Error al obtener órdenes por ID de usuario: ${error.message}`);
     }
   }
 
@@ -301,7 +302,7 @@ export class OrdersService {
         order: { createdAt: 'DESC' },
       });
     } catch (error) {
-      throw new Error(`Error finding orders by creator: ${error.message}`);
+      throw new InternalServerErrorException(`Error al obtener órdenes por creador: ${error.message}`);
     }
   }
 
@@ -312,7 +313,7 @@ export class OrdersService {
   ): Promise<Order[]> {
     try {
       if (!ownerId) {
-        throw new Error('Owner ID is required');
+        throw new BadRequestException('El ID del propietario es requerido');
       }
 
       const skip = (page - 1) * limit;
@@ -325,7 +326,8 @@ export class OrdersService {
         take: limit,
       });
     } catch (error) {
-      throw new Error(`Error finding orders by owner ID: ${error.message}`);
+      if (error instanceof BadRequestException) throw error;
+      throw new InternalServerErrorException(`Error al obtener órdenes por ID de propietario: ${error.message}`);
     }
   }
 
@@ -339,7 +341,7 @@ export class OrdersService {
         relations: ['items'],
       });
       if (!order) {
-        throw new Error(`Order with id ${id} not found`);
+        throw new NotFoundException(`Orden con id ${id} no encontrada`);
       }
 
       // Update order fields
@@ -367,7 +369,8 @@ export class OrdersService {
         relations: ['items'],
       });
     } catch (error) {
-      throw new Error(`Error updating order: ${error.message}`);
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException(`Error al actualizar la orden: ${error.message}`);
     }
   }
 
@@ -375,13 +378,14 @@ export class OrdersService {
     try {
       const order = await this.orderRepository.findOne({ where: { id } });
       if (!order) {
-        throw new Error(`Order with id ${id} not found`);
+        throw new NotFoundException(`Orden con id ${id} no encontrada`);
       }
       // Delete related items first due to FK constraints
       await this.orderItemRepository.delete({ order: { id } });
       await this.orderRepository.delete(id);
     } catch (error) {
-      throw new Error(`Error deleting order: ${error.message}`);
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException(`Error al eliminar la orden: ${error.message}`);
     }
   }
 
@@ -395,7 +399,7 @@ export class OrdersService {
       });
 
       if (!order) {
-        throw new Error(`Order with id ${orderId} not found`);
+        throw new NotFoundException(`Orden con id ${orderId} no encontrada`);
       }
 
       // Idempotencia: si ya tiene el mismo estado, no hacer nada
@@ -418,7 +422,8 @@ export class OrdersService {
         relations: ['items'],
       });
     } catch (error) {
-      throw new Error(`Error updating order status: ${error.message}`);
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException(`Error al actualizar el estado de la orden: ${error.message}`);
     }
   }
 
@@ -432,7 +437,7 @@ export class OrdersService {
         relations: ['items'],
       });
     } catch (error) {
-      throw new Error(`Error finding order by operation ID: ${error.message}`);
+      throw new InternalServerErrorException(`Error al buscar orden por ID de operación: ${error.message}`);
     }
   }
 
@@ -451,13 +456,13 @@ export class OrdersService {
         'ordering_disabled_message',
         'El sistema de órdenes está temporalmente deshabilitado',
       );
-      throw new Error(maintenanceMessage);
+      throw new BadRequestException(maintenanceMessage);
     }
 
     //verifica el percentage_fee
     const percentageFee = await this.appConfig.getNumber('percentage_fee', 0);
     if (percentageFee < 0 || percentageFee > 100) {
-      throw new Error(`El porcentaje de comisión debe estar entre 0 y 100`);
+      throw new BadRequestException(`El porcentaje de comisión debe estar entre 0 y 100`);
     }
 
     // Verificar modo de mantenimiento
@@ -471,7 +476,7 @@ export class OrdersService {
         'maintenance_message',
         'Sistema en mantenimiento. Inténtalo más tarde.',
       );
-      throw new Error(maintenanceMessage);
+      throw new BadRequestException(maintenanceMessage);
     }
   }
 
@@ -491,7 +496,7 @@ export class OrdersService {
 
     // Validar número de items
     if (items.length > maxItemsPerOrder) {
-      throw new Error(
+      throw new BadRequestException(
         `La orden no puede tener más de ${maxItemsPerOrder} items`,
       );
     }
@@ -504,7 +509,7 @@ export class OrdersService {
 
     // Validar valor mínimo
     if (totalValue < minOrderValue) {
-      throw new Error(`El valor mínimo de orden es $${minOrderValue}`);
+      throw new BadRequestException(`El valor mínimo de orden es $${minOrderValue}`);
     }
 
     // Verificar si ciertos tipos de items están permitidos
@@ -519,13 +524,13 @@ export class OrdersService {
 
     for (const item of items) {
       if (item.sourceType === 'wardrobe' && !allowWardobeItems) {
-        throw new Error(
+        throw new BadRequestException(
           'Los items de guardarropa están temporalmente deshabilitados',
         );
       }
 
       if (item.sourceType === 'menu' && !allowMenuItems) {
-        throw new Error('Los items de menú están temporalmente deshabilitados');
+        throw new BadRequestException('Los items de menú están temporalmente deshabilitados');
       }
     }
   }
@@ -557,5 +562,25 @@ export class OrdersService {
       saturday: { open: '10:00', close: '20:00', enabled: true },
       sunday: { open: '10:00', close: '18:00', enabled: false },
     });
+  }
+
+  async countAll(): Promise<number> {
+    try {
+      return await this.orderRepository.count();
+    } catch (error) {
+      throw new InternalServerErrorException(`Error al contar las órdenes: ${error.message}`);
+    }
+  }
+
+  async getTotalRevenue(): Promise<number> {
+    try {
+      const result = await this.orderRepository
+        .createQueryBuilder('order')
+        .select('SUM(order.total)', 'total')
+        .getRawOne();
+      return parseFloat(result.total) || 0;
+    } catch (error) {
+      throw new InternalServerErrorException(`Error al calcular los ingresos totales: ${error.message}`);
+    }
   }
 }

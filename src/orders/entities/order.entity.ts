@@ -26,6 +26,12 @@ export class Order {
   customerPhone: string;
 
   @Column({ nullable: true })
+  customerName: string;
+
+  @Column({ nullable: true })
+  customerLastName: string;
+
+  @Column({ nullable: true })
   createdBy: string; // ID del creador de la orden (x-anonymous-id)
 
   @Column({ nullable: true })
