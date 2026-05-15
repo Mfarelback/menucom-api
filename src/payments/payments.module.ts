@@ -9,19 +9,27 @@ import { PaymentWebhookService } from './services/payment-webhook.service';
 import { PaymentStatusService } from './services/payment-status.service';
 import { MercadoPagoHelperService } from './services/mercado-pago-helper.service';
 import { MercadoPagoOAuthService } from './services/mercado-pago-oauth.service';
+import { MarketplaceFeeResolverService } from './services/marketplace-fee-resolver.service';
 
 import * as MercadoPago from 'mercadopago';
 import { PaymentIntent } from './entities/payment_intent_entity';
 import { MercadoPagoAccount } from './entities/mercado-pago-account.entity';
+import { MerchantConfig } from './entities/merchant-config.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PaymentsRepository } from './repository/payment_repository';
 import { MercadoPagoRepository } from './services/repository/mercado-pago.repository';
 import { OrdersModule } from 'src/orders/orders.module';
+import { EventsModule } from 'src/events/events.module';
+import { AppDataModule } from 'src/app-data/app-data.module';
+import { User } from 'src/user/entities/user.entity';
+import { Membership } from 'src/membership/entities/membership.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PaymentIntent, MercadoPagoAccount]),
+    TypeOrmModule.forFeature([PaymentIntent, MercadoPagoAccount, MerchantConfig, User, Membership]),
     forwardRef(() => OrdersModule),
+    forwardRef(() => EventsModule),
+    AppDataModule,
   ],
   controllers: [PaymentsController, MercadoPagoOAuthController],
   providers: [
@@ -53,6 +61,8 @@ import { OrdersModule } from 'src/orders/orders.module';
     MercadoPagoRepository,
     PaymentsRepository,
     PaymentsGateway,
+    // Fee Resolver para cálculo dinámico de comisiones
+    MarketplaceFeeResolverService,
   ],
   exports: [
     'MERCADOPAGO_CLIENT',
@@ -66,6 +76,8 @@ import { OrdersModule } from 'src/orders/orders.module';
     // Mantener PaymentsService como fachada
     PaymentsService,
     PaymentsGateway,
+    // Exportar Fee Resolver para uso en otros módulos
+    MarketplaceFeeResolverService,
   ],
 })
 export class PaymentsModule {}

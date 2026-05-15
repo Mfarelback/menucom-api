@@ -16,6 +16,7 @@ import { OrdersService } from 'src/orders/services/orders.service';
 import { LoggerService } from 'src/core/logger/logger.service';
 import { PaymentStatusService } from './payment-status.service';
 import { OrderStatus } from 'src/orders/enums/order-status.enum';
+import { EventPaymentService } from 'src/events/services/event-payment.service';
 
 /**
  * Servicio especializado en procesamiento de webhooks de MercadoPago
@@ -41,6 +42,8 @@ export class PaymentWebhookService {
     private readonly paymentStatusService: PaymentStatusService,
     @Inject(forwardRef(() => OrdersService))
     private readonly ordersService: OrdersService,
+    @Inject(forwardRef(() => EventPaymentService))
+    private readonly eventPaymentService: EventPaymentService,
     private readonly logger: LoggerService,
   ) {
     this.logger.setContext('PaymentWebhookService');
@@ -159,32 +162,34 @@ export class PaymentWebhookService {
             );
           }
 
-          // Actualizar la Order
-          try {
-            const orderStatus =
-              this.paymentStatusService.mapPaymentStatusToOrderStatus(
-                paymentStatus,
-              );
-            const order = await this.ordersService.findByOperationId(orderId);
-
-            if (order) {
-              updatedOrder = await this.ordersService.updateOrderStatus(
-                order.id,
-                orderStatus,
-              );
-              this.logger.log(
-                `Order actualizada: ${order.id} → ${updatedOrder.status}`,
-              );
+            // Caso especial: Pago de Ticket
+            if (orderId.startsWith('TICKET_')) {
+              const purchaseId = orderId.replace('TICKET_', '');
+              if (paymentStatus === 'approved') {
+                await this.eventPaymentService.confirmTicketPayment(purchaseId);
+              }
             } else {
-              this.logger.warn(
-                `No se encontró orden con operationID: ${orderId}`,
-              );
+              // Actualizar la Order normal
+              const orderStatus =
+                this.paymentStatusService.mapPaymentStatusToOrderStatus(
+                  paymentStatus,
+                );
+              const order = await this.ordersService.findByOperationId(orderId);
+
+              if (order) {
+                updatedOrder = await this.ordersService.updateOrderStatus(
+                  order.id,
+                  orderStatus,
+                );
+                this.logger.log(
+                  `Order actualizada: ${order.id} → ${updatedOrder.status}`,
+                );
+              } else {
+                this.logger.warn(
+                  `No se encontró orden con operationID: ${orderId}`,
+                );
+              }
             }
-          } catch (error) {
-            this.logger.warn(
-              `Error actualizando Order para orderId ${orderId}: ${error.message}`,
-            );
-          }
         } else {
           this.logger.warn(
             `No se pudo extraer orderId o paymentStatus del payment ${paymentId}`,
@@ -219,25 +224,31 @@ export class PaymentWebhookService {
             );
           }
 
-          try {
-            const order = await this.ordersService.findByOperationId(orderId);
-            if (order) {
-              updatedOrder = await this.ordersService.updateOrderStatus(
-                order.id,
-                OrderStatus.CONFIRMED,
-              );
-              this.logger.log(
-                `Order confirmada via merchant_order: ${order.id}`,
-              );
-            } else {
+          // Caso especial: Pago de Ticket
+          if (orderId.startsWith('TICKET_')) {
+            const purchaseId = orderId.replace('TICKET_', '');
+            await this.eventPaymentService.confirmTicketPayment(purchaseId);
+          } else {
+            try {
+              const order = await this.ordersService.findByOperationId(orderId);
+              if (order) {
+                updatedOrder = await this.ordersService.updateOrderStatus(
+                  order.id,
+                  OrderStatus.CONFIRMED,
+                );
+                this.logger.log(
+                  `Order confirmada via merchant_order: ${order.id}`,
+                );
+              } else {
+                this.logger.warn(
+                  `No se encontró orden con operationID: ${orderId}`,
+                );
+              }
+            } catch (error) {
               this.logger.warn(
-                `No se encontró orden con operationID: ${orderId}`,
+                `Error actualizando Order via merchant_order ${orderId}: ${error.message}`,
               );
             }
-          } catch (error) {
-            this.logger.warn(
-              `Error actualizando Order via merchant_order ${orderId}: ${error.message}`,
-            );
           }
         } else {
           this.logger.warn(

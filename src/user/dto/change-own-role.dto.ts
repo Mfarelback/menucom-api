@@ -37,6 +37,7 @@ const VALID_ROLES = [
   'construction',
   'automotive',
   'pets',
+  'events',
   'admin',
 ] as const;
 

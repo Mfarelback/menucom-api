@@ -8,6 +8,7 @@ export enum RoleType {
   ADMIN = 'admin', // Administrador del sistema
   OPERATOR = 'operator', // Operador del sistema
   MANAGER = 'manager', // Gerente de un negocio (subordinado al OWNER)
+  EVENT_ORGANIZER = 'event_organizer', // Organizador de eventos
 }
 
 /**
@@ -19,6 +20,7 @@ export enum BusinessContext {
   WARDROBE = 'wardrobe', // Contexto de guardarropas
   MARKETPLACE = 'marketplace', // Contexto de marketplace
   GENERAL = 'general', // Contexto general del sistema
+  EVENTS = 'events', // Contexto de eventos y tickets
 }
 
 /**
@@ -53,6 +55,14 @@ export enum Permission {
   // Permisos de membership
   MANAGE_SUBSCRIPTIONS = 'manage_subscriptions',
   VIEW_SUBSCRIPTION_PLANS = 'view_subscription_plans',
+
+  // Permisos de eventos
+  CREATE_EVENT = 'create_event',
+  READ_EVENT = 'read_event',
+  UPDATE_EVENT = 'update_event',
+  DELETE_EVENT = 'delete_event',
+  MANAGE_TICKETS = 'manage_tickets',
+  VALIDATE_TICKETS = 'validate_tickets',
 }
 
 /**
@@ -154,6 +164,43 @@ export const ROLE_PERMISSIONS_BY_CONTEXT: Record<
       Permission.CREATE_ORDER,
       Permission.READ_ORDER,
       Permission.CANCEL_ORDER,
+    ],
+  },
+
+  [BusinessContext.EVENTS]: {
+    [RoleType.OWNER]: [  // NUEVO: Dueño de negocio de eventos (organizador)
+      Permission.CREATE_EVENT,
+      Permission.READ_EVENT,
+      Permission.UPDATE_EVENT,
+      Permission.DELETE_EVENT,
+      Permission.MANAGE_TICKETS,
+      Permission.VALIDATE_TICKETS,
+      Permission.VIEW_ANALYTICS,
+      Permission.MANAGE_PAYMENTS,
+    ],
+    [RoleType.EVENT_ORGANIZER]: [  // Mantener por backward compatibility
+      Permission.CREATE_EVENT,
+      Permission.READ_EVENT,
+      Permission.UPDATE_EVENT,
+      Permission.DELETE_EVENT,
+      Permission.MANAGE_TICKETS,
+      Permission.VALIDATE_TICKETS,
+      Permission.VIEW_ANALYTICS,
+      Permission.MANAGE_PAYMENTS,
+    ],
+    [RoleType.ADMIN]: [
+      Permission.CREATE_EVENT,
+      Permission.READ_EVENT,
+      Permission.UPDATE_EVENT,
+      Permission.DELETE_EVENT,
+      Permission.MANAGE_TICKETS,
+      Permission.VALIDATE_TICKETS,
+      Permission.VIEW_ANALYTICS,
+    ],
+    [RoleType.CUSTOMER]: [
+      Permission.READ_EVENT,
+      Permission.CREATE_ORDER,
+      Permission.READ_ORDER,
     ],
   },
 };

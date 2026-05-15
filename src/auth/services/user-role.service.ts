@@ -350,17 +350,25 @@ export class UserRoleService {
       'construction',
       'automotive',
       'pets',
+      'events',
     ];
 
     let systemRole: RoleType;
+    let businessContext: BusinessContext;
     if (newLegacyRole === 'customer') {
       systemRole = RoleType.CUSTOMER;
+      businessContext = BusinessContext.GENERAL;
     } else if (newLegacyRole === 'admin') {
       systemRole = RoleType.ADMIN;
+      businessContext = BusinessContext.GENERAL;
     } else if (ownerRoles.includes(newLegacyRole)) {
       systemRole = RoleType.OWNER;
+      businessContext = newLegacyRole === 'events'
+        ? BusinessContext.EVENTS
+        : BusinessContext.GENERAL;
     } else {
       systemRole = RoleType.CUSTOMER;
+      businessContext = BusinessContext.GENERAL;
     }
 
     // 1. Actualizar user.role en tabla user
@@ -370,22 +378,30 @@ export class UserRoleService {
     );
 
     // 2. Sincronizar con user_roles
-    // Eliminar el rol actual en contexto 'general' y asignar el nuevo
+    // Eliminar el rol actual en contexto general/events y asignar el nuevo
     const existingRole = await this.userRoleRepository.findOne({
-      where: {
-        userId,
-        context: BusinessContext.GENERAL,
-        resourceId: IsNull(),
-      },
+      where: [
+        {
+          userId,
+          context: BusinessContext.GENERAL,
+          resourceId: IsNull(),
+        },
+        {
+          userId,
+          context: BusinessContext.EVENTS,
+          resourceId: IsNull(),
+        },
+      ],
     });
 
     if (existingRole) {
       existingRole.role = systemRole;
+      existingRole.context = businessContext;
       existingRole.isActive = true;
       existingRole.grantedAt = new Date();
       await this.userRoleRepository.save(existingRole);
     } else {
-      await this.assignRole(userId, systemRole, BusinessContext.GENERAL, {
+      await this.assignRole(userId, systemRole, businessContext, {
         grantedBy: 'system',
         metadata: { reason: 'role_change', legacyRole: newLegacyRole },
       });
@@ -395,5 +411,93 @@ export class UserRoleService {
       userRole: newLegacyRole,
       userRolesUpdated: true,
     };
+  }
+
+  /**
+   * Identifica si un usuario es organizador de eventos
+   * Un organizador es un OWNER en el contexto EVENTS
+   */
+  async isEventOrganizer(userId: string): Promise<boolean> {
+    return await this.hasRole(
+      userId,
+      RoleType.OWNER,
+      BusinessContext.EVENTS,
+    );
+  }
+
+  /**
+   * Identifica si un usuario es dueño de restaurante
+   */
+  async isRestaurantOwner(userId: string): Promise<boolean> {
+    return await this.hasRole(
+      userId,
+      RoleType.OWNER,
+      BusinessContext.RESTAURANT,
+    );
+  }
+
+  /**
+   * Identifica si un usuario es dueño de tienda (wardrobe)
+   */
+  async isWardrobeOwner(userId: string): Promise<boolean> {
+    return await this.hasRole(
+      userId,
+      RoleType.OWNER,
+      BusinessContext.WARDROBE,
+    );
+  }
+
+  /**
+   * Identifica si un usuario es vendedor de marketplace
+   */
+  async isMarketplaceOwner(userId: string): Promise<boolean> {
+    return await this.hasRole(
+      userId,
+      RoleType.OWNER,
+      BusinessContext.MARKETPLACE,
+    );
+  }
+
+  /**
+   * Obtiene el tipo de negocio principal del usuario
+   * Basado en sus roles OWNER
+   */
+  async getUserBusinessType(userId: string): Promise<string | null> {
+    const roles = await this.getUserRoles(userId);
+
+    // Buscar roles OWNER primero (son comerciantes)
+    const ownerRoles = roles.filter(r => r.role === RoleType.OWNER);
+    if (ownerRoles.length > 0) {
+      // Si tiene múltiples, devolver el primero o hacer lógica más compleja
+      return ownerRoles[0].context;
+    }
+
+    // Si no es OWNER, verificar si es admin
+    const adminRole = roles.find(r => r.role === RoleType.ADMIN);
+    if (adminRole) {
+      return 'admin';
+    }
+
+    // Si no, es customer
+    const customerRole = roles.find(r => r.role === RoleType.CUSTOMER);
+    if (customerRole) {
+      return 'customer';
+    }
+
+    return null;
+  }
+
+  /**
+   * Obtiene todos los usuarios que son organizadores de eventos
+   */
+  async getEventOrganizers(): Promise<UserRole[]> {
+    return await this.userRoleRepository.find({
+      where: {
+        role: RoleType.OWNER,
+        context: BusinessContext.EVENTS,
+        isActive: true,
+      },
+      relations: ['user'],
+    });
   }
 }

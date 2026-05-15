@@ -58,88 +58,174 @@ export class AuthService {
     try {
       const userRegister = await this.usersService.create(userData);
 
-      // Determinar el contexto y tipo de rol basado en el role enviado
-      let roleType: RoleType;
-      let businessContext: BusinessContext;
+      // NUEVO: Mapeo completo de businessType a (role, context)
+      const businessTypeMapping: Record<string, {
+        role: RoleType;
+        context: BusinessContext;
+        needsCustomerRole: boolean;
+      }> = {
+        // Cliente final - solo compra
+        'customer': {
+          role: RoleType.CUSTOMER,
+          context: BusinessContext.GENERAL,
+          needsCustomerRole: false,
+        },
 
-      switch (userData.role) {
-        // Clothes -> WARDROBE
-        case 'clothes':
-          roleType = RoleType.OWNER;
-          businessContext = BusinessContext.WARDROBE;
-          break;
-        // Food/Restaurant -> RESTAURANT
-        case 'dinning':
-        case 'food':
-          roleType = RoleType.OWNER;
-          businessContext = BusinessContext.RESTAURANT;
-          break;
-        // Wholesale/Marketplace -> MARKETPLACE
-        case 'retail':
-        case 'water_distributor':
-        case 'grocery':
-        case 'accessories':
-        case 'electronics':
-        case 'construction':
-        case 'pets':
-          roleType = RoleType.OWNER;
-          businessContext = BusinessContext.MARKETPLACE;
-          break;
-        // Services -> GENERAL
-        case 'pharmacy':
-        case 'beauty':
-        case 'automotive':
-          roleType = RoleType.OWNER;
-          businessContext = BusinessContext.GENERAL;
-          break;
-        // Admin roles
-        case 'admin':
-          roleType = RoleType.ADMIN;
-          businessContext = BusinessContext.GENERAL;
-          break;
-        case 'operador':
-          roleType = RoleType.OPERATOR;
-          businessContext = BusinessContext.GENERAL;
-          break;
-        // Default -> CUSTOMER
-        default:
-          roleType = RoleType.CUSTOMER;
-          businessContext = BusinessContext.GENERAL;
-      }
+        // Comerciantes - OWNER en su contexto + CUSTOMER para comprar en otros
+        'food': {
+          role: RoleType.OWNER,
+          context: BusinessContext.RESTAURANT,
+          needsCustomerRole: true,
+        },
+        'dinning': {
+          role: RoleType.OWNER,
+          context: BusinessContext.RESTAURANT,
+          needsCustomerRole: true,
+        },
+        'clothes': {
+          role: RoleType.OWNER,
+          context: BusinessContext.WARDROBE,
+          needsCustomerRole: true,
+        },
+        'retail': {
+          role: RoleType.OWNER,
+          context: BusinessContext.MARKETPLACE,
+          needsCustomerRole: true,
+        },
+        'grocery': {
+          role: RoleType.OWNER,
+          context: BusinessContext.MARKETPLACE,
+          needsCustomerRole: true,
+        },
+        'electronics': {
+          role: RoleType.OWNER,
+          context: BusinessContext.MARKETPLACE,
+          needsCustomerRole: true,
+        },
+        'accessories': {
+          role: RoleType.OWNER,
+          context: BusinessContext.MARKETPLACE,
+          needsCustomerRole: true,
+        },
+        'pharmacy': {
+          role: RoleType.OWNER,
+          context: BusinessContext.GENERAL,
+          needsCustomerRole: true,
+        },
+        'beauty': {
+          role: RoleType.OWNER,
+          context: BusinessContext.GENERAL,
+          needsCustomerRole: true,
+        },
+        'construction': {
+          role: RoleType.OWNER,
+          context: BusinessContext.GENERAL,
+          needsCustomerRole: true,
+        },
+        'automotive': {
+          role: RoleType.OWNER,
+          context: BusinessContext.GENERAL,
+          needsCustomerRole: true,
+        },
+        'pets': {
+          role: RoleType.OWNER,
+          context: BusinessContext.MARKETPLACE,
+          needsCustomerRole: true,
+        },
+        'water_distributor': {
+          role: RoleType.OWNER,
+          context: BusinessContext.MARKETPLACE,
+          needsCustomerRole: true,
+        },
+        'events': {  // NUEVO: Organizador de eventos
+          role: RoleType.OWNER,
+          context: BusinessContext.EVENTS,
+          needsCustomerRole: true,
+        },
 
-      // Asignar rol usando el nuevo sistema UserRole
+        // Administradores del sistema
+        'admin': {
+          role: RoleType.ADMIN,
+          context: BusinessContext.GENERAL,
+          needsCustomerRole: false,
+        },
+        'operador': {
+          role: RoleType.OPERATOR,
+          context: BusinessContext.GENERAL,
+          needsCustomerRole: false,
+        },
+      };
+
+      // Usar businessType (nuevo) o role (legacy) para determinar el tipo
+      const typeKey = userData.businessType || userData.role || 'customer';
+      const mapping = businessTypeMapping[typeKey] || businessTypeMapping['customer'];
+
+      this.logger.log(
+        `Registrando usuario ${userRegister.email} con businessType: ${typeKey} → ` +
+        `rol: ${mapping.role}, contexto: ${mapping.context}`
+      );
+
+      // 1. Asignar rol principal (OWNER/ADMIN/CUSTOMER en su contexto)
       try {
         await this.userRoleService.assignRole(
           userRegister.id,
-          roleType,
-          businessContext,
+          mapping.role,
+          mapping.context,
           {
             grantedBy: 'system',
             metadata: {
-              source: 'standard-registration',
+              source: 'registration-v2',
+              businessType: typeKey,
               registeredAt: new Date().toISOString(),
             },
           },
         );
         this.logger.log(
-          `Rol ${roleType} asignado al usuario ${userRegister.id} en contexto ${businessContext}`,
+          `✅ Rol ${mapping.role} asignado en ${mapping.context} a ${userRegister.email}`
         );
       } catch (roleError) {
         this.logger.warn(
-          `No se pudo asignar UserRole al usuario ${userRegister.id}: ${roleError.message}`,
+          `No se pudo asignar rol principal a ${userRegister.id}: ${roleError.message}`
         );
+      }
+
+      // 2. Si es comerciante, también darle CUSTOMER para que pueda comprar en otros negocios
+      if (mapping.needsCustomerRole) {
+        try {
+          await this.userRoleService.assignRole(
+            userRegister.id,
+            RoleType.CUSTOMER,
+            BusinessContext.GENERAL,
+            {
+              grantedBy: 'system',
+              metadata: {
+                source: 'registration-dual-role',
+                reason: 'merchant_can_also_buy_as_customer',
+              },
+            },
+          );
+          this.logger.log(
+            `✅ Rol dual CUSTOMER asignado a ${userRegister.email}`
+          );
+        } catch (roleError) {
+          this.logger.warn(
+            `No se pudo asignar rol CUSTOMER a ${userRegister.id}: ${roleError.message}`
+          );
+        }
       }
 
       const payload = {
         username: userRegister.role,
         sub: userRegister.id,
       };
+
       return {
         access_token: this.jwtService.sign(payload),
         needToChangePassword: userRegister.needToChangepassword,
       };
     } catch (error) {
-      throw new HttpException(error.message, error.status);
+      this.logger.error(`Error en registerUser: ${error.message}`, error.stack);
+      throw new HttpException(error.message, error.status || 500);
     }
   }
 
@@ -312,17 +398,19 @@ export class AuthService {
     });
 
     try {
+      // Obtener el businessType de los datos sociales si existe
+      const businessType = firebaseUserData.businessType || 'customer';
+
       const newUserData = {
         email: firebaseUserData.email,
         name: firebaseUserData.name || firebaseUserData.email?.split('@')[0],
         socialToken: firebaseUserData.uid,
         photoURL: firebaseUserData.picture,
         phone: firebaseUserData.phone,
-        role: 'customer', // Rol por defecto para usuarios sociales
-        needToChangepassword: false, // No necesitan cambiar contraseña los usuarios sociales
-        password: null, // No tienen contraseña local
+        role: businessType === 'customer' ? 'customer' : 'owner',
+        needToChangepassword: false,
+        password: null,
         isEmailVerified: firebaseUserData.email_verified || false,
-        // Datos adicionales de Firebase
         firebaseProvider: firebaseUserData.firebaseProvider,
         lastLoginAt: new Date(),
       };
@@ -350,28 +438,74 @@ export class AuthService {
         role: userRegister.role,
       });
 
-      // Asignar rol CUSTOMER en contexto GENERAL usando el nuevo sistema
+      // NUEVO: Usar el mismo mapeo que el registro tradicional
+      const businessTypeMapping: Record<string, {
+        role: RoleType;
+        context: BusinessContext;
+        needsCustomerRole: boolean;
+      }> = {
+        'customer': { role: RoleType.CUSTOMER, context: BusinessContext.GENERAL, needsCustomerRole: false },
+        'events': { role: RoleType.OWNER, context: BusinessContext.EVENTS, needsCustomerRole: true },
+        'food': { role: RoleType.OWNER, context: BusinessContext.RESTAURANT, needsCustomerRole: true },
+        'dinning': { role: RoleType.OWNER, context: BusinessContext.RESTAURANT, needsCustomerRole: true },
+        'clothes': { role: RoleType.OWNER, context: BusinessContext.WARDROBE, needsCustomerRole: true },
+        'retail': { role: RoleType.OWNER, context: BusinessContext.MARKETPLACE, needsCustomerRole: true },
+        'grocery': { role: RoleType.OWNER, context: BusinessContext.MARKETPLACE, needsCustomerRole: true },
+        'electronics': { role: RoleType.OWNER, context: BusinessContext.MARKETPLACE, needsCustomerRole: true },
+        'accessories': { role: RoleType.OWNER, context: BusinessContext.MARKETPLACE, needsCustomerRole: true },
+        'pharmacy': { role: RoleType.OWNER, context: BusinessContext.GENERAL, needsCustomerRole: true },
+        'beauty': { role: RoleType.OWNER, context: BusinessContext.GENERAL, needsCustomerRole: true },
+        'construction': { role: RoleType.OWNER, context: BusinessContext.GENERAL, needsCustomerRole: true },
+        'automotive': { role: RoleType.OWNER, context: BusinessContext.GENERAL, needsCustomerRole: true },
+        'pets': { role: RoleType.OWNER, context: BusinessContext.MARKETPLACE, needsCustomerRole: true },
+        'water_distributor': { role: RoleType.OWNER, context: BusinessContext.MARKETPLACE, needsCustomerRole: true },
+        'admin': { role: RoleType.ADMIN, context: BusinessContext.GENERAL, needsCustomerRole: false },
+        'operador': { role: RoleType.OPERATOR, context: BusinessContext.GENERAL, needsCustomerRole: false },
+      };
+
+      const mapping = businessTypeMapping[businessType] || businessTypeMapping['customer'];
+
+      this.logger.log(
+        `Registrando usuario social ${userRegister.email} con businessType: ${businessType} → ` +
+        `rol: ${mapping.role}, contexto: ${mapping.context}`
+      );
+
+      // Asignar rol principal
       try {
         await this.userRoleService.assignRole(
           userRegister.id,
-          RoleType.CUSTOMER,
-          BusinessContext.GENERAL,
+          mapping.role,
+          mapping.context,
           {
             grantedBy: 'system',
             metadata: {
-              source: 'social-registration',
+              source: 'social-registration-v2',
               provider: firebaseUserData.firebaseProvider,
-              registeredAt: new Date().toISOString(),
+              businessType: businessType,
             },
           },
         );
-        this.logger.log(`Rol CUSTOMER asignado al usuario ${userRegister.id}`);
+        this.logger.log(`✅ Rol ${mapping.role} en ${mapping.context} asignado a usuario social`);
       } catch (roleError) {
-        // No fallar el registro si falla la asignación de rol
-        // El usuario ya tiene el rol legacy en User.role
-        this.logger.warn(
-          `No se pudo asignar UserRole al usuario ${userRegister.id}: ${roleError.message}`,
-        );
+        this.logger.warn(`No se pudo asignar rol a usuario social: ${roleError.message}`);
+      }
+
+      // Asignar CUSTOMER adicional si es comerciante
+      if (mapping.needsCustomerRole) {
+        try {
+          await this.userRoleService.assignRole(
+            userRegister.id,
+            RoleType.CUSTOMER,
+            BusinessContext.GENERAL,
+            {
+              grantedBy: 'system',
+              metadata: { source: 'social-registration-dual-role' },
+            },
+          );
+          this.logger.log(`✅ Rol dual CUSTOMER asignado a usuario social`);
+        } catch (roleError) {
+          this.logger.warn(`No se pudo asignar rol CUSTOMER: ${roleError.message}`);
+        }
       }
 
       return userRegister;

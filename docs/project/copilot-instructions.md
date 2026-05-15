@@ -12,9 +12,29 @@ MenuCom is a NestJS-based restaurant management API that handles menus, orders, 
 
 ### Authentication & Authorization
 - **Dual auth system**: Traditional JWT + Firebase social authentication
-- **Guards hierarchy**: `JwtAuthGuard` → `MembershipGuard` → `RoleGuard` (applied in order)
+- **Guards hierarchy**: `JwtAuthGuard` → `PermissionsGuard` → `RoleGuard` (applied in order)
+- **Role system**: Based on (RoleType, BusinessContext) pairs, not just roles
+- **Business types**: Users register with `businessType` ('events', 'restaurant', 'customer', etc.)
+- **Double role for merchants**: Owners get their context role + CUSTOMER in GENERAL
 - **Public routes**: Use `@Public()` decorator to bypass authentication
 - **Firebase integration**: Uses `menucom-gconfig.json` for Firebase Admin SDK configuration
+
+### Role System (Updated May 2026)
+```typescript
+// Organizers are OWNER in EVENTS, not CUSTOMER in GENERAL
+{
+  role: RoleType.OWNER,
+  context: BusinessContext.EVENTS
+}
+
+// Registration uses businessType
+POST /auth/register
+{
+  "email": "organizer@events.com",
+  "password": "123456",
+  "businessType": "events"  // 'events' | 'restaurant' | 'customer' | etc.
+}
+```
 
 ### Database Strategy
 - **Environment-aware**: PostgreSQL for dev/qa, MySQL fallback in docker-compose
@@ -75,7 +95,9 @@ npm run test:cov    # Coverage reports
 ### Authentication Flow
 - **JWT strategy**: For API access with user context
 - **Firebase tokens**: Validated server-side, auto-create users on first social login
-- **Role-based access**: Controllers can require specific roles with `@Roles()`
+- **Role-based access**: Controllers use `@RequirePermissions()` with `@InBusinessContext()`
+- **Permission checking**: Use `userRoleService.hasRole(userId, role, context)`
+- **Migration available**: `npm run migrate:roles` to fix existing user roles
 
 ## Integration Points
 

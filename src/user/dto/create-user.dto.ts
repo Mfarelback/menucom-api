@@ -55,4 +55,29 @@ export class CreateUserDto {
     description: 'Rol del usuario (legacy). Valores: client | admin | operador',
   })
   readonly role?: string;
+
+  /**
+   * Tipo de negocio del usuario
+   * Determina el rol y contexto asignados automáticamente
+   *
+   * - 'customer': Cliente final (solo compra)
+   * - 'events': Organizador de eventos
+   * - 'food'|'dinning': Dueño de restaurante
+   * - 'clothes': Dueño de tienda de ropa
+   * - 'retail'|'grocery'|'electronics': Vendedor de marketplace
+   * - 'admin': Administrador del sistema
+   */
+  @IsString()
+  @IsOptional()
+  @ApiPropertyOptional({
+    description: 'Tipo de negocio/comportamiento del usuario',
+    enum: [
+      'customer', 'events', 'food', 'dinning', 'clothes',
+      'retail', 'grocery', 'electronics', 'accessories',
+      'pharmacy', 'beauty', 'construction', 'automotive',
+      'pets', 'water_distributor', 'admin', 'operador'
+    ],
+    example: 'events',
+  })
+  readonly businessType?: string;
 }

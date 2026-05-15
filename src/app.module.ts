@@ -15,6 +15,7 @@ import { AppDataModule } from './app-data/app-data.module';
 import { MembershipModule } from './membership/membership.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { CatalogModule } from './catalog/catalog.module';
+import { EventsModule } from './events/events.module';
 // import { MigrationModule } from './scripts/migration.module'; // Módulo temporal de migraciones
 import { LoggerModule } from './core/logger';
 import { RootController } from './core/controllers/root.controller';
@@ -39,6 +40,7 @@ import { RootController } from './core/controllers/root.controller';
     MembershipModule,
     NotificationsModule,
     CatalogModule,
+    EventsModule,
     // MigrationModule, // Módulo temporal - deshabilitado
   ],
   controllers: [RootController],
