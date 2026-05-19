@@ -148,7 +148,7 @@ export class QRCodeSecureService {
       this.logger.debug(`Valid QR for ticket: ${data.ticketId}`);
       return data;
     } catch (error) {
-      this.logger.error('Error validating QR:', error.stack);
+      this.logger.error('Error validating QR:', error instanceof Error ? error.stack : String(error));
       return null;
     }
   }
@@ -206,7 +206,7 @@ export class QRCodeSecureService {
       const json = Buffer.from(qrCode, 'base64url').toString('utf-8');
       return JSON.parse(json) as SecureQRData;
     } catch (error) {
-      this.logger.error('Error decoding QR:', error.stack);
+      this.logger.error('Error decoding QR:', error instanceof Error ? error.stack : String(error));
       return null;
     }
   }

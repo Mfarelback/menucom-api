@@ -40,7 +40,7 @@ export class ImageProxyService {
 
       return imageResponse;
     } catch (error) {
-      this.logger.error(`Failed to get image ${imageUrl}:`, error.message);
+      this.logger.error(`Failed to get image ${imageUrl}:`, error instanceof Error ? error.message : String(error));
       throw error;
     }
   }

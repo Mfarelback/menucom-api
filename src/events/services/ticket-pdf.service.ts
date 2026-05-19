@@ -56,7 +56,7 @@ export class TicketPdfService {
 
         doc.end();
       } catch (error) {
-        this.logger.error(`Error generating PDF: ${error.message}`);
+        this.logger.error(`Error generating PDF: ${error instanceof Error ? error.message : String(error)}`);
         reject(error);
       }
     });

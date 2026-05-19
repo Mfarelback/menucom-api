@@ -126,7 +126,7 @@ export class MembershipWebhookController {
 
       return generatedHash === receivedHash;
     } catch (error) {
-      this.logger.error('Error validando firma de MP', error.stack);
+      this.logger.error('Error validando firma de MP', error instanceof Error ? error.stack : String(error));
       return false;
     }
   }

@@ -69,10 +69,10 @@ export class PaymentStatusService {
     } catch (error) {
       this.logger.error(
         `Error actualizando estado del PaymentIntent ${paymentIntentId}`,
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
       throw new BadRequestException(
-        `Error al actualizar el estado del PaymentIntent: ${error.message}`,
+        `Error al actualizar el estado del PaymentIntent: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }

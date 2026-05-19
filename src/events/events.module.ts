@@ -28,6 +28,7 @@ import { TicketRepository } from './repository/ticket.repository';
 import { TicketPurchaseRepository } from './repository/ticket-purchase.repository';
 import { PaymentsModule } from 'src/payments/payments.module';
 import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
+import { AuthModule } from 'src/auth/auth.module';
 import { forwardRef } from '@nestjs/common';
 
 @Module({
@@ -47,6 +48,7 @@ import { forwardRef } from '@nestjs/common';
       },
     }),
     forwardRef(() => PaymentsModule),
+    AuthModule,
     CloudinaryModule,
   ],
   controllers: [

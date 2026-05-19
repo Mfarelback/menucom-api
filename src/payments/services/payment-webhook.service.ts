@@ -87,7 +87,7 @@ export class PaymentWebhookService {
 
       return generatedHash === receivedHash;
     } catch (error) {
-      this.logger.error('Error validando firma de MP', error.stack);
+      this.logger.error('Error validando firma de MP', error instanceof Error ? error.stack : String(error));
       return false;
     }
   }
@@ -158,7 +158,7 @@ export class PaymentWebhookService {
             );
           } catch (error) {
             this.logger.warn(
-              `Error actualizando PaymentIntent ${orderId}: ${error.message}`,
+              `Error actualizando PaymentIntent ${orderId}: ${error instanceof Error ? error.message : String(error)}`,
             );
           }
 
@@ -220,7 +220,7 @@ export class PaymentWebhookService {
             );
           } catch (error) {
             this.logger.warn(
-              `Error actualizando PaymentIntent via merchant_order ${orderId}: ${error.message}`,
+              `Error actualizando PaymentIntent via merchant_order ${orderId}: ${error instanceof Error ? error.message : String(error)}`,
             );
           }
 
@@ -246,7 +246,7 @@ export class PaymentWebhookService {
               }
             } catch (error) {
               this.logger.warn(
-                `Error actualizando Order via merchant_order ${orderId}: ${error.message}`,
+                `Error actualizando Order via merchant_order ${orderId}: ${error instanceof Error ? error.message : String(error)}`,
               );
             }
           }
@@ -268,9 +268,9 @@ export class PaymentWebhookService {
         paymentStatus,
       };
     } catch (error) {
-      this.logger.error(`Error procesando notificación webhook`, error.stack);
+      this.logger.error(`Error procesando notificación webhook`, error instanceof Error ? error.stack : String(error));
       throw new BadRequestException(
-        `Error procesando notificación del webhook: ${error.message}`,
+        `Error procesando notificación del webhook: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -325,7 +325,7 @@ export class PaymentWebhookService {
     } catch (error) {
       this.logger.error(
         `Error verificando estado de pago ${idReference}`,
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
       // Re-lanzamos excepciones de NestJS si ya están formadas, o creamos una genérica
       if (
@@ -398,13 +398,13 @@ export class PaymentWebhookService {
     } catch (error) {
       this.logger.error(
         `Error aprobando pago por merchant results`,
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
       if (error instanceof InternalServerErrorException) {
         throw error;
       }
       throw new BadRequestException(
-        'Error al aprobar el pago: ' + error.message,
+        'Error al aprobar el pago: ' + (error instanceof Error ? error.message : String(error)),
       );
     }
   }

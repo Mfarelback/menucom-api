@@ -219,7 +219,7 @@ export class MercadopagoService {
         throw error;
       }
       throw new InternalServerErrorException(
-        `Error creando preferencia en MercadoPago: ${error.message || error}`,
+        `Error creando preferencia en MercadoPago: ${(error instanceof Error ? error.message : String(error)) || error}`,
       );
     }
   }
@@ -396,7 +396,7 @@ export class MercadopagoService {
         throw error;
       }
       throw new InternalServerErrorException(
-        `Error creando preferencia con token personalizado: ${error.message || error}`,
+        `Error creando preferencia con token personalizado: ${(error instanceof Error ? error.message : String(error)) || error}`,
       );
     }
   }
@@ -426,7 +426,7 @@ export class MercadopagoService {
         throw error;
       }
       throw new InternalServerErrorException(
-        `Error buscando pagos en MercadoPago: ${error.message || error}. ` +
+        `Error buscando pagos en MercadoPago: ${(error instanceof Error ? error.message : String(error)) || error}. ` +
           'Verifique los criterios de búsqueda y la configuración de MercadoPago.',
       );
     }
@@ -477,7 +477,7 @@ export class MercadopagoService {
         throw error;
       }
       throw new InternalServerErrorException(
-        `Error consultando merchant orders en MercadoPago: ${error.message || error}. ` +
+        `Error consultando merchant orders en MercadoPago: ${(error instanceof Error ? error.message : String(error)) || error}. ` +
           'Verifique los criterios de búsqueda y la configuración de MercadoPago.',
       );
     }
@@ -520,7 +520,7 @@ export class MercadopagoService {
     } catch (error) {
       this.logger.error(`Error getting preference ${preferenceId}:`, error);
       throw new InternalServerErrorException(
-        `Error obteniendo preferencia ${preferenceId}: ${error.message || error}`,
+        `Error obteniendo preferencia ${preferenceId}: ${(error instanceof Error ? error.message : String(error)) || error}`,
       );
     }
   }

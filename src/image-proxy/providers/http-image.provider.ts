@@ -46,9 +46,9 @@ export class HttpImageProvider implements ImageProvider {
     } catch (error) {
       this.logger.error(
         `Failed to fetch image from ${imageUrl}:`,
-        error.message,
+        error instanceof Error ? error.message : String(error),
       );
-      throw new Error(`Unable to fetch image: ${error.message}`);
+      throw new Error(`Unable to fetch image: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
@@ -68,7 +68,7 @@ export class HttpImageProvider implements ImageProvider {
     } catch (error) {
       this.logger.warn(
         `Could not get content type for ${imageUrl}:`,
-        error.message,
+        error instanceof Error ? error.message : String(error),
       );
       return 'image/jpeg';
     }

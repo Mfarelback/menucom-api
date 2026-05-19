@@ -115,7 +115,7 @@ export class PaymentIntentService {
         } catch (error) {
           // Log el error pero continúa sin collector_id para compatibilidad
           this.logger.warn(
-            `No se pudo obtener account data para owner ${ownerId}: ${error.message}`,
+            `No se pudo obtener account data para owner ${ownerId}: ${error instanceof Error ? error.message : String(error)}`,
           );
         }
       }
@@ -179,12 +179,12 @@ export class PaymentIntentService {
 
       return payment;
     } catch (error) {
-      this.logger.error(`Error creando pago para phone ${phone}`, error.stack);
+      this.logger.error(`Error creando pago para phone ${phone}`, error instanceof Error ? error.stack : String(error));
       if (error instanceof InternalServerErrorException) {
         throw error;
       }
       throw new BadRequestException(
-        'Error al crear el pago con Mercado Pago: ' + error.message,
+        'Error al crear el pago con Mercado Pago: ' + (error instanceof Error ? error.message : String(error)),
       );
     }
   }
@@ -207,7 +207,7 @@ export class PaymentIntentService {
     } catch (error) {
       this.logger.error(
         `Error registrando PaymentIntent ${data.id}`,
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
       throw new InternalServerErrorException(
         'Error al registrar el intento de pago',
@@ -241,12 +241,12 @@ export class PaymentIntentService {
 
       return intentPayment;
     } catch (error) {
-      this.logger.error(`Error obteniendo PaymentIntent ${id}`, error.stack);
+      this.logger.error(`Error obteniendo PaymentIntent ${id}`, error instanceof Error ? error.stack : String(error));
       if (error instanceof InternalServerErrorException) {
         throw error;
       }
       throw new BadRequestException(
-        'Error al obtener el pago con ID ' + id + ': ' + error.message,
+        'Error al obtener el pago con ID ' + id + ': ' + (error instanceof Error ? error.message : String(error)),
       );
     }
   }
@@ -286,12 +286,12 @@ export class PaymentIntentService {
         paymentsOfMp: paymentsOfMp,
       };
     } catch (error) {
-      this.logger.error(`Error obteniendo payment completo ${id}`, error.stack);
+      this.logger.error(`Error obteniendo payment completo ${id}`, error instanceof Error ? error.stack : String(error));
       if (error instanceof InternalServerErrorException) {
         throw error;
       }
       throw new BadRequestException(
-        'Error al obtener el pago con ID ' + id + ': ' + error.message,
+        'Error al obtener el pago con ID ' + id + ': ' + (error instanceof Error ? error.message : String(error)),
       );
     }
   }
@@ -331,7 +331,7 @@ export class PaymentIntentService {
     } catch (error) {
       this.logger.error(
         `Error consultando preferencia ${preferenceId}`,
-        error.stack,
+        error instanceof Error ? error.stack : String(error),
       );
       if (error instanceof InternalServerErrorException) {
         throw error;
@@ -340,7 +340,7 @@ export class PaymentIntentService {
         'Error al consultar el pago con ID de preferencia ' +
           preferenceId +
           ': ' +
-          error.message,
+          (error instanceof Error ? error.message : String(error)),
       );
     }
   }

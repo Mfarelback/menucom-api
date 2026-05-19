@@ -107,9 +107,9 @@ export class GoogleIdTokenStrategy extends PassportStrategy(
       return userData;
     } catch (error) {
       console.error('❌ [GOOGLE STRATEGY] Error en GoogleIdTokenStrategy:', {
-        message: error.message,
-        code: error.code,
-        stack: error.stack?.substring(0, 200) + '...',
+        message: error instanceof Error ? error.message : String(error),
+        code: error instanceof Error ? (error as any).code : String(error),
+        stack: (error instanceof Error ? error.stack : String(error))?.substring(0, 200) + '...',
       });
 
       if (error.code === 'auth/id-token-expired') {

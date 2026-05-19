@@ -155,7 +155,7 @@ export class EventPaymentService {
       );
     } catch (error) {
       this.logger.error(
-        `Error confirmando pago de ticket ${purchaseId}: ${error.message}`,
+        `Error confirmando pago de ticket ${purchaseId}: ${error instanceof Error ? error.message : String(error)}`,
       );
       throw error;
     }

@@ -39,7 +39,7 @@ export class UrlTransformService {
     } catch (error) {
       this.logger.warn(
         `Failed to transform URL ${originalUrl}:`,
-        error.message,
+        error instanceof Error ? error.message : String(error),
       );
       return originalUrl;
     }

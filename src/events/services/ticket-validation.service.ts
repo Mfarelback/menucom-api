@@ -182,7 +182,7 @@ export class TicketValidationService {
         },
       };
     } catch (error) {
-      if (error.name === 'TokenExpiredError') {
+      if (error instanceof Error && error.name === 'TokenExpiredError') {
         return {
           valid: false,
           error: 'Token expirado',
@@ -190,8 +190,8 @@ export class TicketValidationService {
         };
       }
 
-      if (error.name === 'JsonWebTokenError') {
-        this.logger.warn(`Invalid JWT signature: ${error.message}`);
+      if (error instanceof Error && error.name === 'JsonWebTokenError') {
+        this.logger.warn(`Invalid JWT signature: ${error instanceof Error ? error.message : String(error)}`);
         return {
           valid: false,
           error: 'Firma inválida',
@@ -199,7 +199,7 @@ export class TicketValidationService {
         };
       }
 
-      this.logger.error('Error validating offline token:', error.stack);
+      this.logger.error('Error validating offline token:', error instanceof Error ? error.stack : String(error));
       return {
         valid: false,
         error: 'Error de validación',
@@ -315,7 +315,7 @@ export class TicketValidationService {
         errorCode: 'INVALID_QR',
       };
     } catch (error) {
-      this.logger.error('Error validating hybrid QR:', error.stack);
+      this.logger.error('Error validating hybrid QR:', error instanceof Error ? error.stack : String(error));
       return {
         valid: false,
         error: 'Error de validación',

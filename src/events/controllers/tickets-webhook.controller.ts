@@ -9,6 +9,7 @@ import {
   Logger,
   UnauthorizedException,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import { ApiOperation, ApiTags, ApiHeader } from '@nestjs/swagger';
 import * as crypto from 'crypto';
 import { TicketsService } from '../services/tickets.service';
@@ -20,6 +21,7 @@ import { TicketTypeRepository } from '../repository/ticket-type.repository';
 import { DataSource } from 'typeorm';
 
 @ApiTags('Webhooks - Tickets')
+@SkipThrottle()
 @Controller('webhooks')
 export class TicketsWebhookController {
   private readonly logger = new Logger(TicketsWebhookController.name);
@@ -61,7 +63,6 @@ export class TicketsWebhookController {
     @Headers('x-request-id') xRequestId: string,
     @Query('data.id') dataId: string,
     @Query('type') type: string,
-    @Query('client') organizerId?: string,
   ): Promise<{ status: string; reason?: string }> {
     this.logger.log(
       `[Tickets Webhook] Received: type=${type}, data.id=${dataId}`,
@@ -115,7 +116,7 @@ export class TicketsWebhookController {
 
     // 7. Procesar según la acción
     const action = body?.action || 'order.processed';
-    await this.processOrderAction(action, purchaseId, body.data);
+    await this.processOrderAction(action, purchaseId);
 
     this.logger.log(`[Tickets Webhook] Successfully processed: ${purchaseId}`);
     return { status: 'ok' };
@@ -175,7 +176,10 @@ export class TicketsWebhookController {
 
       return isValid;
     } catch (error) {
-      this.logger.error('Error validating signature:', error.stack);
+      this.logger.error(
+        'Error validating signature:',
+        error instanceof Error ? error.stack : error,
+      );
       return false;
     }
   }
@@ -186,7 +190,6 @@ export class TicketsWebhookController {
   private async processOrderAction(
     action: string,
     purchaseId: string,
-    orderData: any,
   ): Promise<void> {
     this.logger.log(
       `[Tickets Webhook] Processing action: ${action} for purchase: ${purchaseId}`,
@@ -205,20 +208,20 @@ export class TicketsWebhookController {
 
     switch (action) {
       case 'order.processed':
-        await this.handleOrderProcessed(purchase, orderData);
+        await this.handleOrderProcessed(purchase);
         break;
 
       case 'order.refunded':
-        await this.handleOrderRefunded(purchase, orderData);
+        await this.handleOrderRefunded(purchase);
         break;
 
       case 'order.expired':
       case 'order.failed':
-        await this.handleOrderFailed(purchase, orderData);
+        await this.handleOrderFailed(purchase);
         break;
 
       case 'order.cancelled':
-        await this.handleOrderCancelled(purchase, orderData);
+        await this.handleOrderCancelled(purchase);
         break;
 
       default:
@@ -229,10 +232,7 @@ export class TicketsWebhookController {
   /**
    * Maneja pago exitoso - genera tickets
    */
-  private async handleOrderProcessed(
-    purchase: any,
-    orderData: any,
-  ): Promise<void> {
+  private async handleOrderProcessed(purchase: any): Promise<void> {
     this.logger.log(
       `[Tickets Webhook] Payment processed for purchase: ${purchase.id}`,
     );
@@ -274,9 +274,8 @@ export class TicketsWebhookController {
       );
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(
-        `[Tickets Webhook] Error processing payment: ${error.message}`,
-      );
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`[Tickets Webhook] Error processing payment: ${msg}`);
       throw error;
     } finally {
       await queryRunner.release();
@@ -286,10 +285,7 @@ export class TicketsWebhookController {
   /**
    * Maneja reembolso - cancela tickets y libera inventario
    */
-  private async handleOrderRefunded(
-    purchase: any,
-    orderData: any,
-  ): Promise<void> {
+  private async handleOrderRefunded(purchase: any): Promise<void> {
     this.logger.log(
       `[Tickets Webhook] Refund received for purchase: ${purchase.id}`,
     );
@@ -320,9 +316,8 @@ export class TicketsWebhookController {
       );
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(
-        `[Tickets Webhook] Error processing refund: ${error.message}`,
-      );
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(`[Tickets Webhook] Error processing refund: ${msg}`);
       throw error;
     } finally {
       await queryRunner.release();
@@ -332,10 +327,7 @@ export class TicketsWebhookController {
   /**
    * Maneja pago fallido o expirado
    */
-  private async handleOrderFailed(
-    purchase: any,
-    orderData: any,
-  ): Promise<void> {
+  private async handleOrderFailed(purchase: any): Promise<void> {
     this.logger.log(
       `[Tickets Webhook] Payment failed/expired for purchase: ${purchase.id}`,
     );
@@ -366,8 +358,9 @@ export class TicketsWebhookController {
       );
     } catch (error) {
       await queryRunner.rollbackTransaction();
+      const msg = error instanceof Error ? error.message : String(error);
       this.logger.error(
-        `[Tickets Webhook] Error processing failed payment: ${error.message}`,
+        `[Tickets Webhook] Error processing failed payment: ${msg}`,
       );
       throw error;
     } finally {
@@ -378,15 +371,12 @@ export class TicketsWebhookController {
   /**
    * Maneja orden cancelada
    */
-  private async handleOrderCancelled(
-    purchase: any,
-    orderData: any,
-  ): Promise<void> {
+  private async handleOrderCancelled(purchase: any): Promise<void> {
     this.logger.log(
       `[Tickets Webhook] Order cancelled for purchase: ${purchase.id}`,
     );
     // Mismo tratamiento que failed
-    await this.handleOrderFailed(purchase, orderData);
+    await this.handleOrderFailed(purchase);
   }
 
   /**

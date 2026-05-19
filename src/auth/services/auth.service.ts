@@ -190,7 +190,7 @@ export class AuthService {
         );
       } catch (roleError) {
         this.logger.warn(
-          `No se pudo asignar rol principal a ${userRegister.id}: ${roleError.message}`,
+          `No se pudo asignar rol principal a ${userRegister.id}: ${roleError instanceof Error ? roleError.message : String(roleError)}`,
         );
       }
 
@@ -214,7 +214,7 @@ export class AuthService {
           );
         } catch (roleError) {
           this.logger.warn(
-            `No se pudo asignar rol CUSTOMER a ${userRegister.id}: ${roleError.message}`,
+            `No se pudo asignar rol CUSTOMER a ${userRegister.id}: ${roleError instanceof Error ? roleError.message : String(roleError)}`,
           );
         }
       }
@@ -229,8 +229,8 @@ export class AuthService {
         needToChangePassword: userRegister.needToChangepassword,
       };
     } catch (error) {
-      this.logger.error(`Error en registerUser: ${error.message}`, error.stack);
-      throw new HttpException(error.message, error.status || 500);
+      this.logger.error(`Error en registerUser: ${error instanceof Error ? error.message : String(error)}`, error instanceof Error ? error.stack : String(error));
+      throw new HttpException(error instanceof Error ? error.message : String(error), (error as any).status || 500);
     }
   }
 
@@ -346,14 +346,14 @@ export class AuthService {
       );
       return response;
     } catch (error) {
-      this.logger.error(`Error en loginSocial: ${error.message}`, error.stack);
+      this.logger.error(`Error en loginSocial: ${error instanceof Error ? error.message : String(error)}`, error instanceof Error ? error.stack : String(error));
       this.logger.logObject('Contexto del error', {
         firebaseUid: firebaseUserData?.uid,
         firebaseEmail: firebaseUserData?.email,
       });
       throw new HttpException(
-        'Error en autenticación social: ' + error.message,
-        error.status || 500,
+        'Error en autenticación social: ' + (error instanceof Error ? error.message : String(error)),
+        (error as any).status || 500,
       );
     }
   }
@@ -567,7 +567,7 @@ export class AuthService {
         );
       } catch (roleError) {
         this.logger.warn(
-          `No se pudo asignar rol a usuario social: ${roleError.message}`,
+          `No se pudo asignar rol a usuario social: ${roleError instanceof Error ? roleError.message : String(roleError)}`,
         );
       }
 
@@ -586,7 +586,7 @@ export class AuthService {
           this.logger.log(`✅ Rol dual CUSTOMER asignado a usuario social`);
         } catch (roleError) {
           this.logger.warn(
-            `No se pudo asignar rol CUSTOMER: ${roleError.message}`,
+            `No se pudo asignar rol CUSTOMER: ${roleError instanceof Error ? roleError.message : String(roleError)}`,
           );
         }
       }
@@ -594,15 +594,15 @@ export class AuthService {
       return userRegister;
     } catch (error) {
       this.logger.error(
-        `Error en registerUserSocial: ${error.message}`,
-        error.stack,
+        `Error en registerUserSocial: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : String(error),
       );
       this.logger.logObject('Contexto del error', {
         firebaseEmail: firebaseUserData?.email,
         firebaseUid: firebaseUserData?.uid,
       });
       throw new HttpException(
-        'Error al registrar usuario social: ' + error.message,
+        'Error al registrar usuario social: ' + (error instanceof Error ? error.message : String(error)),
         500,
       );
     }
@@ -661,17 +661,17 @@ export class AuthService {
       return response;
     } catch (error) {
       this.logger.error(
-        `Error en registerSocialWithData: ${error.message}`,
-        error.stack,
+        `Error en registerSocialWithData: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : String(error),
       );
       this.logger.logObject('Contexto del error', {
-        message: error.message,
-        stack: error.stack?.substring(0, 200) + '...',
+        message: error instanceof Error ? error.message : String(error),
+        stack: (error instanceof Error ? error.stack : String(error))?.substring(0, 200) + '...',
         firebaseUid: firebaseUserData?.uid,
         socialDataKeys: Object.keys(socialData || {}),
       });
       throw new HttpException(
-        'Error al registrar usuario con datos sociales: ' + error.message,
+        'Error al registrar usuario con datos sociales: ' + (error instanceof Error ? error.message : String(error)),
         500,
       );
     }

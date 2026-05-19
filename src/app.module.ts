@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PaymentsGateway } from './ws/payments.gateway';
 import { environment } from './enviroment';
 import { DatabaseModule } from './database/database.module';
@@ -22,6 +23,10 @@ import { RootController } from './core/controllers/root.controller';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot({
+      throttlers: [{ name: 'default', ttl: 60000, limit: 30 }],
+      errorMessage: 'Demasiadas solicitudes. Intenta de nuevo más tarde.',
+    }),
     ConfigModule.forRoot({
       envFilePath: environment[process.env.NODE_ENV] || '.env',
       load: [config],
@@ -44,6 +49,12 @@ import { RootController } from './core/controllers/root.controller';
     // MigrationModule, // Módulo temporal - deshabilitado
   ],
   controllers: [RootController],
-  providers: [PaymentsGateway],
+  providers: [
+    PaymentsGateway,
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
 })
 export class AppModule {}

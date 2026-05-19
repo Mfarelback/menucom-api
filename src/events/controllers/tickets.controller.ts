@@ -7,9 +7,11 @@ import {
   Res,
   UseGuards,
   Request,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Response } from 'express';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import {
@@ -20,6 +22,7 @@ import {
   Permission,
   BusinessContext,
 } from '../../auth/models/permissions.model';
+import { UserRoleService } from '../../auth/services/user-role.service';
 import { TicketsService } from '../services/tickets.service';
 import { TicketPdfService } from '../services/ticket-pdf.service';
 import { EventPaymentService } from '../services/event-payment.service';
@@ -31,6 +34,7 @@ export class TicketsController {
     private readonly ticketsService: TicketsService,
     private readonly ticketPdfService: TicketPdfService,
     private readonly eventPaymentService: EventPaymentService,
+    private readonly userRoleService: UserRoleService,
   ) {}
 
   @Post('purchase')
@@ -61,6 +65,7 @@ export class TicketsController {
   }
 
   @Post('checkout')
+  @Throttle({ default: { limit: 3, ttl: 60000 } })
   @ApiOperation({ summary: 'Iniciar proceso de pago para tickets' })
   async checkout(
     @Body()
@@ -82,10 +87,29 @@ export class TicketsController {
   }
 
   @Get(':id/pdf')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Descargar el ticket en formato PDF' })
-  async downloadPdf(@Param('id') id: string, @Res() res: Response) {
-    // Nota: Aquí se debería activar el ticket si el pago fue confirmado
-    const ticket = await this.ticketsService.activateTicket(id);
+  async downloadPdf(
+    @Param('id') id: string,
+    @Request() req: any,
+    @Res() res: Response,
+  ) {
+    const ticket = await this.ticketsService.findOneWithPurchase(id);
+
+    const isBuyer = ticket.purchase?.buyer?.id === req.user.userId;
+    const isOrganizer = await this.userRoleService.userHasPermission(
+      req.user.userId,
+      BusinessContext.EVENTS,
+      Permission.MANAGE_TICKETS,
+    );
+
+    if (!isBuyer && !isOrganizer) {
+      throw new ForbiddenException(
+        'No tienes permiso para descargar este ticket',
+      );
+    }
+
     const buffer = await this.ticketPdfService.generateTicketPdf(ticket);
 
     res.set({

@@ -84,7 +84,7 @@ export class FirebaseAdminService implements OnModuleInit {
     } catch (error) {
       this.logger.error(
         '❌ Error al inicializar Firebase Admin:',
-        error.message,
+        error instanceof Error ? error.message : String(error),
       );
       this.logger.warn('⚠️ Omitiendo Firebase (continuando sin él)');
       return null;

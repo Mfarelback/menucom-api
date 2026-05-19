@@ -248,6 +248,21 @@ export class TicketsService {
     return savedTicket;
   }
 
+  async findOneWithPurchase(id: string): Promise<Ticket> {
+    const ticket = await this.ticketRepo.findOne({
+      where: { id },
+      relations: [
+        'ticketType',
+        'ticketType.event',
+        'ticketType.event.venue',
+        'purchase',
+        'purchase.buyer',
+      ],
+    });
+    if (!ticket) throw new NotFoundException('Ticket no encontrado');
+    return ticket;
+  }
+
   async activateTicket(id: string): Promise<Ticket> {
     const ticket = await this.ticketRepo.findOne({
       where: { id },

@@ -10,6 +10,7 @@ import {
   HttpCode,
   UnauthorizedException,
 } from '@nestjs/common';
+import { SkipThrottle } from '@nestjs/throttler';
 import {
   ApiBearerAuth,
   ApiHeader,
@@ -51,6 +52,7 @@ export class PaymentsController {
     summary:
       'Webhook de Mercado Pago para notificaciones de pago (no requiere auth)',
   })
+  @SkipThrottle()
   @Post('webhooks')
   @HttpCode(200)
   @ApiHeader({
