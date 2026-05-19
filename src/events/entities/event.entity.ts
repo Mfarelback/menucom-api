@@ -42,7 +42,9 @@ export class Event {
   @ManyToOne(() => User)
   organizer: User;
 
-  @OneToMany(() => TicketType, (ticketType) => ticketType.event)
+  @OneToMany(() => TicketType, (ticketType) => ticketType.event, {
+    cascade: true,
+  })
   ticketTypes: TicketType[];
 
   @ManyToOne(() => Venue, { nullable: true })

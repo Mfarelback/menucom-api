@@ -412,7 +412,9 @@ export class CatalogController {
    * Obtener catálogos públicos por ownerId (sin autenticación)
    */
   @Get('public/owner/:ownerId')
-  @ApiOperation({ summary: 'Obtener catálogos públicos por ownerId sin autenticación' })
+  @ApiOperation({
+    summary: 'Obtener catálogos públicos por ownerId sin autenticación',
+  })
   @ApiResponse({ status: 200, description: 'Catálogos encontrados' })
   @ApiResponse({ status: 404, description: 'No se encontraron catálogos' })
   async getPublicCatalogsByOwnerId(@Param('ownerId') ownerId: string) {

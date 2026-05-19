@@ -22,7 +22,12 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
 import { EventsService } from '../services/events.service';
-import { CreateEventDto, UpdateEventDto, CreateEventWithFileDto, UpdateEventWithFileDto } from '../dto/event.dto';
+import {
+  CreateEventDto,
+  UpdateEventDto,
+  CreateEventWithFileDto,
+  UpdateEventWithFileDto,
+} from '../dto/event.dto';
 
 @ApiTags('Events')
 @Controller('events')
@@ -52,7 +57,12 @@ export class EventsController {
       createEventDto.venue = JSON.parse(createEventDto.venue);
     }
 
-    return await this.eventsService.create(createEventDto, tenantId, organizerId, image);
+    return await this.eventsService.create(
+      createEventDto,
+      tenantId,
+      organizerId,
+      image,
+    );
   }
 
   @Get()

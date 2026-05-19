@@ -72,10 +72,23 @@ export class CreateUserDto {
   @ApiPropertyOptional({
     description: 'Tipo de negocio/comportamiento del usuario',
     enum: [
-      'customer', 'events', 'food', 'dinning', 'clothes',
-      'retail', 'grocery', 'electronics', 'accessories',
-      'pharmacy', 'beauty', 'construction', 'automotive',
-      'pets', 'water_distributor', 'admin', 'operador'
+      'customer',
+      'events',
+      'food',
+      'dinning',
+      'clothes',
+      'retail',
+      'grocery',
+      'electronics',
+      'accessories',
+      'pharmacy',
+      'beauty',
+      'construction',
+      'automotive',
+      'pets',
+      'water_distributor',
+      'admin',
+      'operador',
     ],
     example: 'events',
   })

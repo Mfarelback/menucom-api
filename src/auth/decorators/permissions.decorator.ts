@@ -66,4 +66,5 @@ export const RequireContextPermissions = (
  * async changeMyRole() { ... }
  */
 export const DISABLE_PERMISSIONS_KEY = 'disable_permissions';
-export const DisablePermissions = () => SetMetadata(DISABLE_PERMISSIONS_KEY, true);
+export const DisablePermissions = () =>
+  SetMetadata(DISABLE_PERMISSIONS_KEY, true);

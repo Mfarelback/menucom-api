@@ -100,9 +100,11 @@ export class SubscriptionPlanService {
         features: PLAN_FEATURES[MembershipPlan.ENTERPRISE],
         limits: {
           maxCatalogs: PLAN_LIMITS[MembershipPlan.ENTERPRISE].maxCatalogs,
-          maxCatalogItems: PLAN_LIMITS[MembershipPlan.ENTERPRISE].maxCatalogItems,
+          maxCatalogItems:
+            PLAN_LIMITS[MembershipPlan.ENTERPRISE].maxCatalogItems,
           maxLocations: PLAN_LIMITS[MembershipPlan.ENTERPRISE].maxLocations,
-          analyticsRetention: PLAN_LIMITS[MembershipPlan.ENTERPRISE].analyticsRetention,
+          analyticsRetention:
+            PLAN_LIMITS[MembershipPlan.ENTERPRISE].analyticsRetention,
           maxUsers: PLAN_LIMITS[MembershipPlan.ENTERPRISE].maxUsers,
           maxApiCalls: PLAN_LIMITS[MembershipPlan.ENTERPRISE].maxApiCalls,
           storageLimit: PLAN_LIMITS[MembershipPlan.ENTERPRISE].storageLimit,
@@ -152,13 +154,20 @@ export class SubscriptionPlanService {
       );
     }
 
-    const { isActive, maxCatalogs, maxItems, isDefault, ...rest } = createPlanDto;
+    const { isActive, maxCatalogs, maxItems, isDefault, ...rest } =
+      createPlanDto;
 
     // Mapear los límites si no vienen en el formato objeto (compatibilidad con request aplanado)
     const limits = rest.limits || {
       ...PLAN_LIMITS[MembershipPlan.FREE],
-      maxCatalogs: (maxCatalogs !== undefined && maxCatalogs !== null) ? maxCatalogs : PLAN_LIMITS[MembershipPlan.FREE].maxCatalogs,
-      maxCatalogItems: (maxItems !== undefined && maxItems !== null) ? maxItems : PLAN_LIMITS[MembershipPlan.FREE].maxCatalogItems,
+      maxCatalogs:
+        maxCatalogs !== undefined && maxCatalogs !== null
+          ? maxCatalogs
+          : PLAN_LIMITS[MembershipPlan.FREE].maxCatalogs,
+      maxCatalogItems:
+        maxItems !== undefined && maxItems !== null
+          ? maxItems
+          : PLAN_LIMITS[MembershipPlan.FREE].maxCatalogItems,
     };
 
     const plan = this.subscriptionPlanRepository.create({
@@ -299,14 +308,16 @@ export class SubscriptionPlanService {
       );
     }
 
-    const { isActive, maxCatalogs, maxItems, limits, isDefault, ...rest } = updatePlanDto;
+    const { isActive, maxCatalogs, maxItems, limits, isDefault, ...rest } =
+      updatePlanDto;
 
     // Actualizar campos básicos
     Object.assign(plan, rest);
 
     // Mapear isActive a status
     if (isActive !== undefined && isActive !== null) {
-      plan.status = isActive === false ? PlanStatus.INACTIVE : PlanStatus.ACTIVE;
+      plan.status =
+        isActive === false ? PlanStatus.INACTIVE : PlanStatus.ACTIVE;
     }
 
     // Actualizar límites con soporte para formato aplanado

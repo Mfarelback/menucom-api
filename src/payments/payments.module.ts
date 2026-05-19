@@ -26,7 +26,13 @@ import { Membership } from 'src/membership/entities/membership.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([PaymentIntent, MercadoPagoAccount, MerchantConfig, User, Membership]),
+    TypeOrmModule.forFeature([
+      PaymentIntent,
+      MercadoPagoAccount,
+      MerchantConfig,
+      User,
+      Membership,
+    ]),
     forwardRef(() => OrdersModule),
     forwardRef(() => EventsModule),
     AppDataModule,

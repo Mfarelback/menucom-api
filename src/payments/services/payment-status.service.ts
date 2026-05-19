@@ -53,9 +53,12 @@ export class PaymentStatusService {
         `Actualizando PaymentIntent ${paymentIntentId}: ${mpPaymentStatus} → ${newStatus}`,
       );
 
-      const intent = await this.paymentIntentRepository.getPaymentById(paymentIntentId);
+      const intent =
+        await this.paymentIntentRepository.getPaymentById(paymentIntentId);
       if (intent && intent.state === newStatus) {
-        this.logger.debug(`PaymentIntent ${paymentIntentId} ya está en estado ${newStatus}. Saltando update.`);
+        this.logger.debug(
+          `PaymentIntent ${paymentIntentId} ya está en estado ${newStatus}. Saltando update.`,
+        );
         return intent;
       }
 

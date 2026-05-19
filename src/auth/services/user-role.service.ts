@@ -327,12 +327,12 @@ export class UserRoleService {
    * Cambia el rol legacy (rubro) del usuario y sincroniza con user_roles
    * Mapea categorías de negocio a roles del sistema
    *
-* Mapeo (sincronizado con frontend TypeComerceModel):
-    * - 'retail', 'water_distributor', 'grocery', 'food', 'clothes', 'accessories',
-    *   'electronics', 'pharmacy', 'beauty', 'construction', 'automotive', 'pets' -> 'owner'
-    * - 'customer' -> 'customer'
-    * - 'admin' -> 'admin'
-    */
+   * Mapeo (sincronizado con frontend TypeComerceModel):
+   * - 'retail', 'water_distributor', 'grocery', 'food', 'clothes', 'accessories',
+   *   'electronics', 'pharmacy', 'beauty', 'construction', 'automotive', 'pets' -> 'owner'
+   * - 'customer' -> 'customer'
+   * - 'admin' -> 'admin'
+   */
   async changeOwnRole(
     userId: string,
     newLegacyRole: string,
@@ -363,9 +363,10 @@ export class UserRoleService {
       businessContext = BusinessContext.GENERAL;
     } else if (ownerRoles.includes(newLegacyRole)) {
       systemRole = RoleType.OWNER;
-      businessContext = newLegacyRole === 'events'
-        ? BusinessContext.EVENTS
-        : BusinessContext.GENERAL;
+      businessContext =
+        newLegacyRole === 'events'
+          ? BusinessContext.EVENTS
+          : BusinessContext.GENERAL;
     } else {
       systemRole = RoleType.CUSTOMER;
       businessContext = BusinessContext.GENERAL;
@@ -418,11 +419,7 @@ export class UserRoleService {
    * Un organizador es un OWNER en el contexto EVENTS
    */
   async isEventOrganizer(userId: string): Promise<boolean> {
-    return await this.hasRole(
-      userId,
-      RoleType.OWNER,
-      BusinessContext.EVENTS,
-    );
+    return await this.hasRole(userId, RoleType.OWNER, BusinessContext.EVENTS);
   }
 
   /**
@@ -440,11 +437,7 @@ export class UserRoleService {
    * Identifica si un usuario es dueño de tienda (wardrobe)
    */
   async isWardrobeOwner(userId: string): Promise<boolean> {
-    return await this.hasRole(
-      userId,
-      RoleType.OWNER,
-      BusinessContext.WARDROBE,
-    );
+    return await this.hasRole(userId, RoleType.OWNER, BusinessContext.WARDROBE);
   }
 
   /**
@@ -466,20 +459,20 @@ export class UserRoleService {
     const roles = await this.getUserRoles(userId);
 
     // Buscar roles OWNER primero (son comerciantes)
-    const ownerRoles = roles.filter(r => r.role === RoleType.OWNER);
+    const ownerRoles = roles.filter((r) => r.role === RoleType.OWNER);
     if (ownerRoles.length > 0) {
       // Si tiene múltiples, devolver el primero o hacer lógica más compleja
       return ownerRoles[0].context;
     }
 
     // Si no es OWNER, verificar si es admin
-    const adminRole = roles.find(r => r.role === RoleType.ADMIN);
+    const adminRole = roles.find((r) => r.role === RoleType.ADMIN);
     if (adminRole) {
       return 'admin';
     }
 
     // Si no, es customer
-    const customerRole = roles.find(r => r.role === RoleType.CUSTOMER);
+    const customerRole = roles.find((r) => r.role === RoleType.CUSTOMER);
     if (customerRole) {
       return 'customer';
     }

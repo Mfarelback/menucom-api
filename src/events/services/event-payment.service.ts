@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { MercadopagoService } from '../../payments/services/mercado_pago.service';
 import { TicketsService } from './tickets.service';
 import { TicketTypeRepository } from '../repository/ticket-type.repository';
@@ -68,7 +73,7 @@ export class EventPaymentService {
 
     this.logger.log(
       `Fee resolved for tenant ${tenantId}: ${feeCalculation.feePercentage}% ` +
-      `(${feeCalculation.feeSource} - ${feeCalculation.feeDescription})`,
+        `(${feeCalculation.feeSource} - ${feeCalculation.feeDescription})`,
     );
 
     // 3. Crear la preferencia en MercadoPago
@@ -92,7 +97,9 @@ export class EventPaymentService {
         email: customerEmail,
         name: customerName,
       },
-      notification_url: process.env.MP_TICKET_NOTIFICATION_URL || process.env.MP_NOTIFICATION_URL,
+      notification_url:
+        process.env.MP_TICKET_NOTIFICATION_URL ||
+        process.env.MP_NOTIFICATION_URL,
       statement_descriptor: 'Menucom Tickets',
       // Metadata discriminador CRÍTICO para el webhook
       metadata: {
@@ -109,9 +116,10 @@ export class EventPaymentService {
 
     this.logger.log(
       `Creating ticket preference with fee: ${feeCalculation.feeAmount} ` +
-      `(${feeCalculation.feePercentage}%) - Net for organizer: ${feeCalculation.netAmount}`,
+        `(${feeCalculation.feePercentage}%) - Net for organizer: ${feeCalculation.netAmount}`,
     );
-    const preference = await this.mercadopagoService.createPreference(preferenceOptions);
+    const preference =
+      await this.mercadopagoService.createPreference(preferenceOptions);
 
     // 4. Actualizar el TicketPurchase con los datos del fee calculado
     savedPurchase.appliedFeePercentage = feeCalculation.feePercentage;
@@ -142,9 +150,13 @@ export class EventPaymentService {
   async confirmTicketPayment(purchaseId: string): Promise<void> {
     try {
       await this.ticketsService.completePurchase(purchaseId);
-      this.logger.log(`Pago de ticket confirmado para la compra: ${purchaseId}`);
+      this.logger.log(
+        `Pago de ticket confirmado para la compra: ${purchaseId}`,
+      );
     } catch (error) {
-      this.logger.error(`Error confirmando pago de ticket ${purchaseId}: ${error.message}`);
+      this.logger.error(
+        `Error confirmando pago de ticket ${purchaseId}: ${error.message}`,
+      );
       throw error;
     }
   }

@@ -35,12 +35,13 @@ export class TicketsWebhookController {
   /**
    * Webhook dedicado para notificaciones de MercadoPago relacionadas con tickets.
    * No requiere autenticación JWT - MercadoPago necesita acceso público.
-   * 
+   *
    * Procesa eventos de tipo 'order' para pagos de tickets.
    */
   @ApiOperation({
     summary: 'Webhook de MercadoPago para pagos de tickets (público)',
-    description: 'Recibe notificaciones de MercadoPago para pagos de tickets. Valida firma HMAC SHA256.',
+    description:
+      'Recibe notificaciones de MercadoPago para pagos de tickets. Valida firma HMAC SHA256.',
   })
   @ApiHeader({
     name: 'x-signature',
@@ -62,11 +63,15 @@ export class TicketsWebhookController {
     @Query('type') type: string,
     @Query('client') organizerId?: string,
   ): Promise<{ status: string; reason?: string }> {
-    this.logger.log(`[Tickets Webhook] Received: type=${type}, data.id=${dataId}`);
+    this.logger.log(
+      `[Tickets Webhook] Received: type=${type}, data.id=${dataId}`,
+    );
 
     // 1. Validar parámetros requeridos
     if (!dataId || !type) {
-      this.logger.error('[Tickets Webhook] Missing required query params: data.id or type');
+      this.logger.error(
+        '[Tickets Webhook] Missing required query params: data.id or type',
+      );
       throw new UnauthorizedException('Missing required parameters');
     }
 
@@ -88,19 +93,25 @@ export class TicketsWebhookController {
     // 4. Extraer external_reference del body
     const externalReference = body?.data?.external_reference;
     if (!externalReference) {
-      this.logger.error('[Tickets Webhook] Missing external_reference in payload');
+      this.logger.error(
+        '[Tickets Webhook] Missing external_reference in payload',
+      );
       return { status: 'error', reason: 'Missing external_reference' };
     }
 
     // 5. Verificar que sea un pago de tickets (discriminador)
     if (!externalReference.startsWith('TICKET_')) {
-      this.logger.log(`[Tickets Webhook] Not a ticket purchase: ${externalReference}`);
+      this.logger.log(
+        `[Tickets Webhook] Not a ticket purchase: ${externalReference}`,
+      );
       return { status: 'delegated', reason: 'Not a ticket purchase' };
     }
 
     // 6. Extraer purchaseId del external_reference
     const purchaseId = externalReference.replace('TICKET_', '');
-    this.logger.log(`[Tickets Webhook] Processing ticket purchase: ${purchaseId}`);
+    this.logger.log(
+      `[Tickets Webhook] Processing ticket purchase: ${purchaseId}`,
+    );
 
     // 7. Procesar según la acción
     const action = body?.action || 'order.processed';
@@ -120,7 +131,7 @@ export class TicketsWebhookController {
     dataId: string,
   ): boolean {
     const secret = process.env.MP_WEBHOOK_SECRET;
-    
+
     if (!secret) {
       this.logger.warn(
         'MP_WEBHOOK_SECRET no está configurado. Saltando validación de firma (NO RECOMENDADO en producción).',
@@ -152,7 +163,7 @@ export class TicketsWebhookController {
 
       // dataId debe estar en minúsculas según docs de MP
       const manifest = `id:${dataId.toLowerCase()};request-id:${xRequestId};ts:${ts};`;
-      
+
       const hmac = crypto.createHmac('sha256', secret);
       hmac.update(manifest);
       const sha = hmac.digest('hex');
@@ -177,7 +188,9 @@ export class TicketsWebhookController {
     purchaseId: string,
     orderData: any,
   ): Promise<void> {
-    this.logger.log(`[Tickets Webhook] Processing action: ${action} for purchase: ${purchaseId}`);
+    this.logger.log(
+      `[Tickets Webhook] Processing action: ${action} for purchase: ${purchaseId}`,
+    );
 
     // Verificar que la compra existe
     const purchase = await this.purchaseRepo.findOne({
@@ -216,12 +229,19 @@ export class TicketsWebhookController {
   /**
    * Maneja pago exitoso - genera tickets
    */
-  private async handleOrderProcessed(purchase: any, orderData: any): Promise<void> {
-    this.logger.log(`[Tickets Webhook] Payment processed for purchase: ${purchase.id}`);
+  private async handleOrderProcessed(
+    purchase: any,
+    orderData: any,
+  ): Promise<void> {
+    this.logger.log(
+      `[Tickets Webhook] Payment processed for purchase: ${purchase.id}`,
+    );
 
     // Solo procesar si está pendiente
     if (purchase.paymentStatus !== TicketPurchaseStatus.PENDING) {
-      this.logger.log(`[Tickets Webhook] Purchase ${purchase.id} already processed (status: ${purchase.paymentStatus})`);
+      this.logger.log(
+        `[Tickets Webhook] Purchase ${purchase.id} already processed (status: ${purchase.paymentStatus})`,
+      );
       return;
     }
 
@@ -249,10 +269,14 @@ export class TicketsWebhookController {
         .execute();
 
       await queryRunner.commitTransaction();
-      this.logger.log(`[Tickets Webhook] Tickets generated successfully for purchase: ${purchase.id}`);
+      this.logger.log(
+        `[Tickets Webhook] Tickets generated successfully for purchase: ${purchase.id}`,
+      );
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(`[Tickets Webhook] Error processing payment: ${error.message}`);
+      this.logger.error(
+        `[Tickets Webhook] Error processing payment: ${error.message}`,
+      );
       throw error;
     } finally {
       await queryRunner.release();
@@ -262,8 +286,13 @@ export class TicketsWebhookController {
   /**
    * Maneja reembolso - cancela tickets y libera inventario
    */
-  private async handleOrderRefunded(purchase: any, orderData: any): Promise<void> {
-    this.logger.log(`[Tickets Webhook] Refund received for purchase: ${purchase.id}`);
+  private async handleOrderRefunded(
+    purchase: any,
+    orderData: any,
+  ): Promise<void> {
+    this.logger.log(
+      `[Tickets Webhook] Refund received for purchase: ${purchase.id}`,
+    );
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -286,10 +315,14 @@ export class TicketsWebhookController {
       await this.releaseInventory(purchase, queryRunner);
 
       await queryRunner.commitTransaction();
-      this.logger.log(`[Tickets Webhook] Refund processed for purchase: ${purchase.id}`);
+      this.logger.log(
+        `[Tickets Webhook] Refund processed for purchase: ${purchase.id}`,
+      );
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(`[Tickets Webhook] Error processing refund: ${error.message}`);
+      this.logger.error(
+        `[Tickets Webhook] Error processing refund: ${error.message}`,
+      );
       throw error;
     } finally {
       await queryRunner.release();
@@ -299,8 +332,13 @@ export class TicketsWebhookController {
   /**
    * Maneja pago fallido o expirado
    */
-  private async handleOrderFailed(purchase: any, orderData: any): Promise<void> {
-    this.logger.log(`[Tickets Webhook] Payment failed/expired for purchase: ${purchase.id}`);
+  private async handleOrderFailed(
+    purchase: any,
+    orderData: any,
+  ): Promise<void> {
+    this.logger.log(
+      `[Tickets Webhook] Payment failed/expired for purchase: ${purchase.id}`,
+    );
 
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
@@ -323,10 +361,14 @@ export class TicketsWebhookController {
       await this.releaseInventory(purchase, queryRunner);
 
       await queryRunner.commitTransaction();
-      this.logger.log(`[Tickets Webhook] Failed payment processed for purchase: ${purchase.id}`);
+      this.logger.log(
+        `[Tickets Webhook] Failed payment processed for purchase: ${purchase.id}`,
+      );
     } catch (error) {
       await queryRunner.rollbackTransaction();
-      this.logger.error(`[Tickets Webhook] Error processing failed payment: ${error.message}`);
+      this.logger.error(
+        `[Tickets Webhook] Error processing failed payment: ${error.message}`,
+      );
       throw error;
     } finally {
       await queryRunner.release();
@@ -336,8 +378,13 @@ export class TicketsWebhookController {
   /**
    * Maneja orden cancelada
    */
-  private async handleOrderCancelled(purchase: any, orderData: any): Promise<void> {
-    this.logger.log(`[Tickets Webhook] Order cancelled for purchase: ${purchase.id}`);
+  private async handleOrderCancelled(
+    purchase: any,
+    orderData: any,
+  ): Promise<void> {
+    this.logger.log(
+      `[Tickets Webhook] Order cancelled for purchase: ${purchase.id}`,
+    );
     // Mismo tratamiento que failed
     await this.handleOrderFailed(purchase, orderData);
   }
@@ -345,9 +392,14 @@ export class TicketsWebhookController {
   /**
    * Libera el inventario de tickets reservados
    */
-  private async releaseInventory(purchase: any, queryRunner: any): Promise<void> {
+  private async releaseInventory(
+    purchase: any,
+    queryRunner: any,
+  ): Promise<void> {
     if (!purchase.ticketType) {
-      this.logger.warn(`[Tickets Webhook] No ticketType found for purchase: ${purchase.id}`);
+      this.logger.warn(
+        `[Tickets Webhook] No ticketType found for purchase: ${purchase.id}`,
+      );
       return;
     }
 
@@ -357,11 +409,16 @@ export class TicketsWebhookController {
 
     if (ticketType) {
       // Reducir la cantidad vendida
-      const newSoldQuantity = Math.max(0, Number(ticketType.soldQuantity) - purchase.quantity);
+      const newSoldQuantity = Math.max(
+        0,
+        Number(ticketType.soldQuantity) - purchase.quantity,
+      );
       ticketType.soldQuantity = newSoldQuantity;
       await queryRunner.manager.save(ticketType);
-      
-      this.logger.log(`[Tickets Webhook] Inventory released: ${purchase.quantity} tickets for type: ${ticketType.id}`);
+
+      this.logger.log(
+        `[Tickets Webhook] Inventory released: ${purchase.quantity} tickets for type: ${ticketType.id}`,
+      );
     }
   }
 }

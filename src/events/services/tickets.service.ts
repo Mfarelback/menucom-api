@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { TicketRepository } from '../repository/ticket.repository';
 import { TicketTypeRepository } from '../repository/ticket-type.repository';
@@ -49,18 +53,21 @@ export class TicketsService {
       }
 
       // 1. Crear el registro de la compra PENDING
-      const purchase = this.purchaseRepo.create({
-        tenantId: tenantId || 'system',
-        totalAmount: Number(ticketType.price) * quantity,
-        quantity,
-        paymentStatus: TicketPurchaseStatus.PENDING,
-        event: ticketType.event,
-        ticketType,
-        appliedFeePercentage: 0,
-        feeAmount: 0,
-        customerName,
-        customerEmail,
-      }, manager);
+      const purchase = this.purchaseRepo.create(
+        {
+          tenantId: tenantId || 'system',
+          totalAmount: Number(ticketType.price) * quantity,
+          quantity,
+          paymentStatus: TicketPurchaseStatus.PENDING,
+          event: ticketType.event,
+          ticketType,
+          appliedFeePercentage: 0,
+          feeAmount: 0,
+          customerName,
+          customerEmail,
+        },
+        manager,
+      );
 
       const savedPurchase = await this.purchaseRepo.save(purchase, manager);
 
@@ -74,10 +81,13 @@ export class TicketsService {
 
   async completePurchase(purchaseId: string): Promise<any> {
     return await this.dataSource.transaction(async (manager) => {
-      const purchase = await this.purchaseRepo.findOne({
-        where: { id: purchaseId },
-        relations: ['event', 'ticketType', 'tickets'],
-      }, manager);
+      const purchase = await this.purchaseRepo.findOne(
+        {
+          where: { id: purchaseId },
+          relations: ['event', 'ticketType', 'tickets'],
+        },
+        manager,
+      );
 
       if (!purchase) {
         throw new NotFoundException('Compra no encontrada');
@@ -106,9 +116,9 @@ export class TicketsService {
           },
           manager,
         );
-        
+
         const savedTicket = await this.ticketRepo.save(tempTicket, manager);
-        
+
         // Generar QR seguro con el ID real del ticket
         const qrCode = this.qrService.generateSecureQR({
           ticketId: savedTicket.id,
@@ -116,11 +126,11 @@ export class TicketsService {
           ticketTypeId: purchase.ticketType.id,
           eventId: purchase.event.id,
         });
-        
+
         // Actualizar el ticket con el QR seguro
         savedTicket.qrCode = qrCode;
         await this.ticketRepo.save(savedTicket, manager);
-        
+
         tickets.push(savedTicket);
       }
 
@@ -170,27 +180,35 @@ export class TicketsService {
     // Buscar el ticket por ID extraído del QR
     const ticket = await this.ticketRepo.findOne({
       where: { id: qrData.ticketId },
-      relations: ['ticketType', 'ticketType.event', 'ticketType.event.venue', 'purchase'],
+      relations: [
+        'ticketType',
+        'ticketType.event',
+        'ticketType.event.venue',
+        'purchase',
+      ],
     });
-    
+
     if (!ticket) throw new NotFoundException('Ticket no encontrado');
-    
+
     // Verificar que el QR coincida con el almacenado
     if (ticket.qrCode !== qrCode) {
       throw new BadRequestException('Código QR no coincide con el ticket');
     }
-    
+
     return ticket;
   }
 
   /**
    * Valida un ticket por su código QR (usado en escáner offline/online)
-   * 
+   *
    * @param qrCode Código QR seguro
    * @param validatorId ID del usuario que valida
    * @returns Ticket validado
    */
-  async validateByQRCode(qrCode: string, validatorId?: string): Promise<Ticket> {
+  async validateByQRCode(
+    qrCode: string,
+    validatorId?: string,
+  ): Promise<Ticket> {
     const ticket = await this.findByCode(qrCode);
     return this.validateAndUseTicket(ticket, validatorId);
   }
@@ -198,13 +216,18 @@ export class TicketsService {
   /**
    * Método interno para validar y marcar como usado un ticket
    */
-  private async validateAndUseTicket(ticket: Ticket, validatorId?: string): Promise<Ticket> {
+  private async validateAndUseTicket(
+    ticket: Ticket,
+    validatorId?: string,
+  ): Promise<Ticket> {
     if (ticket.status === TicketStatus.USED) {
       throw new BadRequestException('El ticket ya ha sido utilizado');
     }
 
     if (ticket.status !== TicketStatus.ACTIVE) {
-      throw new BadRequestException(`El ticket no está activo (Estado: ${ticket.status})`);
+      throw new BadRequestException(
+        `El ticket no está activo (Estado: ${ticket.status})`,
+      );
     }
 
     ticket.status = TicketStatus.USED;
@@ -217,7 +240,7 @@ export class TicketsService {
     }
 
     const savedTicket = await this.ticketRepo.save(ticket);
-    
+
     this.logger.log(
       `Ticket ${ticket.id} validado${validatorId ? ` por usuario ${validatorId}` : ''}`,
     );
@@ -226,9 +249,9 @@ export class TicketsService {
   }
 
   async activateTicket(id: string): Promise<Ticket> {
-    const ticket = await this.ticketRepo.findOne({ 
+    const ticket = await this.ticketRepo.findOne({
       where: { id },
-      relations: ['ticketType', 'ticketType.event', 'ticketType.event.venue']
+      relations: ['ticketType', 'ticketType.event', 'ticketType.event.venue'],
     });
     if (!ticket) throw new NotFoundException('Ticket not found');
     ticket.status = TicketStatus.ACTIVE;
@@ -244,15 +267,20 @@ export class TicketsService {
     if (code.length > 50 && (code.includes('-') || code.includes('_'))) {
       return this.validateByQRCode(code, validatorId);
     }
-    
+
     // Código antiguo (hex de 32 chars) - buscar directo
     const ticket = await this.ticketRepo.findOne({
       where: { qrCode: code },
-      relations: ['ticketType', 'ticketType.event', 'ticketType.event.venue', 'purchase'],
+      relations: [
+        'ticketType',
+        'ticketType.event',
+        'ticketType.event.venue',
+        'purchase',
+      ],
     });
-    
+
     if (!ticket) throw new NotFoundException('Ticket no encontrado');
-    
+
     return this.validateAndUseTicket(ticket, validatorId);
   }
 
@@ -323,9 +351,9 @@ export class TicketsService {
     });
 
     ticket.qrCode = newQRCode;
-    
+
     this.logger.log(`QR regenerado para ticket: ${ticketId}`);
-    
+
     return this.ticketRepo.save(ticket);
   }
 }

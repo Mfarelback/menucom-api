@@ -9,12 +9,26 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import { Membership, BillingMode } from '../entities/membership.entity';
-import { SubscriptionPayment, PaymentStatus, PaymentType } from '../entities/subscription-payment.entity';
-import { SubscriptionPlan, PlanStatus, PlanType } from '../entities/subscription-plan.entity';
-import { MembershipAudit, MembershipAuditAction } from '../entities/membership-audit.entity';
+import {
+  SubscriptionPayment,
+  PaymentStatus,
+  PaymentType,
+} from '../entities/subscription-payment.entity';
+import {
+  SubscriptionPlan,
+  PlanStatus,
+  PlanType,
+} from '../entities/subscription-plan.entity';
+import {
+  MembershipAudit,
+  MembershipAuditAction,
+} from '../entities/membership-audit.entity';
 import { MercadoPagoService } from '../payment/mercado-pago.service';
 import { MercadoPagoSubscriptionService } from '../payment/mercado-pago-subscription.service';
-import { MembershipPlan, MembershipFeature } from '../enums/membership-plan.enum';
+import {
+  MembershipPlan,
+  MembershipFeature,
+} from '../enums/membership-plan.enum';
 import {
   GeneratePaymentLinkDto,
   GeneratePaymentLinkResponseDto,
@@ -48,7 +62,8 @@ export class BillingAdminService {
     private readonly configService: ConfigService,
   ) {
     this.appUrl = this.configService.get('APP_URL') || 'http://localhost:3000';
-    this.frontendUrl = this.configService.get('FRONTEND_URL') || 'http://localhost:5173';
+    this.frontendUrl =
+      this.configService.get('FRONTEND_URL') || 'http://localhost:5173';
   }
 
   async generatePaymentLink(
@@ -61,7 +76,9 @@ export class BillingAdminService {
     });
 
     if (!membership) {
-      throw new NotFoundException(`Membership for user ${dto.userId} not found`);
+      throw new NotFoundException(
+        `Membership for user ${dto.userId} not found`,
+      );
     }
 
     const user = membership.user;
@@ -88,7 +105,9 @@ export class BillingAdminService {
 
     membership.pendingPaymentId = payment.paymentId;
     membership.pendingPaymentLink = payment.paymentUrl;
-    membership.pendingPaymentExpiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    membership.pendingPaymentExpiresAt = new Date(
+      Date.now() + 30 * 24 * 60 * 60 * 1000,
+    );
     membership.billingMode = BillingMode.MANUAL;
     membership.adminSetPrice = dto.amount;
     membership.paidPeriodMonths = periodMonths;
@@ -142,7 +161,9 @@ export class BillingAdminService {
     });
 
     if (!membership) {
-      throw new NotFoundException(`Membership for user ${dto.userId} not found`);
+      throw new NotFoundException(
+        `Membership for user ${dto.userId} not found`,
+      );
     }
 
     if (membership.mpPreapprovalId) {
@@ -151,7 +172,10 @@ export class BillingAdminService {
 
     const user = membership.user;
     const plan = await this.planRepo.findOne({ where: { name: dto.plan } });
-    const amount = dto.amount || plan?.price || this.mpSubscriptionService.getPlanPrice(dto.plan);
+    const amount =
+      dto.amount ||
+      plan?.price ||
+      this.mpSubscriptionService.getPlanPrice(dto.plan);
 
     const preapproval = await this.mpSubscriptionService.createPreapproval({
       userId: membership.userId,
@@ -228,8 +252,13 @@ export class BillingAdminService {
       throw new NotFoundException(`Membership ${membershipId} not found`);
     }
 
-    if (membership.billingMode !== BillingMode.AUTO || !membership.mpPreapprovalId) {
-      throw new BadRequestException('Can only change amount for active auto-billing subscriptions');
+    if (
+      membership.billingMode !== BillingMode.AUTO ||
+      !membership.mpPreapprovalId
+    ) {
+      throw new BadRequestException(
+        'Can only change amount for active auto-billing subscriptions',
+      );
     }
 
     const previousAmount = Number(membership.amount);
@@ -287,7 +316,9 @@ export class BillingAdminService {
     }
 
     if (membership.mpPreapprovalId) {
-      throw new ConflictException('Membership already has an active subscription');
+      throw new ConflictException(
+        'Membership already has an active subscription',
+      );
     }
 
     const user = (membership as any).user;
@@ -295,7 +326,10 @@ export class BillingAdminService {
       throw new NotFoundException('User not found');
     }
 
-    const amount = dto.amount || Number(membership.adminSetPrice) || Number(membership.amount);
+    const amount =
+      dto.amount ||
+      Number(membership.adminSetPrice) ||
+      Number(membership.amount);
 
     const preapproval = await this.mpSubscriptionService.createPreapproval({
       userId: membership.userId,
@@ -364,7 +398,9 @@ export class BillingAdminService {
     const previousBillingMode = membership.billingMode;
 
     if (membership.mpPreapprovalId) {
-      await this.mpSubscriptionService.cancelSubscription(membership.mpPreapprovalId);
+      await this.mpSubscriptionService.cancelSubscription(
+        membership.mpPreapprovalId,
+      );
     }
 
     membership.mpPreapprovalId = null;
@@ -398,7 +434,9 @@ export class BillingAdminService {
     };
   }
 
-  async getBillingDetails(membershipId: string): Promise<BillingDetailsResponseDto> {
+  async getBillingDetails(
+    membershipId: string,
+  ): Promise<BillingDetailsResponseDto> {
     const membership = await this.membershipRepo.findOne({
       where: { id: membershipId },
     });
@@ -408,7 +446,9 @@ export class BillingAdminService {
     }
 
     const plan = membership.subscriptionPlanId
-      ? await this.planRepo.findOne({ where: { id: membership.subscriptionPlanId } })
+      ? await this.planRepo.findOne({
+          where: { id: membership.subscriptionPlanId },
+        })
       : await this.planRepo.findOne({ where: { name: membership.plan } });
 
     const payments = await this.paymentRepo.find({
@@ -417,17 +457,22 @@ export class BillingAdminService {
       take: 20,
     });
 
-    const paymentHistory: SubscriptionPaymentSummaryDto[] = payments.map((p) => ({
-      id: p.id,
-      date: p.paidAt || p.createdAt,
-      amount: Number(p.amount),
-      status: p.status,
-      type: p.type,
-      periodMonths: p.periodMonths,
-      isAdminGenerated: p.isAdminGenerated,
-    }));
+    const paymentHistory: SubscriptionPaymentSummaryDto[] = payments.map(
+      (p) => ({
+        id: p.id,
+        date: p.paidAt || p.createdAt,
+        amount: Number(p.amount),
+        status: p.status,
+        type: p.type,
+        periodMonths: p.periodMonths,
+        isAdminGenerated: p.isAdminGenerated,
+      }),
+    );
 
-    const effectivePrice = membership.adminSetPrice || Number(membership.amount) || (plan ? Number(plan.price) : 0);
+    const effectivePrice =
+      membership.adminSetPrice ||
+      Number(membership.amount) ||
+      (plan ? Number(plan.price) : 0);
 
     return {
       membershipId: membership.id,
@@ -456,7 +501,10 @@ export class BillingAdminService {
     };
   }
 
-  async pauseSubscription(membershipId: string, adminId: string): Promise<Membership> {
+  async pauseSubscription(
+    membershipId: string,
+    adminId: string,
+  ): Promise<Membership> {
     const membership = await this.membershipRepo.findOne({
       where: { id: membershipId },
     });
@@ -469,7 +517,9 @@ export class BillingAdminService {
       throw new BadRequestException('No active subscription to pause');
     }
 
-    await this.mpSubscriptionService.pauseSubscription(membership.mpPreapprovalId);
+    await this.mpSubscriptionService.pauseSubscription(
+      membership.mpPreapprovalId,
+    );
 
     membership.subscriptionStatus = 'paused';
     await this.membershipRepo.save(membership);
@@ -489,7 +539,10 @@ export class BillingAdminService {
     return membership;
   }
 
-  async resumeSubscription(membershipId: string, adminId: string): Promise<Membership> {
+  async resumeSubscription(
+    membershipId: string,
+    adminId: string,
+  ): Promise<Membership> {
     const membership = await this.membershipRepo.findOne({
       where: { id: membershipId },
     });
@@ -502,7 +555,9 @@ export class BillingAdminService {
       throw new BadRequestException('No paused subscription to resume');
     }
 
-    await this.mpSubscriptionService.resumeSubscription(membership.mpPreapprovalId);
+    await this.mpSubscriptionService.resumeSubscription(
+      membership.mpPreapprovalId,
+    );
 
     membership.subscriptionStatus = 'authorized';
     await this.membershipRepo.save(membership);

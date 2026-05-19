@@ -67,8 +67,8 @@ export class PermissionsGuard implements CanActivate {
     if (!user || !user.userId) {
       this.logger.warn(
         `Acceso denegado: Usuario no presente en el request o sin userId. ` +
-        `User object: ${JSON.stringify(user || 'null')}`,
-        'PermissionsGuard'
+          `User object: ${JSON.stringify(user || 'null')}`,
+        'PermissionsGuard',
       );
       throw new ForbiddenException('Usuario no autenticado');
     }

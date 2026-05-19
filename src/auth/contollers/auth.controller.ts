@@ -208,7 +208,8 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Refrescar el token JWT',
-    description: 'Genera un nuevo access_token basado en el token actual válido.',
+    description:
+      'Genera un nuevo access_token basado en el token actual válido.',
   })
   @ApiResponse({
     status: 201,

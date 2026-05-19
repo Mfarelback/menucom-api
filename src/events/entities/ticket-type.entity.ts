@@ -15,7 +15,7 @@ export class TicketType {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @ManyToOne(() => Event, (event) => event.ticketTypes)
+  @ManyToOne(() => Event, (event) => event.ticketTypes, { onDelete: 'CASCADE' })
   event: Event;
 
   @Column()

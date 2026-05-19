@@ -1,4 +1,9 @@
-import { Injectable, ConflictException, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere } from 'typeorm';
 import { Catalog } from '../entities/catalog.entity';
@@ -42,7 +47,10 @@ export class CatalogService {
     createCatalogDto: CreateCatalogDto,
   ): Promise<Catalog> {
     try {
-      await this.resourceLimitService.validateResourceCreation(ownerId, 'catalog');
+      await this.resourceLimitService.validateResourceCreation(
+        ownerId,
+        'catalog',
+      );
 
       // Generar slug si no se proporciona
       const slug =

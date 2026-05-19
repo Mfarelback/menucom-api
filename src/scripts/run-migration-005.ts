@@ -21,7 +21,11 @@ async function run() {
     await client.connect();
     console.log('Connected to database');
 
-    const migrationPath = path.join(__dirname, 'migrations', '005_add_merchant_config_and_net_amount.sql');
+    const migrationPath = path.join(
+      __dirname,
+      'migrations',
+      '005_add_merchant_config_and_net_amount.sql',
+    );
     if (!fs.existsSync(migrationPath)) {
       console.error(`Migration file not found: ${migrationPath}`);
       process.exit(1);
@@ -29,7 +33,9 @@ async function run() {
 
     const sql = fs.readFileSync(migrationPath, 'utf8');
 
-    console.log('Executing migration 005: Add Merchant Config and Net Amount...');
+    console.log(
+      'Executing migration 005: Add Merchant Config and Net Amount...',
+    );
     await client.query(sql);
     console.log('Migration 005 completed successfully');
     console.log('');

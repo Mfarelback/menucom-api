@@ -1,6 +1,4 @@
-import {
-  MembershipFeature,
-} from '../enums/membership-plan.enum';
+import { MembershipFeature } from '../enums/membership-plan.enum';
 
 export class MembershipResponseDto {
   id: string;

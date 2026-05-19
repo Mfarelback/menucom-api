@@ -30,8 +30,6 @@ export class EventRepository {
     return repo.create(data) as any;
   }
 
-
-
   merge(event: Event, data: any, manager?: EntityManager): Event {
     const repo = manager ? manager.getRepository(Event) : this.repository;
     return repo.merge(event, data);
@@ -42,4 +40,3 @@ export class EventRepository {
     return repo.remove(event);
   }
 }
-

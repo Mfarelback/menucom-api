@@ -16,12 +16,21 @@ import {
   ApiResponse,
 } from '@nestjs/swagger';
 import { TicketsService } from '../services/tickets.service';
-import { TicketValidationService, OfflineValidationResult } from '../services/ticket-validation.service';
+import {
+  TicketValidationService,
+  OfflineValidationResult,
+} from '../services/ticket-validation.service';
 import { QRCodeSecureService } from '../services/qrcode-secure.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
-import { RequirePermissions, InBusinessContext } from '../../auth/decorators/permissions.decorator';
-import { Permission, BusinessContext } from '../../auth/models/permissions.model';
+import {
+  RequirePermissions,
+  InBusinessContext,
+} from '../../auth/decorators/permissions.decorator';
+import {
+  Permission,
+  BusinessContext,
+} from '../../auth/models/permissions.model';
 import { Ticket } from '../entities/ticket.entity';
 
 /**
@@ -62,12 +71,12 @@ interface OnlineValidationResponse {
 
 /**
  * Controlador para validación de tickets
- * 
+ *
  * Provee endpoints para:
  * - Validación online (con verificación en base de datos)
  * - Validación offline (mediante JWT, sin conexión a DB)
  * - Regeneración de códigos QR
- * 
+ *
  * @security JWT - Requiere autenticación
  * @roles EVENT_ORGANIZER, ADMIN, OPERATOR
  */
@@ -82,10 +91,10 @@ export class TicketValidationController {
 
   /**
    * Valida un ticket mediante su código QR
-   * 
+   *
    * Modo online (default): Verifica en base de datos el estado actual del ticket
    * Modo offline: Valida la firma JWT sin consultar base de datos
-   * 
+   *
    * @param dto Datos de validación
    * @param req Request con usuario autenticado
    * @returns Resultado de la validación
@@ -139,7 +148,7 @@ Valida un ticket escaneado mediante su código QR.
 
   /**
    * Valida un token JWT offline directamente
-   * 
+   *
    * Endpoint público (sin auth) para validación en zonas sin conectividad.
    * La app del organizador puede usar este endpoint localmente.
    */
@@ -167,7 +176,7 @@ no puede ser falsificado sin la clave secreta.
 
   /**
    * Obtiene datos completos de un ticket incluyendo QRs
-   * 
+   *
    * Útil para mostrar el ticket al comprador con todos los formatos de QR.
    */
   @Get(':id/qr-data')
@@ -217,7 +226,7 @@ El comprador puede usar cualquiera de estos formatos para ingresar al evento.
 
   /**
    * Regenera el código QR de un ticket
-   * 
+   *
    * Útil si el QR original se perdió o se considera comprometido.
    * Requiere permisos de organizador o admin.
    */
@@ -255,7 +264,7 @@ Genera un nuevo código QR seguro para el ticket.
 
   /**
    * Verifica la validez de un QR sin marcarlo como usado
-   * 
+   *
    * Útil para pre-validación o verificación de estado.
    */
   @Post('check')
@@ -275,9 +284,7 @@ Verifica si un ticket es válido sin consumirlo.
     `,
   })
   @HttpCode(HttpStatus.OK)
-  async checkTicket(
-    @Body() dto: { qrCode: string },
-  ): Promise<{
+  async checkTicket(@Body() dto: { qrCode: string }): Promise<{
     valid: boolean;
     status: string;
     eventName: string;
@@ -315,7 +322,10 @@ Verifica si un ticket es válido sin consumirlo.
     validatorId?: string,
   ): Promise<OnlineValidationResponse> {
     try {
-      const ticket = await this.ticketsService.validateByQRCode(qrCode, validatorId);
+      const ticket = await this.ticketsService.validateByQRCode(
+        qrCode,
+        validatorId,
+      );
 
       return {
         valid: true,

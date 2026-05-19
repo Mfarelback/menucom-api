@@ -163,17 +163,27 @@ export class UserService {
   }
 
   async queryAdmin(query: QueryUsersAdminDto) {
-    const { page = 1, limit = 20, search, plan, createdAfter, createdBefore, withActiveMembership, withVinculedAccount, sortBy = 'createdAt', sortOrder = 'DESC' } = query;
+    const {
+      page = 1,
+      limit = 20,
+      search,
+      plan,
+      createdAfter,
+      createdBefore,
+      withActiveMembership,
+      withVinculedAccount,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+    } = query;
 
     const qb = this.userRepo
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.membership', 'membership');
 
     if (search) {
-      qb.andWhere(
-        '(user.name ILIKE :search OR user.email ILIKE :search)',
-        { search: `%${search}%` }
-      );
+      qb.andWhere('(user.name ILIKE :search OR user.email ILIKE :search)', {
+        search: `%${search}%`,
+      });
     }
 
     if (plan) {
@@ -181,11 +191,15 @@ export class UserService {
     }
 
     if (createdAfter) {
-      qb.andWhere('user.createdAt >= :createdAfter', { createdAfter: new Date(createdAfter) });
+      qb.andWhere('user.createdAt >= :createdAfter', {
+        createdAfter: new Date(createdAfter),
+      });
     }
 
     if (createdBefore) {
-      qb.andWhere('user.createdAt <= :createdBefore', { createdBefore: new Date(createdBefore) });
+      qb.andWhere('user.createdAt <= :createdBefore', {
+        createdBefore: new Date(createdBefore),
+      });
     }
 
     if (withActiveMembership) {
@@ -194,13 +208,13 @@ export class UserService {
 
     if (withVinculedAccount) {
       qb.andWhere(
-        '(membership.paymentId IS NOT NULL OR membership.subscriptionId IS NOT NULL OR membership.mpPreapprovalId IS NOT NULL)'
+        '(membership.paymentId IS NOT NULL OR membership.subscriptionId IS NOT NULL OR membership.mpPreapprovalId IS NOT NULL)',
       );
     }
 
     const validSortFields = ['createdAt', 'name', 'email', 'plan'];
     const sortField = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
-    
+
     if (sortField === 'plan') {
       qb.orderBy('membership.plan', sortOrder);
     } else {
@@ -215,7 +229,7 @@ export class UserService {
 
     const users = await qb.getMany();
 
-    const data = users.map(user => {
+    const data = users.map((user) => {
       const { password, ...userWithoutPassword } = user;
       return this.urlTransformService.transformDataUrls(userWithoutPassword);
     });
@@ -233,7 +247,11 @@ export class UserService {
     };
   }
 
-  async countAdmin(filters: { plan?: string; withActiveMembership?: boolean; withVinculedAccount?: boolean }) {
+  async countAdmin(filters: {
+    plan?: string;
+    withActiveMembership?: boolean;
+    withVinculedAccount?: boolean;
+  }) {
     const qb = this.userRepo
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.membership', 'membership');

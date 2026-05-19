@@ -22,7 +22,10 @@ export class PlanLimitsDto {
   @Min(-1) // -1 significa ilimitado
   maxCatalogs: number;
 
-  @ApiProperty({ description: 'Número máximo de productos por catálogo', example: 10 })
+  @ApiProperty({
+    description: 'Número máximo de productos por catálogo',
+    example: 10,
+  })
   @IsNumber()
   @Min(-1)
   maxCatalogItems: number;
@@ -38,12 +41,18 @@ export class PlanLimitsDto {
   @Max(3650) // Máximo 10 años
   analyticsRetention: number;
 
-  @ApiProperty({ description: 'Número máximo de usuarios administradores', example: 1 })
+  @ApiProperty({
+    description: 'Número máximo de usuarios administradores',
+    example: 1,
+  })
   @IsNumber()
   @Min(-1)
   maxUsers: number;
 
-  @ApiProperty({ description: 'Número máximo de llamadas a la API por mes', example: 100 })
+  @ApiProperty({
+    description: 'Número máximo de llamadas a la API por mes',
+    example: 100,
+  })
   @IsNumber()
   @Min(-1)
   maxApiCalls: number;
@@ -55,11 +64,17 @@ export class PlanLimitsDto {
 }
 
 export class PlanTrialDto {
-  @ApiProperty({ description: 'Si el periodo de prueba está habilitado', example: true })
+  @ApiProperty({
+    description: 'Si el periodo de prueba está habilitado',
+    example: true,
+  })
   @IsBoolean()
   enabled: boolean;
 
-  @ApiProperty({ description: 'Días de duración del periodo de prueba', example: 14 })
+  @ApiProperty({
+    description: 'Días de duración del periodo de prueba',
+    example: 14,
+  })
   @IsNumber()
   @Min(1)
   @Max(365)
@@ -67,39 +82,60 @@ export class PlanTrialDto {
 }
 
 export class PlanCustomizationsDto {
-  @ApiPropertyOptional({ description: 'Permitir personalización de marca', example: false })
+  @ApiPropertyOptional({
+    description: 'Permitir personalización de marca',
+    example: false,
+  })
   @IsOptional()
   @IsBoolean()
   branding?: boolean;
 
-  @ApiPropertyOptional({ description: 'Permitir marca blanca (white label)', example: false })
+  @ApiPropertyOptional({
+    description: 'Permitir marca blanca (white label)',
+    example: false,
+  })
   @IsOptional()
   @IsBoolean()
   whiteLabel?: boolean;
 
-  @ApiPropertyOptional({ description: 'Permitir dominio personalizado', example: false })
+  @ApiPropertyOptional({
+    description: 'Permitir dominio personalizado',
+    example: false,
+  })
   @IsOptional()
   @IsBoolean()
   customDomain?: boolean;
 
-  @ApiPropertyOptional({ description: 'Acceso a soporte prioritario', example: false })
+  @ApiPropertyOptional({
+    description: 'Acceso a soporte prioritario',
+    example: false,
+  })
   @IsOptional()
   @IsBoolean()
   prioritySupport?: boolean;
 }
 
 export class PlanMetadataDto {
-  @ApiPropertyOptional({ description: 'Color representativo del plan (Hex)', example: '#6B7280' })
+  @ApiPropertyOptional({
+    description: 'Color representativo del plan (Hex)',
+    example: '#6B7280',
+  })
   @IsOptional()
   @IsString()
   color?: string;
 
-  @ApiPropertyOptional({ description: 'Icono representativo del plan', example: 'free' })
+  @ApiPropertyOptional({
+    description: 'Icono representativo del plan',
+    example: 'free',
+  })
   @IsOptional()
   @IsString()
   icon?: string;
 
-  @ApiPropertyOptional({ description: 'Si es un plan popular/destacado', example: false })
+  @ApiPropertyOptional({
+    description: 'Si es un plan popular/destacado',
+    example: false,
+  })
   @IsOptional()
   @IsBoolean()
   popular?: boolean;
@@ -122,12 +158,18 @@ export class CreateSubscriptionPlanDto {
   @IsString()
   name: string;
 
-  @ApiPropertyOptional({ description: 'Nombre a mostrar al público', example: 'Plan Básico' })
+  @ApiPropertyOptional({
+    description: 'Nombre a mostrar al público',
+    example: 'Plan Básico',
+  })
   @IsOptional()
   @IsString()
   displayName?: string;
 
-  @ApiPropertyOptional({ description: 'Descripción detallada del plan', example: 'Ideal para pequeños negocios' })
+  @ApiPropertyOptional({
+    description: 'Descripción detallada del plan',
+    example: 'Ideal para pequeños negocios',
+  })
   @IsOptional()
   @IsString()
   description?: string;
@@ -142,12 +184,20 @@ export class CreateSubscriptionPlanDto {
   @Min(0)
   price: number;
 
-  @ApiPropertyOptional({ description: 'Moneda del precio', example: 'ARS', default: 'ARS' })
+  @ApiPropertyOptional({
+    description: 'Moneda del precio',
+    example: 'ARS',
+    default: 'ARS',
+  })
   @IsOptional()
   @IsString()
   currency?: string = 'ARS';
 
-  @ApiPropertyOptional({ description: 'Ciclo de facturación', example: 'monthly', default: 'monthly' })
+  @ApiPropertyOptional({
+    description: 'Ciclo de facturación',
+    example: 'monthly',
+    default: 'monthly',
+  })
   @IsOptional()
   @IsString()
   billingCycle?: string = 'monthly';
@@ -171,22 +221,34 @@ export class CreateSubscriptionPlanDto {
   metadata?: PlanMetadataDto;
 
   // Campos de compatibilidad (opcionales)
-  @ApiPropertyOptional({ description: 'Número máximo de productos (compatibilidad)', example: 10 })
+  @ApiPropertyOptional({
+    description: 'Número máximo de productos (compatibilidad)',
+    example: 10,
+  })
   @IsOptional()
   @IsNumber()
   maxItems?: number;
 
-  @ApiPropertyOptional({ description: 'Número máximo de catálogos (compatibilidad)', example: 1 })
+  @ApiPropertyOptional({
+    description: 'Número máximo de catálogos (compatibilidad)',
+    example: 1,
+  })
   @IsOptional()
   @IsNumber()
   maxCatalogs?: number;
 
-  @ApiPropertyOptional({ description: 'Si el plan está activo (compatibilidad)', example: true })
+  @ApiPropertyOptional({
+    description: 'Si el plan está activo (compatibilidad)',
+    example: true,
+  })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
 
-  @ApiPropertyOptional({ description: 'Si es el plan predeterminado para nuevos registros', example: false })
+  @ApiPropertyOptional({
+    description: 'Si es el plan predeterminado para nuevos registros',
+    example: false,
+  })
   @IsOptional()
   @IsBoolean()
   isDefault?: boolean;

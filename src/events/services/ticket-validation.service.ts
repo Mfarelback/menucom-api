@@ -53,22 +53,22 @@ export interface OfflineValidationResult {
 
 /**
  * Servicio para validación offline de tickets mediante JWT
- * 
+ *
  * Este servicio permite:
  * 1. Generar JWTs firmados para validación sin conexión
  * 2. Validar JWTs de tickets sin necesidad de base de datos
  * 3. Verificar autenticidad mediante firma criptográfica
- * 
+ *
  * Ideal para:
  * - Validación en eventos con mala conectividad
  * - Apps móviles de validación
  * - Escáneres portátiles sin WiFi
- * 
+ *
  * @example
  * ```typescript
  * // Generar token offline
  * const jwt = await this.validationService.generateOfflineValidationToken(ticket);
- * 
+ *
  * // Validar token (sin DB)
  * const result = await this.validationService.validateOfflineToken(jwt);
  * if (result.valid) {
@@ -79,7 +79,7 @@ export interface OfflineValidationResult {
 @Injectable()
 export class TicketValidationService {
   private readonly logger = new Logger(TicketValidationService.name);
-  
+
   // Tiempo de validez del token offline (7 días)
   private readonly offlineTokenExpiryDays = 7;
 
@@ -90,10 +90,10 @@ export class TicketValidationService {
 
   /**
    * Genera un token JWT para validación offline
-   * 
+   *
    * Este token contiene toda la información necesaria para validar
    * un ticket sin acceso a la base de datos.
-   * 
+   *
    * @param ticketData Datos completos del ticket
    * @returns Token JWT firmado
    */
@@ -126,7 +126,7 @@ export class TicketValidationService {
     };
 
     const token = this.jwtService.sign(payload);
-    
+
     this.logger.debug(
       `Generated offline validation token for ticket: ${ticketData.ticketId}`,
     );
@@ -136,12 +136,12 @@ export class TicketValidationService {
 
   /**
    * Valida un token JWT de ticket offline
-   * 
+   *
    * No requiere conexión a base de datos. Solo verifica:
    * - Firma criptográfica del JWT
    * - Fecha de expiración
    * - Formato del payload
-   * 
+   *
    * @param token Token JWT a validar
    * @returns Resultado de la validación con datos del ticket
    */
@@ -212,18 +212,20 @@ export class TicketValidationService {
    * Genera un código QR híbrido que contiene:
    * 1. Datos firmados con HMAC (seguridad offline)
    * 2. Token JWT para validación offline extendida
-   * 
+   *
    * Este formato permite validación:
    * - Rápida con HMAC (solo verifica firma)
    * - Extendida con JWT (verifica + datos del evento)
-   * 
+   *
    * @param qrData Datos del QR seguro
    * @param ticketData Datos adicionales para el JWT
    * @returns Objeto con ambos códigos
    */
   generateHybridQRCode(
     qrData: Parameters<QRCodeSecureService['generateSecureQR']>[0],
-    ticketData: Parameters<TicketValidationService['generateOfflineValidationToken']>[0],
+    ticketData: Parameters<
+      TicketValidationService['generateOfflineValidationToken']
+    >[0],
   ): {
     /** QR seguro con HMAC (formato compacto) */
     secureQR: string;
@@ -244,11 +246,11 @@ export class TicketValidationService {
       qr: secureQR,
       jwt: offlineToken,
     };
-    const combinedQR = Buffer.from(JSON.stringify(combinedData)).toString('base64url');
-
-    this.logger.debug(
-      `Generated hybrid QR for ticket: ${qrData.ticketId}`,
+    const combinedQR = Buffer.from(JSON.stringify(combinedData)).toString(
+      'base64url',
     );
+
+    this.logger.debug(`Generated hybrid QR for ticket: ${qrData.ticketId}`);
 
     return {
       secureQR,
@@ -259,10 +261,10 @@ export class TicketValidationService {
 
   /**
    * Valida un QR híbrido (formato combinado)
-   * 
+   *
    * Intenta validar primero el JWT (más información)
    * Si falla, intenta validar el QR seguro HMAC
-   * 
+   *
    * @param combinedQR QR en formato combinado
    * @returns Resultado de validación
    */

@@ -139,7 +139,8 @@ export class MembershipWebhookController {
       `Processing payment webhook: ${paymentId}, action: ${action}`,
     );
 
-    const paymentInfo = await this.mercadoPagoService.getPaymentStatus(paymentId);
+    const paymentInfo =
+      await this.mercadoPagoService.getPaymentStatus(paymentId);
     const { status, amount, currency, metadata } = paymentInfo;
 
     if (status === 'approved') {
@@ -165,7 +166,9 @@ export class MembershipWebhookController {
               amount,
               periodMonths,
             );
-            this.logger.log(`Manual payment approved for user ${userId}: ${paymentId}`);
+            this.logger.log(
+              `Manual payment approved for user ${userId}: ${paymentId}`,
+            );
           }
         } else {
           await this.membershipService.subscribeToPlan(userId, {

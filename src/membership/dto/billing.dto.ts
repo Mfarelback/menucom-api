@@ -18,7 +18,9 @@ export class GeneratePaymentLinkDto {
   @IsUUID()
   userId: string;
 
-  @ApiProperty({ description: 'Plan name (free, premium, enterprise, or custom plan name)' })
+  @ApiProperty({
+    description: 'Plan name (free, premium, enterprise, or custom plan name)',
+  })
   @IsNotEmpty()
   @IsString()
   plan: string;
@@ -28,7 +30,10 @@ export class GeneratePaymentLinkDto {
   @Min(0)
   amount: number;
 
-  @ApiPropertyOptional({ description: 'Period in months (default: 1)', default: 1 })
+  @ApiPropertyOptional({
+    description: 'Period in months (default: 1)',
+    default: 1,
+  })
   @IsOptional()
   @IsInt()
   @Min(1)
@@ -83,13 +88,17 @@ export class EnableAutoBillingDto {
   @IsString()
   plan: string;
 
-  @ApiPropertyOptional({ description: 'Amount override (uses plan price if not provided)' })
+  @ApiPropertyOptional({
+    description: 'Amount override (uses plan price if not provided)',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)
   amount?: number;
 
-  @ApiProperty({ description: 'Card token from Mercado Pago (created by MP SDK on frontend)' })
+  @ApiProperty({
+    description: 'Card token from Mercado Pago (created by MP SDK on frontend)',
+  })
   @IsNotEmpty()
   @IsString()
   cardTokenId: string;
@@ -158,7 +167,9 @@ export class MigrateToAutoBillingDto {
   @IsString()
   cardTokenId: string;
 
-  @ApiPropertyOptional({ description: 'New amount (uses current if not provided)' })
+  @ApiPropertyOptional({
+    description: 'New amount (uses current if not provided)',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)

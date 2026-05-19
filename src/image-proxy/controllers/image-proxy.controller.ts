@@ -49,7 +49,8 @@ export class ImageProxyController {
         // Headers CORS para Flutter Web / CanvasKit
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Methods': 'GET',
-        'Access-Control-Allow-Headers': 'Content-Type, Origin, Cache-Control, Accept',
+        'Access-Control-Allow-Headers':
+          'Content-Type, Origin, Cache-Control, Accept',
         'Access-Control-Allow-Credentials': 'false',
         'Cross-Origin-Resource-Policy': 'cross-origin',
         'Cross-Origin-Embedder-Policy': 'require-corp',

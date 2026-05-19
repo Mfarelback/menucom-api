@@ -45,8 +45,7 @@ export class ChangeOwnRoleDto {
   @IsString()
   @IsIn(VALID_ROLES)
   @ApiProperty({
-    description:
-      'Nuevo rol/rubro del usuario.',
+    description: 'Nuevo rol/rubro del usuario.',
     enum: VALID_ROLES,
     example: 'food',
   })

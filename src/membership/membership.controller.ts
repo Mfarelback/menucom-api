@@ -13,7 +13,12 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+} from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.gards';
 import { Public } from '../auth/decorators/public.decorator';
 import { MembershipService } from './membership.service';
@@ -64,12 +69,15 @@ export class MembershipController {
     @Body() dto: SubscribeWithCardDto,
   ): Promise<any> {
     if (dto.plan === MembershipPlan.FREE) {
-      const membership = await this.membershipService.subscribeToPlan(req.user.userId, {
-        plan: dto.plan,
-        paymentId: `free_${Date.now()}`,
-        amount: 0,
-        currency: 'ARS',
-      });
+      const membership = await this.membershipService.subscribeToPlan(
+        req.user.userId,
+        {
+          plan: dto.plan,
+          paymentId: `free_${Date.now()}`,
+          amount: 0,
+          currency: 'ARS',
+        },
+      );
       return this.membershipService.formatMembershipResponse(membership);
     }
 
@@ -85,18 +93,21 @@ export class MembershipController {
       cardTokenId: dto.cardTokenId,
     });
 
-    const membership = await this.membershipService.subscribeToPlan(req.user.userId, {
-      plan: dto.plan,
-      paymentId: preapproval.preapprovalId,
-      amount: basePrice,
-      originalAmount: basePrice,
-      currency: 'ARS',
-      subscriptionId: preapproval.preapprovalId,
-      metadata: {
-        mpPreapprovalId: preapproval.preapprovalId,
-        paymentMethodId: preapproval.paymentMethodId,
+    const membership = await this.membershipService.subscribeToPlan(
+      req.user.userId,
+      {
+        plan: dto.plan,
+        paymentId: preapproval.preapprovalId,
+        amount: basePrice,
+        originalAmount: basePrice,
+        currency: 'ARS',
+        subscriptionId: preapproval.preapprovalId,
+        metadata: {
+          mpPreapprovalId: preapproval.preapprovalId,
+          paymentMethodId: preapproval.paymentMethodId,
+        },
       },
-    });
+    );
 
     return {
       subscriptionId: preapproval.preapprovalId,
@@ -132,7 +143,9 @@ export class MembershipController {
   @Delete()
   @HttpCode(HttpStatus.OK)
   async cancelMembership(@Request() req): Promise<MembershipResponseDto> {
-    const membership = await this.membershipService.cancelMembership(req.user.userId);
+    const membership = await this.membershipService.cancelMembership(
+      req.user.userId,
+    );
     return this.membershipService.formatMembershipResponse(membership);
   }
 

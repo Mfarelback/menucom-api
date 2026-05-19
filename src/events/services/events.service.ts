@@ -17,7 +17,12 @@ export class EventsService {
     this.logger.setContext('EventsService');
   }
 
-  async create(createEventDto: CreateEventDto, tenantId: string, organizerId: string, imageFile?: Express.Multer.File): Promise<Event> {
+  async create(
+    createEventDto: CreateEventDto,
+    tenantId: string,
+    organizerId: string,
+    imageFile?: Express.Multer.File,
+  ): Promise<Event> {
     const { venueId, venue: venueDto, ...eventData } = createEventDto;
 
     if (new Date(eventData.startDate) >= new Date(eventData.endDate)) {
@@ -65,7 +70,12 @@ export class EventsService {
     return event;
   }
 
-  async update(id: string, updateEventDto: UpdateEventDto, tenantId: string, imageFile?: Express.Multer.File): Promise<Event> {
+  async update(
+    id: string,
+    updateEventDto: UpdateEventDto,
+    tenantId: string,
+    imageFile?: Express.Multer.File,
+  ): Promise<Event> {
     const event = await this.findOne(id, tenantId);
     const { venueId, ...eventData } = updateEventDto;
 

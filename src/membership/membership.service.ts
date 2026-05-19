@@ -56,7 +56,9 @@ export class MembershipService {
         );
         planName = MembershipPlan.FREE;
       } catch (error) {
-        this.logger.warn('No default plan or FREE plan found, using FREE as fallback');
+        this.logger.warn(
+          'No default plan or FREE plan found, using FREE as fallback',
+        );
         planData = null;
         planName = MembershipPlan.FREE;
       }
@@ -352,7 +354,8 @@ export class MembershipService {
   async handleExpiredMemberships(): Promise<void> {
     this.logger.log('Checking for expired memberships...');
 
-    const expiredMemberships = await this.membershipRepository.findExpiredMemberships();
+    const expiredMemberships =
+      await this.membershipRepository.findExpiredMemberships();
 
     // Buscar el plan FREE para el downgrade automático
     let freePlan;
@@ -361,7 +364,9 @@ export class MembershipService {
         MembershipPlan.FREE,
       );
     } catch (error) {
-      this.logger.error('CRITICAL: FREE plan not found for expiration downgrade');
+      this.logger.error(
+        'CRITICAL: FREE plan not found for expiration downgrade',
+      );
     }
 
     for (const membership of expiredMemberships) {

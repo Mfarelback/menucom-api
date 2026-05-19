@@ -21,7 +21,11 @@ async function run() {
     await client.connect();
     console.log('Connected to database');
 
-    const migrationPath = path.join(__dirname, 'migrations', '004_create_events_and_tickets.sql');
+    const migrationPath = path.join(
+      __dirname,
+      'migrations',
+      '004_create_events_and_tickets.sql',
+    );
     if (!fs.existsSync(migrationPath)) {
       console.error(`Migration file not found: ${migrationPath}`);
       process.exit(1);

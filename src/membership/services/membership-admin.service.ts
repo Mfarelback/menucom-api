@@ -1,10 +1,26 @@
-import { Injectable, Logger, NotFoundException, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  BadRequestException,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, Not } from 'typeorm';
 import { Membership } from '../entities/membership.entity';
-import { MembershipAudit, MembershipAuditAction } from '../entities/membership-audit.entity';
-import { SubscriptionPlan, PlanStatus, PlanType } from '../entities/subscription-plan.entity';
-import { MembershipPlan, MembershipFeature } from '../enums/membership-plan.enum';
+import {
+  MembershipAudit,
+  MembershipAuditAction,
+} from '../entities/membership-audit.entity';
+import {
+  SubscriptionPlan,
+  PlanStatus,
+  PlanType,
+} from '../entities/subscription-plan.entity';
+import {
+  MembershipPlan,
+  MembershipFeature,
+} from '../enums/membership-plan.enum';
 import {
   QueryMembershipsAdminDto,
   UpdateMembershipAdminDto,
@@ -29,7 +45,15 @@ export class MembershipAdminService {
   ) {}
 
   async getMembershipsAdmin(query: QueryMembershipsAdminDto) {
-    const { search, plan, status, page = 1, limit = 20, sortBy = 'createdAt', sortOrder = 'DESC' } = query;
+    const {
+      search,
+      plan,
+      status,
+      page = 1,
+      limit = 20,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+    } = query;
     const skip = (page - 1) * limit;
 
     const qb = this.membershipRepo
@@ -50,8 +74,16 @@ export class MembershipAdminService {
 
     this.applyStatusFilter(qb, status);
 
-    const validSortColumns = ['createdAt', 'updatedAt', 'plan', 'expiresAt', 'amount'];
-    const sortColumn = validSortColumns.includes(sortBy) ? `m.${sortBy}` : 'm.createdAt';
+    const validSortColumns = [
+      'createdAt',
+      'updatedAt',
+      'plan',
+      'expiresAt',
+      'amount',
+    ];
+    const sortColumn = validSortColumns.includes(sortBy)
+      ? `m.${sortBy}`
+      : 'm.createdAt';
     qb.orderBy(sortColumn, sortOrder);
 
     const [data, total] = await qb.skip(skip).take(limit).getManyAndCount();
@@ -87,7 +119,11 @@ export class MembershipAdminService {
     return this.formatMembership(membership);
   }
 
-  async updateMembershipAdmin(id: string, dto: UpdateMembershipAdminDto, adminId: string) {
+  async updateMembershipAdmin(
+    id: string,
+    dto: UpdateMembershipAdminDto,
+    adminId: string,
+  ) {
     const membership = await this.membershipRepo.findOne({ where: { id } });
     if (!membership) {
       throw new NotFoundException(`Membership ${id} not found`);
@@ -105,8 +141,10 @@ export class MembershipAdminService {
       }
     }
     if (dto.isActive !== undefined) updateData.isActive = dto.isActive;
-    if (dto.expiresAt !== undefined) updateData.expiresAt = new Date(dto.expiresAt);
-    if (dto.subscriptionStatus !== undefined) updateData.subscriptionStatus = dto.subscriptionStatus;
+    if (dto.expiresAt !== undefined)
+      updateData.expiresAt = new Date(dto.expiresAt);
+    if (dto.subscriptionStatus !== undefined)
+      updateData.subscriptionStatus = dto.subscriptionStatus;
 
     await this.membershipRepo.update(id, updateData);
 
@@ -132,8 +170,17 @@ export class MembershipAdminService {
   async getMembershipStats(): Promise<MembershipStatsResponseDto> {
     const now = new Date();
 
-    const [byPlan, total, activeCount, pendingCount, cancelledCount, expiredCount, revenue] = await Promise.all([
-      this.membershipRepo.createQueryBuilder('m')
+    const [
+      byPlan,
+      total,
+      activeCount,
+      pendingCount,
+      cancelledCount,
+      expiredCount,
+      revenue,
+    ] = await Promise.all([
+      this.membershipRepo
+        .createQueryBuilder('m')
         .select('m.plan', 'plan')
         .addSelect('COUNT(*)', 'count')
         .groupBy('m.plan')
@@ -142,8 +189,11 @@ export class MembershipAdminService {
       this.membershipRepo.count({ where: { isActive: true } }),
       this.membershipRepo.count({ where: { subscriptionStatus: 'pending' } }),
       this.membershipRepo.count({ where: { isActive: false } }),
-      this.membershipRepo.count({ where: { expiresAt: LessThan(now), isActive: true } }),
-      this.membershipRepo.createQueryBuilder('m')
+      this.membershipRepo.count({
+        where: { expiresAt: LessThan(now), isActive: true },
+      }),
+      this.membershipRepo
+        .createQueryBuilder('m')
         .select('SUM(m.amount)', 'total')
         .where('m.isActive = :isActive', { isActive: true })
         .getRawOne(),
@@ -152,11 +202,19 @@ export class MembershipAdminService {
     const monthlyRevenue = Number(revenue?.total || 0);
 
     return {
-      byPlan: byPlan.map((s) => ({ plan: s.plan, count: parseInt(s.count, 10) })),
+      byPlan: byPlan.map((s) => ({
+        plan: s.plan,
+        count: parseInt(s.count, 10),
+      })),
       active: activeCount,
       expired: expiredCount,
       total,
-      byStatus: { active: activeCount, pending: pendingCount, cancelled: cancelledCount, expired: expiredCount },
+      byStatus: {
+        active: activeCount,
+        pending: pendingCount,
+        cancelled: cancelledCount,
+        expired: expiredCount,
+      },
       revenue: {
         monthly: monthlyRevenue,
         yearly: monthlyRevenue * 12,
@@ -189,7 +247,9 @@ export class MembershipAdminService {
   ) {
     const dbPlan = await this.planRepo.findOne({ where: { name: plan } });
     if (!dbPlan) {
-      this.logger.warn(`Plan "${plan}" not found for assignment to user ${userId}`);
+      this.logger.warn(
+        `Plan "${plan}" not found for assignment to user ${userId}`,
+      );
       throw new NotFoundException(`Plan "${plan}" not found`);
     }
 
@@ -198,7 +258,9 @@ export class MembershipAdminService {
     const features = dbPlan?.features || [];
 
     if (!membership) {
-      this.logger.log(`Creating new membership for user ${userId} with plan ${plan}`);
+      this.logger.log(
+        `Creating new membership for user ${userId} with plan ${plan}`,
+      );
       membership = this.membershipRepo.create({
         userId,
         plan,
@@ -209,13 +271,21 @@ export class MembershipAdminService {
       });
       try {
         membership = await this.membershipRepo.save(membership);
-        this.logger.log(`Created membership ${membership.id} for user ${userId}`);
+        this.logger.log(
+          `Created membership ${membership.id} for user ${userId}`,
+        );
       } catch (error) {
-        this.logger.error(`Failed to save membership for user ${userId}: ${error.message}`);
-        throw new InternalServerErrorException(`Failed to create membership: ${error.message}`);
+        this.logger.error(
+          `Failed to save membership for user ${userId}: ${error.message}`,
+        );
+        throw new InternalServerErrorException(
+          `Failed to create membership: ${error.message}`,
+        );
       }
     } else {
-      this.logger.log(`Updating membership ${membership.id} for user ${userId} to plan ${plan}`);
+      this.logger.log(
+        `Updating membership ${membership.id} for user ${userId} to plan ${plan}`,
+      );
       await this.membershipRepo.update(membership.id, {
         plan,
         features,
@@ -227,7 +297,9 @@ export class MembershipAdminService {
     membership = await this.membershipRepo.findOne({ where: { userId } });
 
     if (!membership) {
-      this.logger.error(`Failed to create or update membership for user ${userId}`);
+      this.logger.error(
+        `Failed to create or update membership for user ${userId}`,
+      );
       this.logger.error(`Membership not found after create/save operation`);
       throw new InternalServerErrorException(`Failed to assign plan to user`);
     }
@@ -249,7 +321,9 @@ export class MembershipAdminService {
   async getAllPlans() {
     const [standardPlans, customPlans] = await Promise.all([
       this.getStandardPlans(),
-      this.planRepo.find({ where: { type: PlanType.CUSTOM, status: PlanStatus.ACTIVE } }),
+      this.planRepo.find({
+        where: { type: PlanType.CUSTOM, status: PlanStatus.ACTIVE },
+      }),
     ]);
     return { standardPlans, customPlans };
   }
@@ -270,7 +344,9 @@ export class MembershipAdminService {
   async createCustomPlan(dto: CreateCustomPlanDto, adminId: string) {
     const existing = await this.planRepo.findOne({ where: { name: dto.name } });
     if (existing) {
-      throw new BadRequestException(`Plan with name '${dto.name}' already exists`);
+      throw new BadRequestException(
+        `Plan with name '${dto.name}' already exists`,
+      );
     }
 
     const plan = this.planRepo.create({
@@ -293,7 +369,11 @@ export class MembershipAdminService {
     return saved;
   }
 
-  async updateCustomPlan(id: string, dto: UpdateCustomPlanDto, adminId: string) {
+  async updateCustomPlan(
+    id: string,
+    dto: UpdateCustomPlanDto,
+    adminId: string,
+  ) {
     const plan = await this.planRepo.findOne({ where: { id } });
     if (!plan) throw new NotFoundException(`Plan ${id} not found`);
 
@@ -303,10 +383,13 @@ export class MembershipAdminService {
     if (dto.status !== undefined) updateData.status = dto.status;
     if (dto.price !== undefined) updateData.price = dto.price;
     if (dto.currency !== undefined) updateData.currency = dto.currency;
-    if (dto.billingCycle !== undefined) updateData.billingCycle = dto.billingCycle;
+    if (dto.billingCycle !== undefined)
+      updateData.billingCycle = dto.billingCycle;
     if (dto.features !== undefined) updateData.features = dto.features;
-    if (dto.limits !== undefined) updateData.limits = { ...plan.limits, ...dto.limits };
-    if (dto.metadata !== undefined) updateData.metadata = { ...plan.metadata, ...dto.metadata };
+    if (dto.limits !== undefined)
+      updateData.limits = { ...plan.limits, ...dto.limits };
+    if (dto.metadata !== undefined)
+      updateData.metadata = { ...plan.metadata, ...dto.metadata };
 
     await this.planRepo.update(id, updateData);
     this.logger.log(`Admin ${adminId} updated plan ${id}`);
@@ -326,7 +409,9 @@ export class MembershipAdminService {
       plan.status = PlanStatus.ARCHIVED;
     }
     await this.planRepo.save(plan);
-    this.logger.log(`Plan ${id} ${plan.status === PlanStatus.ARCHIVED ? 'archived' : 'deactivated'}`);
+    this.logger.log(
+      `Plan ${id} ${plan.status === PlanStatus.ARCHIVED ? 'archived' : 'deactivated'}`,
+    );
   }
 
   async getPlanUsageStats(planId: string) {
@@ -342,7 +427,12 @@ export class MembershipAdminService {
       .getRawOne();
 
     return {
-      plan: { id: plan.id, name: plan.name, displayName: plan.displayName, price: plan.price },
+      plan: {
+        id: plan.id,
+        name: plan.name,
+        displayName: plan.displayName,
+        price: plan.price,
+      },
       activeSubscriptions: parseInt(usage?.activeSubscriptions || '0', 10),
       totalRevenue: Number(usage?.totalRevenue || 0),
     };
@@ -361,8 +451,10 @@ export class MembershipAdminService {
 
     switch (status) {
       case 'active':
-        qb.where('m.isActive = :isActive', { isActive: true })
-          .andWhere('(m.expiresAt IS NULL OR m.expiresAt > :now)', { now });
+        qb.where('m.isActive = :isActive', { isActive: true }).andWhere(
+          '(m.expiresAt IS NULL OR m.expiresAt > :now)',
+          { now },
+        );
         break;
       case 'pending':
         qb.where('m.subscriptionStatus = :status', { status: 'pending' });
@@ -374,8 +466,10 @@ export class MembershipAdminService {
         qb.where('m.isActive = :isActive', { isActive: false });
         break;
       case 'trialing':
-        qb.where('m.expiresAt > :now', { now })
-          .andWhere('m.subscriptionStatus = :status', { status: 'trialing' });
+        qb.where('m.expiresAt > :now', { now }).andWhere(
+          'm.subscriptionStatus = :status',
+          { status: 'trialing' },
+        );
         break;
     }
   }
@@ -397,7 +491,9 @@ export class MembershipAdminService {
       lastPaymentAt: m.lastPaymentAt,
       createdAt: m.createdAt,
       updatedAt: m.updatedAt,
-      user: m.user ? { id: m.user.id, email: m.user.email, name: m.user.name } : undefined,
+      user: m.user
+        ? { id: m.user.id, email: m.user.email, name: m.user.name }
+        : undefined,
     };
   }
 
@@ -432,7 +528,10 @@ export class MembershipAdminService {
     return this.auditRepo.save(audit);
   }
 
-  private determineAuditAction(previous: string, next: string): MembershipAuditAction {
+  private determineAuditAction(
+    previous: string,
+    next: string,
+  ): MembershipAuditAction {
     if (previous === next) return MembershipAuditAction.RENEWED;
 
     const hierarchy: Record<string, number> = {
@@ -445,8 +544,8 @@ export class MembershipAdminService {
       return hierarchy[next] > hierarchy[previous]
         ? MembershipAuditAction.UPGRADED
         : hierarchy[next] < hierarchy[previous]
-        ? MembershipAuditAction.DOWNGRADED
-        : MembershipAuditAction.RENEWED;
+          ? MembershipAuditAction.DOWNGRADED
+          : MembershipAuditAction.RENEWED;
     }
 
     return MembershipAuditAction.UPGRADED;

@@ -40,8 +40,9 @@ import { forwardRef } from '@nestjs/common';
       Venue,
     ]),
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'default-jwt-secret-change-in-production',
-      signOptions: { 
+      secret:
+        process.env.JWT_SECRET || 'default-jwt-secret-change-in-production',
+      signOptions: {
         algorithm: 'HS256',
       },
     }),

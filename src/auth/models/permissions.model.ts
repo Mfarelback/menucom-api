@@ -168,7 +168,8 @@ export const ROLE_PERMISSIONS_BY_CONTEXT: Record<
   },
 
   [BusinessContext.EVENTS]: {
-    [RoleType.OWNER]: [  // NUEVO: Dueño de negocio de eventos (organizador)
+    [RoleType.OWNER]: [
+      // NUEVO: Dueño de negocio de eventos (organizador)
       Permission.CREATE_EVENT,
       Permission.READ_EVENT,
       Permission.UPDATE_EVENT,
@@ -178,7 +179,8 @@ export const ROLE_PERMISSIONS_BY_CONTEXT: Record<
       Permission.VIEW_ANALYTICS,
       Permission.MANAGE_PAYMENTS,
     ],
-    [RoleType.EVENT_ORGANIZER]: [  // Mantener por backward compatibility
+    [RoleType.EVENT_ORGANIZER]: [
+      // Mantener por backward compatibility
       Permission.CREATE_EVENT,
       Permission.READ_EVENT,
       Permission.UPDATE_EVENT,

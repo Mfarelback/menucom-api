@@ -41,16 +41,18 @@ export class NotificationsController {
   })
   async sendTestNotification(@Req() req: Request) {
     const userId = req['user']['userId'];
-    this.logger.log(`Iniciando envío de notificación de prueba para el usuario ${userId}`);
+    this.logger.log(
+      `Iniciando envío de notificación de prueba para el usuario ${userId}`,
+    );
 
     const success = await this.notificationsService.sendNotificationToUser(
       userId,
       'Prueba de Notificación 🔔',
       '¡Hola! Esta es una notificación de prueba desde el backend de MenuCom.',
-      { 
-        type: 'test', 
+      {
+        type: 'test',
         timestamp: new Date().toISOString(),
-        click_action: 'FLUTTER_NOTIFICATION_CLICK'
+        click_action: 'FLUTTER_NOTIFICATION_CLICK',
       },
     );
 
@@ -60,10 +62,10 @@ export class NotificationsController {
       );
     }
 
-    return { 
+    return {
       success: true,
       message: 'Notificación de prueba enviada exitosamente al dispositivo.',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 }

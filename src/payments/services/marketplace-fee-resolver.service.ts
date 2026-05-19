@@ -18,12 +18,12 @@ export interface FeeResolutionResult {
 
 /**
  * Servicio para resolver el marketplace fee dinámicamente
- * 
+ *
  * Jerarquía de resolución (según DYNAMIC_MARKETPLACE_FEE.md):
  * 1. Fee personalizado del comercio (MerchantConfig)
  * 2. Fee por tipo de membresía (Membership.plan)
  * 3. Fee global de AppData (MARKETPLACE_FEE_PERCENTAGE)
- * 
+ *
  * Valor por defecto si ninguno está configurado: 5%
  */
 @Injectable()
@@ -33,9 +33,9 @@ export class MarketplaceFeeResolverService {
 
   // Fee por tipo de membresía (según documentación)
   private readonly MEMBERSHIP_FEE_RATES: Record<string, number> = {
-    'ENTERPRISE': 3.0,   // 3% para plan Enterprise
-    'PREMIUM': 5.0,      // 5% para plan Premium
-    'FREE': 7.0,         // 7% para plan Free
+    ENTERPRISE: 3.0, // 3% para plan Enterprise
+    PREMIUM: 5.0, // 5% para plan Premium
+    FREE: 7.0, // 7% para plan Free
   };
 
   constructor(
@@ -48,7 +48,7 @@ export class MarketplaceFeeResolverService {
 
   /**
    * Resuelve el porcentaje de marketplace fee para un tenant específico
-   * 
+   *
    * @param tenantId - ID del tenant/comercio
    * @returns FeeResolutionResult con el porcentaje y origen
    */
@@ -69,7 +69,9 @@ export class MarketplaceFeeResolverService {
     // Nivel 2: Fee por tipo de membresía
     const membershipFee = await this.getMembershipFee(tenantId);
     if (membershipFee !== null) {
-      this.logger.log(`Using membership fee for tenant ${tenantId}: ${membershipFee}%`);
+      this.logger.log(
+        `Using membership fee for tenant ${tenantId}: ${membershipFee}%`,
+      );
       return {
         percentage: membershipFee,
         source: 'membership',
@@ -89,7 +91,9 @@ export class MarketplaceFeeResolverService {
     }
 
     // Valor por defecto
-    this.logger.log(`Using default fee for tenant ${tenantId}: ${this.DEFAULT_FEE_PERCENTAGE}%`);
+    this.logger.log(
+      `Using default fee for tenant ${tenantId}: ${this.DEFAULT_FEE_PERCENTAGE}%`,
+    );
     return {
       percentage: this.DEFAULT_FEE_PERCENTAGE,
       source: 'global',
@@ -99,7 +103,7 @@ export class MarketplaceFeeResolverService {
 
   /**
    * Calcula el monto del fee basado en el total y el tenant
-   * 
+   *
    * @param totalAmount - Monto total de la transacción
    * @param tenantId - ID del tenant
    * @returns Objeto con monto del fee, monto neto, y detalles de resolución
@@ -115,7 +119,9 @@ export class MarketplaceFeeResolverService {
     feeDescription: string;
   }> {
     const feeResolution = await this.resolveFeePercentage(tenantId);
-    const feeAmount = Number(((totalAmount * feeResolution.percentage) / 100).toFixed(2));
+    const feeAmount = Number(
+      ((totalAmount * feeResolution.percentage) / 100).toFixed(2),
+    );
     const netAmount = Number((totalAmount - feeAmount).toFixed(2));
 
     return {
@@ -136,13 +142,18 @@ export class MarketplaceFeeResolverService {
         where: { tenantId, isActive: true },
       });
 
-      if (config?.customMarketplaceFee !== null && config?.customMarketplaceFee !== undefined) {
+      if (
+        config?.customMarketplaceFee !== null &&
+        config?.customMarketplaceFee !== undefined
+      ) {
         return Number(config.customMarketplaceFee);
       }
 
       return null;
     } catch (error) {
-      this.logger.warn(`Error fetching custom fee for tenant ${tenantId}: ${error.message}`);
+      this.logger.warn(
+        `Error fetching custom fee for tenant ${tenantId}: ${error.message}`,
+      );
       return null;
     }
   }
@@ -159,7 +170,8 @@ export class MarketplaceFeeResolverService {
       });
 
       if (user?.membership?.plan) {
-        const planFee = this.MEMBERSHIP_FEE_RATES[user.membership.plan.toUpperCase()];
+        const planFee =
+          this.MEMBERSHIP_FEE_RATES[user.membership.plan.toUpperCase()];
         if (planFee !== undefined) {
           return planFee;
         }
@@ -167,7 +179,9 @@ export class MarketplaceFeeResolverService {
 
       return null;
     } catch (error) {
-      this.logger.warn(`Error fetching membership fee for tenant ${tenantId}: ${error.message}`);
+      this.logger.warn(
+        `Error fetching membership fee for tenant ${tenantId}: ${error.message}`,
+      );
       return null;
     }
   }
@@ -187,15 +201,20 @@ export class MarketplaceFeeResolverService {
 
   /**
    * Crea o actualiza la configuración de fee personalizado para un tenant
-   * 
+   *
    * @param tenantId - ID del tenant
    * @param feePercentage - Porcentaje de fee (ej: 2.5 para 2.5%)
    * @returns La configuración creada/actualizada
    */
-  async setCustomFee(tenantId: string, feePercentage: number): Promise<MerchantConfig> {
+  async setCustomFee(
+    tenantId: string,
+    feePercentage: number,
+  ): Promise<MerchantConfig> {
     // Validaciones de entrada
     if (!tenantId || typeof tenantId !== 'string') {
-      throw new BadRequestException('Tenant ID es requerido y debe ser un string');
+      throw new BadRequestException(
+        'Tenant ID es requerido y debe ser un string',
+      );
     }
 
     if (feePercentage === null || feePercentage === undefined) {

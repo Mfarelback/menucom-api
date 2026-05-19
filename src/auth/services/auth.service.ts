@@ -59,97 +59,101 @@ export class AuthService {
       const userRegister = await this.usersService.create(userData);
 
       // NUEVO: Mapeo completo de businessType a (role, context)
-      const businessTypeMapping: Record<string, {
-        role: RoleType;
-        context: BusinessContext;
-        needsCustomerRole: boolean;
-      }> = {
+      const businessTypeMapping: Record<
+        string,
+        {
+          role: RoleType;
+          context: BusinessContext;
+          needsCustomerRole: boolean;
+        }
+      > = {
         // Cliente final - solo compra
-        'customer': {
+        customer: {
           role: RoleType.CUSTOMER,
           context: BusinessContext.GENERAL,
           needsCustomerRole: false,
         },
 
         // Comerciantes - OWNER en su contexto + CUSTOMER para comprar en otros
-        'food': {
+        food: {
           role: RoleType.OWNER,
           context: BusinessContext.RESTAURANT,
           needsCustomerRole: true,
         },
-        'dinning': {
+        dinning: {
           role: RoleType.OWNER,
           context: BusinessContext.RESTAURANT,
           needsCustomerRole: true,
         },
-        'clothes': {
+        clothes: {
           role: RoleType.OWNER,
           context: BusinessContext.WARDROBE,
           needsCustomerRole: true,
         },
-        'retail': {
+        retail: {
           role: RoleType.OWNER,
           context: BusinessContext.MARKETPLACE,
           needsCustomerRole: true,
         },
-        'grocery': {
+        grocery: {
           role: RoleType.OWNER,
           context: BusinessContext.MARKETPLACE,
           needsCustomerRole: true,
         },
-        'electronics': {
+        electronics: {
           role: RoleType.OWNER,
           context: BusinessContext.MARKETPLACE,
           needsCustomerRole: true,
         },
-        'accessories': {
+        accessories: {
           role: RoleType.OWNER,
           context: BusinessContext.MARKETPLACE,
           needsCustomerRole: true,
         },
-        'pharmacy': {
+        pharmacy: {
           role: RoleType.OWNER,
           context: BusinessContext.GENERAL,
           needsCustomerRole: true,
         },
-        'beauty': {
+        beauty: {
           role: RoleType.OWNER,
           context: BusinessContext.GENERAL,
           needsCustomerRole: true,
         },
-        'construction': {
+        construction: {
           role: RoleType.OWNER,
           context: BusinessContext.GENERAL,
           needsCustomerRole: true,
         },
-        'automotive': {
+        automotive: {
           role: RoleType.OWNER,
           context: BusinessContext.GENERAL,
           needsCustomerRole: true,
         },
-        'pets': {
+        pets: {
           role: RoleType.OWNER,
           context: BusinessContext.MARKETPLACE,
           needsCustomerRole: true,
         },
-        'water_distributor': {
+        water_distributor: {
           role: RoleType.OWNER,
           context: BusinessContext.MARKETPLACE,
           needsCustomerRole: true,
         },
-        'events': {  // NUEVO: Organizador de eventos
+        events: {
+          // NUEVO: Organizador de eventos
           role: RoleType.OWNER,
           context: BusinessContext.EVENTS,
           needsCustomerRole: true,
         },
 
         // Administradores del sistema
-        'admin': {
+        admin: {
           role: RoleType.ADMIN,
           context: BusinessContext.GENERAL,
           needsCustomerRole: false,
         },
-        'operador': {
+        operador: {
           role: RoleType.OPERATOR,
           context: BusinessContext.GENERAL,
           needsCustomerRole: false,
@@ -158,11 +162,12 @@ export class AuthService {
 
       // Usar businessType (nuevo) o role (legacy) para determinar el tipo
       const typeKey = userData.businessType || userData.role || 'customer';
-      const mapping = businessTypeMapping[typeKey] || businessTypeMapping['customer'];
+      const mapping =
+        businessTypeMapping[typeKey] || businessTypeMapping['customer'];
 
       this.logger.log(
         `Registrando usuario ${userRegister.email} con businessType: ${typeKey} → ` +
-        `rol: ${mapping.role}, contexto: ${mapping.context}`
+          `rol: ${mapping.role}, contexto: ${mapping.context}`,
       );
 
       // 1. Asignar rol principal (OWNER/ADMIN/CUSTOMER en su contexto)
@@ -181,11 +186,11 @@ export class AuthService {
           },
         );
         this.logger.log(
-          `✅ Rol ${mapping.role} asignado en ${mapping.context} a ${userRegister.email}`
+          `✅ Rol ${mapping.role} asignado en ${mapping.context} a ${userRegister.email}`,
         );
       } catch (roleError) {
         this.logger.warn(
-          `No se pudo asignar rol principal a ${userRegister.id}: ${roleError.message}`
+          `No se pudo asignar rol principal a ${userRegister.id}: ${roleError.message}`,
         );
       }
 
@@ -205,11 +210,11 @@ export class AuthService {
             },
           );
           this.logger.log(
-            `✅ Rol dual CUSTOMER asignado a ${userRegister.email}`
+            `✅ Rol dual CUSTOMER asignado a ${userRegister.email}`,
           );
         } catch (roleError) {
           this.logger.warn(
-            `No se pudo asignar rol CUSTOMER a ${userRegister.id}: ${roleError.message}`
+            `No se pudo asignar rol CUSTOMER a ${userRegister.id}: ${roleError.message}`,
           );
         }
       }
@@ -439,35 +444,107 @@ export class AuthService {
       });
 
       // NUEVO: Usar el mismo mapeo que el registro tradicional
-      const businessTypeMapping: Record<string, {
-        role: RoleType;
-        context: BusinessContext;
-        needsCustomerRole: boolean;
-      }> = {
-        'customer': { role: RoleType.CUSTOMER, context: BusinessContext.GENERAL, needsCustomerRole: false },
-        'events': { role: RoleType.OWNER, context: BusinessContext.EVENTS, needsCustomerRole: true },
-        'food': { role: RoleType.OWNER, context: BusinessContext.RESTAURANT, needsCustomerRole: true },
-        'dinning': { role: RoleType.OWNER, context: BusinessContext.RESTAURANT, needsCustomerRole: true },
-        'clothes': { role: RoleType.OWNER, context: BusinessContext.WARDROBE, needsCustomerRole: true },
-        'retail': { role: RoleType.OWNER, context: BusinessContext.MARKETPLACE, needsCustomerRole: true },
-        'grocery': { role: RoleType.OWNER, context: BusinessContext.MARKETPLACE, needsCustomerRole: true },
-        'electronics': { role: RoleType.OWNER, context: BusinessContext.MARKETPLACE, needsCustomerRole: true },
-        'accessories': { role: RoleType.OWNER, context: BusinessContext.MARKETPLACE, needsCustomerRole: true },
-        'pharmacy': { role: RoleType.OWNER, context: BusinessContext.GENERAL, needsCustomerRole: true },
-        'beauty': { role: RoleType.OWNER, context: BusinessContext.GENERAL, needsCustomerRole: true },
-        'construction': { role: RoleType.OWNER, context: BusinessContext.GENERAL, needsCustomerRole: true },
-        'automotive': { role: RoleType.OWNER, context: BusinessContext.GENERAL, needsCustomerRole: true },
-        'pets': { role: RoleType.OWNER, context: BusinessContext.MARKETPLACE, needsCustomerRole: true },
-        'water_distributor': { role: RoleType.OWNER, context: BusinessContext.MARKETPLACE, needsCustomerRole: true },
-        'admin': { role: RoleType.ADMIN, context: BusinessContext.GENERAL, needsCustomerRole: false },
-        'operador': { role: RoleType.OPERATOR, context: BusinessContext.GENERAL, needsCustomerRole: false },
+      const businessTypeMapping: Record<
+        string,
+        {
+          role: RoleType;
+          context: BusinessContext;
+          needsCustomerRole: boolean;
+        }
+      > = {
+        customer: {
+          role: RoleType.CUSTOMER,
+          context: BusinessContext.GENERAL,
+          needsCustomerRole: false,
+        },
+        events: {
+          role: RoleType.OWNER,
+          context: BusinessContext.EVENTS,
+          needsCustomerRole: true,
+        },
+        food: {
+          role: RoleType.OWNER,
+          context: BusinessContext.RESTAURANT,
+          needsCustomerRole: true,
+        },
+        dinning: {
+          role: RoleType.OWNER,
+          context: BusinessContext.RESTAURANT,
+          needsCustomerRole: true,
+        },
+        clothes: {
+          role: RoleType.OWNER,
+          context: BusinessContext.WARDROBE,
+          needsCustomerRole: true,
+        },
+        retail: {
+          role: RoleType.OWNER,
+          context: BusinessContext.MARKETPLACE,
+          needsCustomerRole: true,
+        },
+        grocery: {
+          role: RoleType.OWNER,
+          context: BusinessContext.MARKETPLACE,
+          needsCustomerRole: true,
+        },
+        electronics: {
+          role: RoleType.OWNER,
+          context: BusinessContext.MARKETPLACE,
+          needsCustomerRole: true,
+        },
+        accessories: {
+          role: RoleType.OWNER,
+          context: BusinessContext.MARKETPLACE,
+          needsCustomerRole: true,
+        },
+        pharmacy: {
+          role: RoleType.OWNER,
+          context: BusinessContext.GENERAL,
+          needsCustomerRole: true,
+        },
+        beauty: {
+          role: RoleType.OWNER,
+          context: BusinessContext.GENERAL,
+          needsCustomerRole: true,
+        },
+        construction: {
+          role: RoleType.OWNER,
+          context: BusinessContext.GENERAL,
+          needsCustomerRole: true,
+        },
+        automotive: {
+          role: RoleType.OWNER,
+          context: BusinessContext.GENERAL,
+          needsCustomerRole: true,
+        },
+        pets: {
+          role: RoleType.OWNER,
+          context: BusinessContext.MARKETPLACE,
+          needsCustomerRole: true,
+        },
+        water_distributor: {
+          role: RoleType.OWNER,
+          context: BusinessContext.MARKETPLACE,
+          needsCustomerRole: true,
+        },
+        admin: {
+          role: RoleType.ADMIN,
+          context: BusinessContext.GENERAL,
+          needsCustomerRole: false,
+        },
+        operador: {
+          role: RoleType.OPERATOR,
+          context: BusinessContext.GENERAL,
+          needsCustomerRole: false,
+        },
       };
 
-      const mapping = businessTypeMapping[businessType] || businessTypeMapping['customer'];
+      const mapping =
+        businessTypeMapping[businessType] || businessTypeMapping['customer'];
 
       this.logger.log(
         `Registrando usuario social ${userRegister.email} con businessType: ${businessType} → ` +
-        `rol: ${mapping.role}, contexto: ${mapping.context}`
+          `rol: ${mapping.role}, contexto: ${mapping.context}`,
       );
 
       // Asignar rol principal
@@ -485,9 +562,13 @@ export class AuthService {
             },
           },
         );
-        this.logger.log(`✅ Rol ${mapping.role} en ${mapping.context} asignado a usuario social`);
+        this.logger.log(
+          `✅ Rol ${mapping.role} en ${mapping.context} asignado a usuario social`,
+        );
       } catch (roleError) {
-        this.logger.warn(`No se pudo asignar rol a usuario social: ${roleError.message}`);
+        this.logger.warn(
+          `No se pudo asignar rol a usuario social: ${roleError.message}`,
+        );
       }
 
       // Asignar CUSTOMER adicional si es comerciante
@@ -504,7 +585,9 @@ export class AuthService {
           );
           this.logger.log(`✅ Rol dual CUSTOMER asignado a usuario social`);
         } catch (roleError) {
-          this.logger.warn(`No se pudo asignar rol CUSTOMER: ${roleError.message}`);
+          this.logger.warn(
+            `No se pudo asignar rol CUSTOMER: ${roleError.message}`,
+          );
         }
       }
 

@@ -350,10 +350,7 @@ export class MercadoPagoSubscriptionService {
     return this.planPrices[plan] || 0;
   }
 
-  calculateFinalPrice(
-    plan: string,
-    discountPercentage?: number,
-  ): number {
+  calculateFinalPrice(plan: string, discountPercentage?: number): number {
     const price = this.getPlanPrice(plan);
     if (!discountPercentage) return price;
     return Math.max(0, price - (price * discountPercentage) / 100);

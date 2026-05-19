@@ -11,12 +11,16 @@ export class TicketPurchaseRepository {
   ) {}
 
   async save(purchase: TicketPurchase, manager?: any): Promise<TicketPurchase> {
-    const repo = manager ? manager.getRepository(TicketPurchase) : this.repository;
+    const repo = manager
+      ? manager.getRepository(TicketPurchase)
+      : this.repository;
     return repo.save(purchase);
   }
 
   async findOne(options: any, manager?: any): Promise<TicketPurchase> {
-    const repo = manager ? manager.getRepository(TicketPurchase) : this.repository;
+    const repo = manager
+      ? manager.getRepository(TicketPurchase)
+      : this.repository;
     return repo.findOne(options);
   }
 
@@ -25,7 +29,9 @@ export class TicketPurchaseRepository {
   }
 
   create(data: any, manager?: any): TicketPurchase {
-    const repo = manager ? manager.getRepository(TicketPurchase) : this.repository;
+    const repo = manager
+      ? manager.getRepository(TicketPurchase)
+      : this.repository;
     return repo.create(data);
   }
 }

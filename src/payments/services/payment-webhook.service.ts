@@ -162,34 +162,34 @@ export class PaymentWebhookService {
             );
           }
 
-            // Caso especial: Pago de Ticket
-            if (orderId.startsWith('TICKET_')) {
-              const purchaseId = orderId.replace('TICKET_', '');
-              if (paymentStatus === 'approved') {
-                await this.eventPaymentService.confirmTicketPayment(purchaseId);
-              }
-            } else {
-              // Actualizar la Order normal
-              const orderStatus =
-                this.paymentStatusService.mapPaymentStatusToOrderStatus(
-                  paymentStatus,
-                );
-              const order = await this.ordersService.findByOperationId(orderId);
-
-              if (order) {
-                updatedOrder = await this.ordersService.updateOrderStatus(
-                  order.id,
-                  orderStatus,
-                );
-                this.logger.log(
-                  `Order actualizada: ${order.id} → ${updatedOrder.status}`,
-                );
-              } else {
-                this.logger.warn(
-                  `No se encontró orden con operationID: ${orderId}`,
-                );
-              }
+          // Caso especial: Pago de Ticket
+          if (orderId.startsWith('TICKET_')) {
+            const purchaseId = orderId.replace('TICKET_', '');
+            if (paymentStatus === 'approved') {
+              await this.eventPaymentService.confirmTicketPayment(purchaseId);
             }
+          } else {
+            // Actualizar la Order normal
+            const orderStatus =
+              this.paymentStatusService.mapPaymentStatusToOrderStatus(
+                paymentStatus,
+              );
+            const order = await this.ordersService.findByOperationId(orderId);
+
+            if (order) {
+              updatedOrder = await this.ordersService.updateOrderStatus(
+                order.id,
+                orderStatus,
+              );
+              this.logger.log(
+                `Order actualizada: ${order.id} → ${updatedOrder.status}`,
+              );
+            } else {
+              this.logger.warn(
+                `No se encontró orden con operationID: ${orderId}`,
+              );
+            }
+          }
         } else {
           this.logger.warn(
             `No se pudo extraer orderId o paymentStatus del payment ${paymentId}`,
@@ -328,10 +328,15 @@ export class PaymentWebhookService {
         error.stack,
       );
       // Re-lanzamos excepciones de NestJS si ya están formadas, o creamos una genérica
-      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+      if (
+        error instanceof BadRequestException ||
+        error instanceof NotFoundException
+      ) {
         throw error;
       }
-      throw new InternalServerErrorException('Error al verificar el estado del pago.');
+      throw new InternalServerErrorException(
+        'Error al verificar el estado del pago.',
+      );
     }
   }
 

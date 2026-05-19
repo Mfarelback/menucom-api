@@ -17,8 +17,14 @@ import {
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
-import { RequirePermissions, InBusinessContext } from '../../auth/decorators/permissions.decorator';
-import { Permission, BusinessContext } from '../../auth/models/permissions.model';
+import {
+  RequirePermissions,
+  InBusinessContext,
+} from '../../auth/decorators/permissions.decorator';
+import {
+  Permission,
+  BusinessContext,
+} from '../../auth/models/permissions.model';
 import { MembershipAdminService } from '../services/membership-admin.service';
 import { BillingAdminService } from '../services/billing-admin.service';
 import { MembershipPlan } from '../enums/membership-plan.enum';
@@ -73,7 +79,11 @@ export class MembershipAdminController {
     @Body() dto: UpdateMembershipAdminDto,
     @Request() req,
   ) {
-    return this.membershipAdminService.updateMembershipAdmin(id, dto, req.user.userId);
+    return this.membershipAdminService.updateMembershipAdmin(
+      id,
+      dto,
+      req.user.userId,
+    );
   }
 
   @Get(':id/audit')
@@ -83,7 +93,9 @@ export class MembershipAdminController {
 
   @Get('user/:userId/audit')
   async getMembershipAuditByUserId(@Param('userId') userId: string) {
-    return this.membershipAdminService.getMembershipAuditHistoryByUserId(userId);
+    return this.membershipAdminService.getMembershipAuditHistoryByUserId(
+      userId,
+    );
   }
 
   @Post('user/:userId/assign/:plan')
@@ -105,13 +117,18 @@ export class MembershipAdminController {
   @Post('generate-payment-link')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Generate payment link for manual billing' })
-  async generatePaymentLink(@Body() dto: GeneratePaymentLinkDto, @Request() req) {
+  async generatePaymentLink(
+    @Body() dto: GeneratePaymentLinkDto,
+    @Request() req,
+  ) {
     return this.billingAdminService.generatePaymentLink(dto, req.user.userId);
   }
 
   @Post('enable-auto-billing')
   @HttpCode(HttpStatus.CREATED)
-  @ApiOperation({ summary: 'Enable auto-billing with Mercado Pago preapproval' })
+  @ApiOperation({
+    summary: 'Enable auto-billing with Mercado Pago preapproval',
+  })
   async enableAutoBilling(@Body() dto: EnableAutoBillingDto, @Request() req) {
     return this.billingAdminService.enableAutoBilling(dto, req.user.userId);
   }
@@ -123,13 +140,19 @@ export class MembershipAdminController {
   }
 
   @Patch(':membershipId/billing-amount')
-  @ApiOperation({ summary: 'Change billing amount for auto-billing subscription' })
+  @ApiOperation({
+    summary: 'Change billing amount for auto-billing subscription',
+  })
   async changeBillingAmount(
     @Param('membershipId') membershipId: string,
     @Body() dto: ChangeBillingAmountDto,
     @Request() req,
   ) {
-    return this.billingAdminService.changeBillingAmount(membershipId, dto, req.user.userId);
+    return this.billingAdminService.changeBillingAmount(
+      membershipId,
+      dto,
+      req.user.userId,
+    );
   }
 
   @Post(':membershipId/migrate-to-auto-billing')
@@ -140,7 +163,11 @@ export class MembershipAdminController {
     @Body() dto: MigrateToAutoBillingDto,
     @Request() req,
   ) {
-    return this.billingAdminService.migrateToAutoBilling(membershipId, dto, req.user.userId);
+    return this.billingAdminService.migrateToAutoBilling(
+      membershipId,
+      dto,
+      req.user.userId,
+    );
   }
 
   @Post(':membershipId/migrate-to-manual')
@@ -150,7 +177,10 @@ export class MembershipAdminController {
     @Param('membershipId') membershipId: string,
     @Request() req,
   ) {
-    return this.billingAdminService.migrateToManualBilling(membershipId, req.user.userId);
+    return this.billingAdminService.migrateToManualBilling(
+      membershipId,
+      req.user.userId,
+    );
   }
 
   @Post(':membershipId/pause')
@@ -160,7 +190,10 @@ export class MembershipAdminController {
     @Param('membershipId') membershipId: string,
     @Request() req,
   ) {
-    return this.billingAdminService.pauseSubscription(membershipId, req.user.userId);
+    return this.billingAdminService.pauseSubscription(
+      membershipId,
+      req.user.userId,
+    );
   }
 
   @Post(':membershipId/resume')
@@ -170,7 +203,10 @@ export class MembershipAdminController {
     @Param('membershipId') membershipId: string,
     @Request() req,
   ) {
-    return this.billingAdminService.resumeSubscription(membershipId, req.user.userId);
+    return this.billingAdminService.resumeSubscription(
+      membershipId,
+      req.user.userId,
+    );
   }
 
   @Post(':membershipId/extend')
@@ -227,7 +263,11 @@ export class MembershipAdminController {
     @Body() dto: UpdateCustomPlanDto,
     @Request() req,
   ) {
-    return this.membershipAdminService.updateCustomPlan(id, dto, req.user.userId);
+    return this.membershipAdminService.updateCustomPlan(
+      id,
+      dto,
+      req.user.userId,
+    );
   }
 
   @Delete('plans/custom/:id')

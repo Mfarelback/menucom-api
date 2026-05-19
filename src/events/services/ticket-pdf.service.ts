@@ -21,13 +21,19 @@ export class TicketPdfService {
         doc.on('error', (err) => reject(err));
 
         // Título del Evento
-        doc.fontSize(16).text(ticket.ticketType.event.name, { align: 'center' });
+        doc
+          .fontSize(16)
+          .text(ticket.ticketType.event.name, { align: 'center' });
         doc.moveDown();
 
         // Información del Ticket
         doc.fontSize(10).text(`Tipo: ${ticket.ticketType.name}`);
-        doc.text(`Fecha: ${new Date(ticket.ticketType.event.startDate).toLocaleDateString()}`);
-        doc.text(`Lugar: ${ticket.ticketType.event.venue?.name || 'Por confirmar'}`);
+        doc.text(
+          `Fecha: ${new Date(ticket.ticketType.event.startDate).toLocaleDateString()}`,
+        );
+        doc.text(
+          `Lugar: ${ticket.ticketType.event.venue?.name || 'Por confirmar'}`,
+        );
         doc.moveDown();
 
         doc.text(`Asistente: ${ticket.ownerName}`);
@@ -43,7 +49,10 @@ export class TicketPdfService {
         });
 
         doc.moveDown();
-        doc.fillColor('grey').fontSize(8).text(`Código: ${ticket.qrCode}`, { align: 'center' });
+        doc
+          .fillColor('grey')
+          .fontSize(8)
+          .text(`Código: ${ticket.qrCode}`, { align: 'center' });
 
         doc.end();
       } catch (error) {

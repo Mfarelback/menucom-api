@@ -60,7 +60,8 @@ export class GoogleIdTokenStrategy extends PassportStrategy(
       console.log('📏 [GOOGLE STRATEGY] Longitud del token:', idToken.length);
 
       // Verificar el token con Firebase Admin SDK
-      const decodedToken = await this.firebaseAdminService.verifyIdToken(idToken);
+      const decodedToken =
+        await this.firebaseAdminService.verifyIdToken(idToken);
       console.log('✅ [GOOGLE STRATEGY] Token verificado exitosamente');
       console.log('👤 [GOOGLE STRATEGY] Información del token decodificado:', {
         uid: decodedToken.uid,

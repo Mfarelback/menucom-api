@@ -230,7 +230,9 @@ export class NotificationsService {
 
     Object.keys(sanitized).forEach((key) => {
       if (sensitiveKeys.some((sk) => key.toLowerCase().includes(sk))) {
-        this.logger.warn(`Clave sensible detectada en data FCM: ${key}. Eliminando.`);
+        this.logger.warn(
+          `Clave sensible detectada en data FCM: ${key}. Eliminando.`,
+        );
         delete sanitized[key];
       }
     });

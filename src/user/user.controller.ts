@@ -37,7 +37,10 @@ import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { QueryUsersAdminDto } from './dto/query-users-admin.dto';
 import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
-import { RequireContextPermissions, DisablePermissions } from 'src/auth/decorators/permissions.decorator';
+import {
+  RequireContextPermissions,
+  DisablePermissions,
+} from 'src/auth/decorators/permissions.decorator';
 import { Permission, BusinessContext } from 'src/auth/models/permissions.model';
 import { Public } from 'src/auth/decorators/public.decorator';
 import { ChangeOwnRoleDto } from './dto/change-own-role.dto';
@@ -204,9 +207,15 @@ export class UserController {
     status: 400,
     description: 'Rol inválido',
   })
-  async changeOwnRole(@Req() req: Request, @Body() changeRoleDto: ChangeOwnRoleDto) {
+  async changeOwnRole(
+    @Req() req: Request,
+    @Body() changeRoleDto: ChangeOwnRoleDto,
+  ) {
     const userId = req['user']['userId'];
-    const result = await this.userRoleService.changeOwnRole(userId, changeRoleDto.role);
+    const result = await this.userRoleService.changeOwnRole(
+      userId,
+      changeRoleDto.role,
+    );
     return {
       message: 'Rol cambiado exitosamente',
       data: result,
@@ -232,7 +241,9 @@ export class UserController {
     try {
       return await this.userService.queryAdmin(query);
     } catch (error) {
-      throw new InternalServerErrorException('Failed to get users: ' + error.message);
+      throw new InternalServerErrorException(
+        'Failed to get users: ' + error.message,
+      );
     }
   }
 

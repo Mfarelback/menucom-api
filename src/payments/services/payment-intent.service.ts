@@ -167,7 +167,8 @@ export class PaymentIntentService {
       }
 
       paymentCreated.transaction_id = paymentMpID.id;
-      paymentCreated.init_point = paymentMpID.init_point || paymentMpID.sandbox_init_point;
+      paymentCreated.init_point =
+        paymentMpID.init_point || paymentMpID.sandbox_init_point;
 
       const payment =
         await this.paymentIntentRepository.createPayment(paymentCreated);
@@ -191,22 +192,28 @@ export class PaymentIntentService {
   /**
    * Registra un PaymentIntent directamente en la base de datos.
    * Útil para cuando la preferencia ya fue creada externamente.
-   * 
+   *
    * @param data Datos del PaymentIntent
    * @returns PaymentIntent guardado
    */
-  async createPaymentIntent(data: Partial<PaymentIntent>): Promise<PaymentIntent> {
+  async createPaymentIntent(
+    data: Partial<PaymentIntent>,
+  ): Promise<PaymentIntent> {
     try {
       this.logger.log(`Registrando PaymentIntent manualmente: ${data.id}`);
       const paymentIntent = new PaymentIntent();
       Object.assign(paymentIntent, data);
       return await this.paymentIntentRepository.createPayment(paymentIntent);
     } catch (error) {
-      this.logger.error(`Error registrando PaymentIntent ${data.id}`, error.stack);
-      throw new InternalServerErrorException('Error al registrar el intento de pago');
+      this.logger.error(
+        `Error registrando PaymentIntent ${data.id}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        'Error al registrar el intento de pago',
+      );
     }
   }
-
 
   /**
    * Obtiene un PaymentIntent por su ID

@@ -385,7 +385,9 @@ export class MercadoPagoOAuthController {
     } catch (error) {
       console.error('Error in OAuth callback:', error.message);
       const backUrl = this.configService.get('MP_BACK_URL') || '';
-      return res.redirect(`${backUrl}/dashboard?oauth=error&message=${encodeURIComponent(error.message)}`);
+      return res.redirect(
+        `${backUrl}/dashboard?oauth=error&message=${encodeURIComponent(error.message)}`,
+      );
     }
   }
 }

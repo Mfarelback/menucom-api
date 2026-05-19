@@ -188,7 +188,9 @@ export class MercadoPagoService {
     return { ...this.planPrices };
   }
 
-  async createCustomPayment(request: CustomPaymentRequest): Promise<PaymentResponse> {
+  async createCustomPayment(
+    request: CustomPaymentRequest,
+  ): Promise<PaymentResponse> {
     try {
       const paymentData = {
         transaction_amount: request.amount,
@@ -224,7 +226,10 @@ export class MercadoPagoService {
       const payment = await response.json();
 
       if (!response.ok) {
-        this.logger.error('MercadoPago custom payment creation failed:', payment);
+        this.logger.error(
+          'MercadoPago custom payment creation failed:',
+          payment,
+        );
         throw new Error(`Payment creation failed: ${payment.message}`);
       }
 

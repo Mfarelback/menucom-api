@@ -65,12 +65,17 @@ export class CreateEventDto {
   @IsUUID()
   venueId?: string;
 
-  @ApiPropertyOptional({ type: CreateVenueDto, description: 'O crear una nueva locación' })
+  @ApiPropertyOptional({
+    type: CreateVenueDto,
+    description: 'O crear una nueva locación',
+  })
   @IsOptional()
   venue?: CreateVenueDto;
 }
 
-export class CreateEventWithFileDto extends OmitType(CreateEventDto, ['imageUrl'] as const) {
+export class CreateEventWithFileDto extends OmitType(CreateEventDto, [
+  'imageUrl',
+] as const) {
   @ApiProperty({
     type: 'string',
     format: 'binary',
@@ -119,7 +124,9 @@ export class UpdateEventDto {
   venueId?: string;
 }
 
-export class UpdateEventWithFileDto extends OmitType(UpdateEventDto, ['imageUrl'] as const) {
+export class UpdateEventWithFileDto extends OmitType(UpdateEventDto, [
+  'imageUrl',
+] as const) {
   @ApiProperty({
     type: 'string',
     format: 'binary',
@@ -134,7 +141,7 @@ export class CreateTicketTypeDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ example: 1500.50 })
+  @ApiProperty({ example: 1500.5 })
   @IsNumber()
   price: number;
 
@@ -143,11 +150,13 @@ export class CreateTicketTypeDto {
   totalQuantity: number;
 
   @ApiProperty({ example: '2024-10-01T10:00:00Z' })
-  @IsDateString()
+  @Transform(({ value }) => new Date(value))
+  @IsDate()
   saleStartDate: Date;
 
   @ApiProperty({ example: '2024-11-30T23:59:59Z' })
-  @IsDateString()
+  @Transform(({ value }) => new Date(value))
+  @IsDate()
   saleEndDate: Date;
 
   @ApiPropertyOptional({ example: 10 })
@@ -178,12 +187,14 @@ export class UpdateTicketTypeDto {
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsDateString()
+  @Transform(({ value }) => new Date(value))
+  @IsDate()
   saleStartDate?: Date;
 
   @ApiPropertyOptional()
   @IsOptional()
-  @IsDateString()
+  @Transform(({ value }) => new Date(value))
+  @IsDate()
   saleEndDate?: Date;
 
   @ApiPropertyOptional()

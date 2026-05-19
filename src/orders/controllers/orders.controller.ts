@@ -20,13 +20,8 @@ import { CreateOrderDto } from '../dtos/create.order.dto';
 import { Order } from '../entities/order.entity';
 import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
 import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
-import {
-  RequireContextPermissions,
-} from 'src/auth/decorators/permissions.decorator';
-import {
-  Permission,
-  BusinessContext,
-} from 'src/auth/models/permissions.model';
+import { RequireContextPermissions } from 'src/auth/decorators/permissions.decorator';
+import { Permission, BusinessContext } from 'src/auth/models/permissions.model';
 
 @ApiTags('orders')
 @ApiBearerAuth('JWT-auth')
@@ -93,7 +88,10 @@ export class OrdersController {
   }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() updateOrderDto: Partial<CreateOrderDto>) {
+  update(
+    @Param('id') id: string,
+    @Body() updateOrderDto: Partial<CreateOrderDto>,
+  ) {
     return this.orderService.update(id, updateOrderDto);
   }
 
@@ -125,7 +123,8 @@ export class OrdersController {
   @RequireContextPermissions(BusinessContext.GENERAL, Permission.READ_ORDER)
   @ApiOperation({
     summary: 'Contar órdenes (admin)',
-    description: 'Retorna el total de órdenes en el sistema. Requiere permiso READ_ORDER.',
+    description:
+      'Retorna el total de órdenes en el sistema. Requiere permiso READ_ORDER.',
   })
   async countAdmin() {
     return await this.orderService.countAll();
@@ -135,7 +134,8 @@ export class OrdersController {
   @RequireContextPermissions(BusinessContext.GENERAL, Permission.READ_ORDER)
   @ApiOperation({
     summary: 'Obtener ingresos totales (admin)',
-    description: 'Calcula la suma de todos los totales de las órdenes. Requiere permiso READ_ORDER.',
+    description:
+      'Calcula la suma de todos los totales de las órdenes. Requiere permiso READ_ORDER.',
   })
   async getRevenueAdmin() {
     return await this.orderService.getTotalRevenue();

@@ -1,4 +1,9 @@
-import { Injectable, BadRequestException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  InternalServerErrorException,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { Order } from '../entities/order.entity';
@@ -90,7 +95,9 @@ export class OrdersService {
   /**
    * Calcula los montos de la orden basándose en los precios REALES de la base de datos
    */
-  private async calculateSecureOrderAmounts(items: CreateOrderDto['items']): Promise<{
+  private async calculateSecureOrderAmounts(
+    items: CreateOrderDto['items'],
+  ): Promise<{
     subtotal: number;
     marketplaceFeePercentage: number;
     marketplaceFeeAmount: number;
@@ -121,7 +128,8 @@ export class OrdersService {
       });
     }
 
-    const marketplaceFeePercentage = await this.appDataService.getMarketplaceFeePercentage();
+    const marketplaceFeePercentage =
+      await this.appDataService.getMarketplaceFeePercentage();
     const marketplaceFeeAmount = (subtotal * marketplaceFeePercentage) / 100;
     const total = subtotal + marketplaceFeeAmount;
 
@@ -130,7 +138,7 @@ export class OrdersService {
       marketplaceFeePercentage,
       marketplaceFeeAmount,
       total,
-      itemsWithFixedPrices
+      itemsWithFixedPrices,
     };
   }
 
@@ -142,13 +150,18 @@ export class OrdersService {
     await this.validateOrderLimits(createOrderDto.items);
 
     // 3. Determinar Owner y validar integridad (mismo dueño para todos los items)
-    const ownerId = await this.determineOwnerIdAndValidate(createOrderDto.items);
+    const ownerId = await this.determineOwnerIdAndValidate(
+      createOrderDto.items,
+    );
 
     // 4. Calcular montos seguros (precios de servidor)
-    const secureAmounts = await this.calculateSecureOrderAmounts(createOrderDto.items);
+    const secureAmounts = await this.calculateSecureOrderAmounts(
+      createOrderDto.items,
+    );
 
     // 5. Preparar datos del cliente
-    let { customerEmail, customerPhone, customerName, customerLastName } = createOrderDto;
+    let { customerEmail, customerPhone, customerName, customerLastName } =
+      createOrderDto;
     const { createdBy } = createOrderDto;
 
     if (createdBy) {
@@ -221,11 +234,16 @@ export class OrdersService {
 
         const finalOrder = await manager.save(Order, savedOrder);
         finalOrder.items = orderItems;
-        
+
         return finalOrder;
       } catch (error) {
-        this.logger.error(`Error en transacción de creación de orden: ${error.message}`, error.stack);
-        throw new InternalServerErrorException(`No se pudo procesar la orden: ${error.message}`);
+        this.logger.error(
+          `Error en transacción de creación de orden: ${error.message}`,
+          error.stack,
+        );
+        throw new InternalServerErrorException(
+          `No se pudo procesar la orden: ${error.message}`,
+        );
       }
     });
   }
@@ -243,7 +261,9 @@ export class OrdersService {
       return order;
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException(`Error al buscar la orden: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Error al buscar la orden: ${error.message}`,
+      );
     }
   }
   async findAll(page: number = 1, limit: number = 10): Promise<Order[]> {
@@ -256,7 +276,9 @@ export class OrdersService {
         order: { createdAt: 'DESC' },
       });
     } catch (error) {
-      throw new InternalServerErrorException(`Error al obtener las órdenes: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Error al obtener las órdenes: ${error.message}`,
+      );
     }
   }
 
@@ -268,18 +290,24 @@ export class OrdersService {
         order: { createdAt: 'DESC' },
       });
     } catch (error) {
-      throw new InternalServerErrorException(`Error al obtener órdenes por email: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Error al obtener órdenes por email: ${error.message}`,
+      );
     }
   }
 
-  async findByUserId(userId: string, page: number = 1, limit: number = 10): Promise<Order[]> {
+  async findByUserId(
+    userId: string,
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<Order[]> {
     try {
       const user = await this.userService.findOne(userId);
       if (!user) {
         throw new NotFoundException(`Usuario con id ${userId} no encontrado`);
       }
       this.logger.debug(`Buscando órdenes para el usuario: ${user.email}`);
-      
+
       const skip = (page - 1) * limit;
       return await this.orderRepository.find({
         where: { customerEmail: user.email },
@@ -290,7 +318,9 @@ export class OrdersService {
       });
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException(`Error al obtener órdenes por ID de usuario: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Error al obtener órdenes por ID de usuario: ${error.message}`,
+      );
     }
   }
 
@@ -302,7 +332,9 @@ export class OrdersService {
         order: { createdAt: 'DESC' },
       });
     } catch (error) {
-      throw new InternalServerErrorException(`Error al obtener órdenes por creador: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Error al obtener órdenes por creador: ${error.message}`,
+      );
     }
   }
 
@@ -327,7 +359,9 @@ export class OrdersService {
       });
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
-      throw new InternalServerErrorException(`Error al obtener órdenes por ID de propietario: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Error al obtener órdenes por ID de propietario: ${error.message}`,
+      );
     }
   }
 
@@ -370,7 +404,9 @@ export class OrdersService {
       });
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException(`Error al actualizar la orden: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Error al actualizar la orden: ${error.message}`,
+      );
     }
   }
 
@@ -385,14 +421,19 @@ export class OrdersService {
       await this.orderRepository.delete(id);
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException(`Error al eliminar la orden: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Error al eliminar la orden: ${error.message}`,
+      );
     }
   }
 
   /**
    * Actualiza el estado de una orden
    */
-  async updateOrderStatus(orderId: string, status: OrderStatus): Promise<Order> {
+  async updateOrderStatus(
+    orderId: string,
+    status: OrderStatus,
+  ): Promise<Order> {
     try {
       const order = await this.orderRepository.findOne({
         where: { id: orderId },
@@ -404,13 +445,20 @@ export class OrdersService {
 
       // Idempotencia: si ya tiene el mismo estado, no hacer nada
       if (order.status === status) {
-        this.logger.debug(`Order ${orderId} ya está en estado ${status}. Saltando update.`);
+        this.logger.debug(
+          `Order ${orderId} ya está en estado ${status}. Saltando update.`,
+        );
         return order;
       }
 
       // Si la orden ya está en un estado final, no permitir cambios (a menos que sea una corrección específica)
-      if (order.status === OrderStatus.CONFIRMED && status === OrderStatus.PENDING) {
-        this.logger.warn(`Intento de cambiar orden CONFIRMED ${orderId} a PENDING bloqueado.`);
+      if (
+        order.status === OrderStatus.CONFIRMED &&
+        status === OrderStatus.PENDING
+      ) {
+        this.logger.warn(
+          `Intento de cambiar orden CONFIRMED ${orderId} a PENDING bloqueado.`,
+        );
         return order;
       }
 
@@ -423,7 +471,9 @@ export class OrdersService {
       });
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
-      throw new InternalServerErrorException(`Error al actualizar el estado de la orden: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Error al actualizar el estado de la orden: ${error.message}`,
+      );
     }
   }
 
@@ -437,7 +487,9 @@ export class OrdersService {
         relations: ['items'],
       });
     } catch (error) {
-      throw new InternalServerErrorException(`Error al buscar orden por ID de operación: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Error al buscar orden por ID de operación: ${error.message}`,
+      );
     }
   }
 
@@ -462,7 +514,9 @@ export class OrdersService {
     //verifica el percentage_fee
     const percentageFee = await this.appConfig.getNumber('percentage_fee', 0);
     if (percentageFee < 0 || percentageFee > 100) {
-      throw new BadRequestException(`El porcentaje de comisión debe estar entre 0 y 100`);
+      throw new BadRequestException(
+        `El porcentaje de comisión debe estar entre 0 y 100`,
+      );
     }
 
     // Verificar modo de mantenimiento
@@ -509,7 +563,9 @@ export class OrdersService {
 
     // Validar valor mínimo
     if (totalValue < minOrderValue) {
-      throw new BadRequestException(`El valor mínimo de orden es $${minOrderValue}`);
+      throw new BadRequestException(
+        `El valor mínimo de orden es $${minOrderValue}`,
+      );
     }
 
     // Verificar si ciertos tipos de items están permitidos
@@ -530,7 +586,9 @@ export class OrdersService {
       }
 
       if (item.sourceType === 'menu' && !allowMenuItems) {
-        throw new BadRequestException('Los items de menú están temporalmente deshabilitados');
+        throw new BadRequestException(
+          'Los items de menú están temporalmente deshabilitados',
+        );
       }
     }
   }
@@ -568,7 +626,9 @@ export class OrdersService {
     try {
       return await this.orderRepository.count();
     } catch (error) {
-      throw new InternalServerErrorException(`Error al contar las órdenes: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Error al contar las órdenes: ${error.message}`,
+      );
     }
   }
 
@@ -580,7 +640,9 @@ export class OrdersService {
         .getRawOne();
       return parseFloat(result.total) || 0;
     } catch (error) {
-      throw new InternalServerErrorException(`Error al calcular los ingresos totales: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Error al calcular los ingresos totales: ${error.message}`,
+      );
     }
   }
 }

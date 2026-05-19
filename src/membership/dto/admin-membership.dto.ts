@@ -1,5 +1,17 @@
 import { Type } from 'class-transformer';
-import { IsOptional, IsString, IsEnum, IsInt, IsBoolean, IsNumber, IsDateString, Min, Max, ValidateNested, IsObject } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsEnum,
+  IsInt,
+  IsBoolean,
+  IsNumber,
+  IsDateString,
+  Min,
+  Max,
+  ValidateNested,
+  IsObject,
+} from 'class-validator';
 import { MembershipFeature } from '../enums/membership-plan.enum';
 import { PlanStatus, PlanType } from '../entities/subscription-plan.entity';
 

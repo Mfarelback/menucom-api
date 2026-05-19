@@ -9,12 +9,17 @@ import {
   Request,
 } from '@nestjs/common';
 import { Response } from 'express';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiBearerAuth,
-} from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
+import { PermissionsGuard } from '../../auth/guards/permissions.guard';
+import {
+  RequirePermissions,
+  InBusinessContext,
+} from '../../auth/decorators/permissions.decorator';
+import {
+  Permission,
+  BusinessContext,
+} from '../../auth/models/permissions.model';
 import { TicketsService } from '../services/tickets.service';
 import { TicketPdfService } from '../services/ticket-pdf.service';
 import { EventPaymentService } from '../services/event-payment.service';
@@ -29,8 +34,24 @@ export class TicketsController {
   ) {}
 
   @Post('purchase')
-  @ApiOperation({ summary: 'Generación directa de tickets (Simulación / Uso interno)' })
-  async purchase(@Body() body: { ticketTypeId: string; quantity: number; customerName: string; customerEmail: string }) {
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @InBusinessContext(BusinessContext.EVENTS)
+  @RequirePermissions(Permission.MANAGE_TICKETS)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: 'Generación directa de tickets (solo organizadores)',
+    description:
+      'Genera tickets sin proceso de pago. Requiere permisos de organizador o administrador. Útil para tickets gratuitos, cortesía o uso interno.',
+  })
+  async purchase(
+    @Body()
+    body: {
+      ticketTypeId: string;
+      quantity: number;
+      customerName: string;
+      customerEmail: string;
+    },
+  ) {
     return await this.ticketsService.generateTickets(
       body.ticketTypeId,
       body.quantity,
@@ -42,13 +63,14 @@ export class TicketsController {
   @Post('checkout')
   @ApiOperation({ summary: 'Iniciar proceso de pago para tickets' })
   async checkout(
-    @Body() body: { 
-      ticketTypeId: string; 
-      quantity: number; 
-      customerName: string; 
+    @Body()
+    body: {
+      ticketTypeId: string;
+      quantity: number;
+      customerName: string;
       customerEmail: string;
       tenantId: string;
-    }
+    },
   ) {
     return await this.eventPaymentService.createTicketPreference(
       body.ticketTypeId,
@@ -78,7 +100,9 @@ export class TicketsController {
   @Post('validate/:code')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Validar y consumir un ticket por su código QR (Fase 4)' })
+  @ApiOperation({
+    summary: 'Validar y consumir un ticket por su código QR (Fase 4)',
+  })
   async validate(@Param('code') code: string, @Request() req: any) {
     const validatorId = req.user?.userId || req.user?.id;
     const ticket = await this.ticketsService.validateAndUse(code, validatorId);

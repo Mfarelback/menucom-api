@@ -44,8 +44,6 @@ import { RootController } from './core/controllers/root.controller';
     // MigrationModule, // Módulo temporal - deshabilitado
   ],
   controllers: [RootController],
-  providers: [
-    PaymentsGateway,
-  ],
+  providers: [PaymentsGateway],
 })
 export class AppModule {}
