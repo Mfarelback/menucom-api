@@ -9,6 +9,7 @@ import {
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
 import { CloudinaryService } from '../services/cloudinary.service';
+import { CanManageUsers } from '../../auth/decorators/role-helpers.decorator';
 
 @ApiTags('uploads')
 @Controller('cloudinary')
@@ -17,6 +18,7 @@ export class CloudinaryController {
 
   constructor(private readonly cloudinaryService: CloudinaryService) {}
 
+  @CanManageUsers()
   @UseInterceptors(FileInterceptor('file'))
   @Post('upload')
   async upload(@UploadedFile('file') file: Express.Multer.File) {
@@ -32,6 +34,7 @@ export class CloudinaryController {
     }
   }
 
+  @CanManageUsers()
   @Post('uploads')
   @UseInterceptors(FilesInterceptor('files'))
   async uploades(@UploadedFiles() files: Array<Express.Multer.File>) {

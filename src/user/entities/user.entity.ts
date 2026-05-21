@@ -64,6 +64,32 @@ export class User {
   @Column({ type: 'varchar', length: 255, nullable: true })
   fcmToken: string;
 
+  // === Campos de perfil de negocio para landing page ===
+
+  @Column({ type: 'varchar', length: 255, nullable: true, unique: true })
+  slug: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  businessName: string;
+
+  @Column({ type: 'text', nullable: true })
+  businessDescription: string;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  coverImageUrl: string;
+
+  @Column({ type: 'boolean', default: false })
+  isFeatured: boolean;
+
+  @Column({ type: 'jsonb', nullable: true })
+  businessAddress: Record<string, any>;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  businessPhone: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  socialLinks: Record<string, any>;
+
   @UpdateDateColumn({
     type: 'timestamp',
   })
