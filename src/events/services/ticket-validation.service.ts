@@ -191,7 +191,9 @@ export class TicketValidationService {
       }
 
       if (error instanceof Error && error.name === 'JsonWebTokenError') {
-        this.logger.warn(`Invalid JWT signature: ${error instanceof Error ? error.message : String(error)}`);
+        this.logger.warn(
+          `Invalid JWT signature: ${error instanceof Error ? error.message : String(error)}`,
+        );
         return {
           valid: false,
           error: 'Firma inválida',
@@ -199,7 +201,10 @@ export class TicketValidationService {
         };
       }
 
-      this.logger.error('Error validating offline token:', error instanceof Error ? error.stack : String(error));
+      this.logger.error(
+        'Error validating offline token:',
+        error instanceof Error ? error.stack : String(error),
+      );
       return {
         valid: false,
         error: 'Error de validación',
@@ -315,7 +320,10 @@ export class TicketValidationService {
         errorCode: 'INVALID_QR',
       };
     } catch (error) {
-      this.logger.error('Error validating hybrid QR:', error instanceof Error ? error.stack : String(error));
+      this.logger.error(
+        'Error validating hybrid QR:',
+        error instanceof Error ? error.stack : String(error),
+      );
       return {
         valid: false,
         error: 'Error de validación',

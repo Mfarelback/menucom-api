@@ -13,7 +13,7 @@ import { Membership } from '../membership/entities/membership.entity';
 
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
-import { UrlTransformService } from 'src/image-proxy/services/url-transform.service';
+import { UrlTransformService } from '../image-proxy/services/url-transform.service';
 import { LoggerService } from '../core/logger';
 import { QueryUsersAdminDto } from './dto/query-users-admin.dto';
 import { MembershipPlan } from '../membership/enums/membership-plan.enum';

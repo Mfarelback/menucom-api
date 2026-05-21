@@ -9,13 +9,13 @@ import { Repository, DataSource } from 'typeorm';
 import { Order } from '../entities/order.entity';
 import { OrderItem, OrderSourceType } from '../entities/order.item.entity';
 import { CreateOrderDto } from '../dtos/create.order.dto';
-import { PaymentsService } from 'src/payments/services/payments.service';
-import { UserService } from 'src/user/user.service';
-import { AppConfigService } from 'src/app-data';
-import { AppDataService } from 'src/app-data/services/app-data.service';
-import { Catalog } from 'src/catalog/entities/catalog.entity';
-import { CatalogItem } from 'src/catalog/entities/catalog-item.entity';
-import { LoggerService } from 'src/core/logger';
+import { PaymentsService } from '../../payments/services/payments.service';
+import { UserService } from '../../user/user.service';
+import { AppConfigService } from '../../app-data';
+import { AppDataService } from '../../app-data/services/app-data.service';
+import { Catalog } from '../../catalog/entities/catalog.entity';
+import { CatalogItem } from '../../catalog/entities/catalog-item.entity';
+import { LoggerService } from '../../core/logger';
 import { OrderStatus } from '../enums/order-status.enum';
 
 @Injectable()

@@ -1,9 +1,9 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PaymentsRepository } from '../repository/payment_repository';
 import { PaymentIntent } from '../entities/payment_intent_entity';
-import { PaymentStatusType } from 'src/config';
-import { LoggerService } from 'src/core/logger/logger.service';
-import { OrderStatus } from 'src/orders/enums/order-status.enum';
+import { PaymentStatusType } from '../../config';
+import { LoggerService } from '../../core/logger/logger.service';
+import { OrderStatus } from '../../orders/enums/order-status.enum';
 
 /**
  * Servicio especializado en manejo de estados de pagos

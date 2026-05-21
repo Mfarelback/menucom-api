@@ -1,11 +1,11 @@
 import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { AuthGuard } from '@nestjs/passport';
-import { CreateUserDto } from 'src/user/dto/create-user.dto';
-import { SocialRegistrationDto } from 'src/user/dto/social-user.dto';
+import { CreateUserDto } from '../../user/dto/create-user.dto';
+import { SocialRegistrationDto } from '../../user/dto/social-user.dto';
 import { AuthService } from '../services/auth.service';
 import { FirebaseAdminService } from '../firebase-admin.service';
-import { LoggerService } from 'src/core/logger/logger.service';
+import { LoggerService } from '../../core/logger/logger.service';
 import {
   ApiTags,
   ApiOperation,

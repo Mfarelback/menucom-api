@@ -4,11 +4,11 @@ import { OrdersService } from './services/orders.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Order } from './entities/order.entity';
 import { OrderItem } from './entities/order.item.entity';
-import { PaymentsModule } from 'src/payments/payments.module';
-import { UserModule } from 'src/user/user.module';
-import { Catalog } from 'src/catalog/entities/catalog.entity';
-import { CatalogItem } from 'src/catalog/entities/catalog-item.entity';
-import { AppDataModule } from 'src/app-data/app-data.module';
+import { PaymentsModule } from '../payments/payments.module';
+import { UserModule } from '../user/user.module';
+import { Catalog } from '../catalog/entities/catalog.entity';
+import { CatalogItem } from '../catalog/entities/catalog-item.entity';
+import { AppDataModule } from '../app-data/app-data.module';
 
 @Module({
   imports: [

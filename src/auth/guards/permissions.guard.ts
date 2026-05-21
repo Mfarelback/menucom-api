@@ -12,7 +12,7 @@ import {
 } from '../decorators/permissions.decorator';
 import { Permission, BusinessContext } from '../models/permissions.model';
 import { UserRoleService } from '../services/user-role.service';
-import { LoggerService } from 'src/core/logger/logger.service';
+import { LoggerService } from '../../core/logger/logger.service';
 
 /**
  * Guard que verifica si el usuario tiene los permisos necesarios

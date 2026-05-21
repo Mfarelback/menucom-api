@@ -19,6 +19,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { EventsModule } from './events/events.module';
 // import { MigrationModule } from './scripts/migration.module'; // Módulo temporal de migraciones
 import { LoggerModule } from './core/logger';
+import { IdempotencyModule } from './core/idempotency';
 import { RootController } from './core/controllers/root.controller';
 
 @Module({
@@ -33,6 +34,7 @@ import { RootController } from './core/controllers/root.controller';
       isGlobal: true,
     }),
     LoggerModule,
+    IdempotencyModule,
     AppDataModule,
     AuthModule,
     UserModule,

@@ -5,8 +5,8 @@ import { AuthService } from './services/auth.service';
 import { AuthController } from './contollers/auth.controller';
 import { UserRoleController } from './contollers/user-role.controller';
 import { JwtModule } from '@nestjs/jwt';
-import { UserModule } from 'src/user/user.module';
-import config from 'src/config';
+import { UserModule } from '../user/user.module';
+import config from '../config';
 import { ConfigType } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 import { LocalStrategy } from './local.strategy';
@@ -48,6 +48,7 @@ import { FirebaseAdminService } from './firebase-admin.service';
     UserRoleService,
     PermissionsGuard,
     FirebaseAdminService,
+    JwtModule,
   ],
 })
 export class AuthModule {}

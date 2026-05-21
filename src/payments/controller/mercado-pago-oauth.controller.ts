@@ -8,6 +8,7 @@ import {
   Res,
   UseGuards,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Response } from 'express';
@@ -19,7 +20,7 @@ import {
   ApiQuery,
   ApiBody,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
+import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
 import { MercadoPagoOAuthService } from '../services/mercado-pago-oauth.service';
 import { InitiateOAuthDto, TokenExchangeDto } from '../dto/oauth.dto';
 import { MercadoPagoAccount } from '../entities/mercado-pago-account.entity';
@@ -27,6 +28,8 @@ import { MercadoPagoAccount } from '../entities/mercado-pago-account.entity';
 @ApiTags('Mercado Pago OAuth')
 @Controller('payments/oauth')
 export class MercadoPagoOAuthController {
+  private readonly logger = new Logger(MercadoPagoOAuthController.name);
+
   constructor(
     private readonly mpOAuthService: MercadoPagoOAuthService,
     private readonly configService: ConfigService,
@@ -101,16 +104,7 @@ export class MercadoPagoOAuthController {
   async handleCallback(
     @Body() tokenExchangeDto: TokenExchangeDto,
   ): Promise<MercadoPagoAccount> {
-    console.log(
-      'OAuth callback received - Full body:',
-      JSON.stringify(tokenExchangeDto, null, 2),
-    );
-    console.log('OAuth callback received - Summary:', {
-      hasAuthCode: !!tokenExchangeDto.authorizationCode,
-      authCodeLength: tokenExchangeDto.authorizationCode?.length,
-      redirectUri: tokenExchangeDto.redirectUri,
-      vinculationId: tokenExchangeDto.vinculation_id,
-    });
+    this.logger.log('OAuth callback received');
 
     const userId = tokenExchangeDto.vinculation_id;
 
@@ -314,60 +308,40 @@ export class MercadoPagoOAuthController {
     @Res() res: Response,
     @Query('error') error?: string,
   ) {
-    console.log('=== OAUTH GET CALLBACK RECEIVED ===');
-    console.log('Query parameters:', {
-      code: code?.substring(0, 10) + '...',
-      state,
-      error,
-    });
+    this.logger.log('OAuth GET callback received');
 
     if (error) {
-      console.log('OAuth error received:', error);
+      this.logger.warn(`OAuth error received: ${error}`);
       const backUrl = this.configService.get('MP_BACK_URL') || '';
       return res.redirect(`${backUrl}/dashboard?oauth=error&error=${error}`);
     }
 
     if (!code || !state) {
-      console.log('Missing required parameters:', {
-        hasCode: !!code,
-        hasState: !!state,
-      });
+      this.logger.warn('Missing required OAuth parameters');
       throw new BadRequestException('Missing authorization code or state');
     }
 
     try {
-      console.log('Attempting to extract userId from state:', state);
+      this.logger.log('Extrayendo userId del state');
 
-      // Extraer userId del state - ahora soporta ambos formatos
       let userId: string;
 
-      // Formato nuevo: user_{userId}_{timestamp}
       const userStateMatch = state.match(/^user_([^_]+)_/);
       if (userStateMatch) {
         userId = userStateMatch[1];
-        console.log('Found userId in user_ format:', userId);
+        this.logger.log('UserId extraído del state');
       } else {
-        // Formato del initiate actual: oauth_{timestamp} - necesitamos obtener el userId de otra manera
-        console.log(
-          'State does not match user_ format, checking for oauth_ format',
-        );
-
-        // Para el formato oauth_, necesitamos revisar si tenemos alguna forma de obtener el userId
-        // Por ahora, vamos a loggear el error y arreglar el generateAuthorizationUrl
         throw new BadRequestException(
           `Invalid state format: ${state}. Expected format: user_{userId}_{timestamp}`,
         );
       }
 
-      console.log('Using userId for linking:', userId);
+      this.logger.log(`Vinculando cuenta OAuth para userId: ${userId}`);
 
-      // Usar la redirect URI de la configuración o la de por defecto
       const redirectUri =
         this.configService.get('MERCADO_PAGO_REDIRECT_URI') ||
         this.configService.get('MP_REDIRECT_URI') ||
         'https://menucom-api.onrender.com/payments/oauth/callback';
-
-      console.log('Calling linkAccount with:', { userId, redirectUri });
 
       const account = await this.mpOAuthService.linkAccount(
         userId,
@@ -375,15 +349,15 @@ export class MercadoPagoOAuthController {
         redirectUri,
       );
 
-      console.log('Account linked successfully:', {
-        accountId: account.id,
-        collectorId: account.collectorId,
-      });
+      this.logger.log(`Cuenta vinculada exitosamente: ${account.id}`);
 
       const backUrl = this.configService.get('MP_BACK_URL') || '';
       return res.redirect(`${backUrl}/dashboard?oauth=success`);
     } catch (error) {
-      console.error('Error in OAuth callback:', error.message);
+      this.logger.error(
+        'Error en OAuth callback',
+        error instanceof Error ? error.stack : undefined,
+      );
       const backUrl = this.configService.get('MP_BACK_URL') || '';
       return res.redirect(
         `${backUrl}/dashboard?oauth=error&message=${encodeURIComponent(error.message)}`,

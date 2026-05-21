@@ -280,13 +280,15 @@ private secretKey = process.env.TICKET_QR_SECRET || 'default-secret-change-in-pr
 
 ---
 
-### 🟡 M-03: WebSocket gateway sin restricción de origen
+### 🟡 M-03: WebSocket gateway sin restricción de origen — ✅ Corregido
 
 **Archivo:** `src/ws/payments.gateway.ts`
-**Código:** `cors: { origin: true }`
+**Código actual:** `cors: { origin: allowedOrigins, credentials: true }` (usa `ALLOWED_ORIGINS` de entorno)
 **Riesgo:** Conexiones WebSocket desde cualquier origen. Posible exfiltración de datos o suscripción no autorizada a eventos de pago.
 
 **Solución:** Limitar a orígenes conocidos o requerir autenticación JWT en el handshake.
+
+**Estado:** ✅ Corregido. Ahora usa lista blanca de orígenes vía `ALLOWED_ORIGINS` y requiere JWT en `handleConnection`. `main.ts` valida que `ALLOWED_ORIGINS` esté configurada al iniciar.
 
 ---
 
@@ -324,12 +326,14 @@ Esto facilita el reconocimiento para atacantes.
 
 ---
 
-### 🟡 M-07: `console.log`/`console.error` en lugar de logger estructurado
+### 🟡 M-07: `console.log`/`console.error` en lugar de logger estructurado — ✅ Corregido
 
 **Archivos:** Varios servicios
 **Riesgo:** Mensajes de log sin formato estructurado, imposibles de agregar/correlacionar en producción. En particular, `console.error` puede exponer trazas de error completas.
 
 **Solución:** Usar el Logger de NestJS (`@nestjs/common`) consistentemente.
+
+**Estado:** ✅ Corregido. Se migraron ~48 calls a Logger de NestJS en 7 archivos. Incluyó la eliminación de dos fugas de secrets críticas: `console.log(password)` en `local.strategy.ts` y `console.log(MP_ACCESS_TOKEN)` en `payments.module.ts`.
 
 ---
 
@@ -398,34 +402,34 @@ Impacto:  Catastrófico   ● ● ○ ○ ○ ○  (C-01, C-02, C-03)
 
 ### Inmediatas (Semana 1)
 
-| # | Acción | Hallazgo | Esfuerzo |
-|---|--------|----------|----------|
-| 1 | **Proteger o eliminar** `POST /tickets/purchase` | C-01 | 1h |
-| 2 | **Agregar rate limiting** (`@nestjs/throttler`) | C-04 | 2h |
-| 3 | **Proteger** `GET /tickets/:id/pdf` con JWT y verificación de propiedad | C-03 | 2h |
-| 4 | **Forzar `synchronize: false`** en producción + migraciones | C-06 | 1h |
-| 5 | **Validar presencia de secrets** al startup (`MP_WEBHOOK_SECRET`, `TICKET_QR_SECRET`) | A-03, A-04 | 1h |
+| # | Acción | Hallazgo | Esfuerzo | Estado |
+|---|--------|----------|----------|--------|
+| 1 | **Proteger o eliminar** `POST /tickets/purchase` | C-01 | 1h | ✅ |
+| 2 | **Agregar rate limiting** (`@nestjs/throttler`) | C-04 | 2h | ✅ |
+| 3 | **Proteger** `GET /tickets/:id/pdf` con JWT y verificación de propiedad | C-03 | 2h | ✅ |
+| 4 | **Forzar `synchronize: false`** en producción + migraciones | C-06 | 1h | ⏸️ Pospuesto — planificar migraciones primero |
+| 5 | **Validar presencia de secrets** al startup (`MP_WEBHOOK_SECRET`, `TICKET_QR_SECRET`) | A-03, A-04 | 1h | 🔲 |
 
 ### Corto Plazo (Semana 2-3)
 
-| # | Acción | Hallazgo | Esfuerzo |
-|---|--------|----------|----------|
-| 6 | **Idempotencia en webhooks** con Redis o tabla DB | C-05 | 4h |
-| 7 | **Cron job de limpieza** de reservas PENDING expiradas | A-02 | 3h |
-| 8 | **Validar `maxPerUser`** en checkout | A-05 | 1h |
-| 9 | **Limitar tamaño de body** y habilitar helmet | M-01, M-04 | 1h |
-| 10 | **Restringir CORS** | M-02 | 1h |
+| # | Acción | Hallazgo | Esfuerzo | Estado |
+|---|--------|----------|----------|--------|
+| 6 | **Idempotencia en webhooks** con Redis o tabla DB | C-05 | 4h | ✅ |
+| 7 | **Cron job de limpieza** de reservas PENDING expiradas | A-02 | 3h | ✅ |
+| 8 | **Validar `maxPerUser`** en checkout | A-05 | 1h | 🔲 |
+| 9 | **Limitar tamaño de body** y habilitar helmet | M-01, M-04 | 1h | 🔲 |
+| 10 | **Restringir CORS** | M-02 | 1h | 🔲 |
 
 ### Mediano Plazo (Mes 1-2)
 
-| # | Acción | Hallazgo | Esfuerzo |
-|---|--------|----------|----------|
-| 11 | **Evaluar `binary_mode`** en MP o implementar manejo de `in_process` | A-01 | 4h |
-| 12 | **Validar tenantId** desde DB en lugar del body | A-06 | 2h |
-| 13 | **Proteger Swagger** `/docs` | M-05 | 1h |
-| 14 | **Implementar revocación de JWT offline** | M-06 | 4h |
-| 15 | **Migrar console.log a Logger estructurado** | M-07 | 3h |
-| 16 | **Restringir WebSocket** por origen y/o JWT | M-03 | 2h |
+| # | Acción | Hallazgo | Esfuerzo | Estado |
+|---|--------|----------|----------|--------|
+| 11 | **Habilitar `binary_mode`** en preferencias MP | A-01 | 1h | ✅ |
+| 12 | **Validar tenantId** desde DB en lugar del body | A-06 | 2h | ✅ |
+| 13 | **Proteger Swagger** `/docs` | M-05 | 1h | 🔲 |
+| 14 | **Implementar revocación de JWT offline** | M-06 | 4h | 🔲 |
+| 15 | **Migrar console.log a Logger estructurado** | M-07 | 3h | ✅ |
+| 16 | **Restringir WebSocket** por origen y/o JWT | M-03 | 2h | ✅ |
 
 ---
 

@@ -9,6 +9,7 @@ import {
   Headers,
   HttpCode,
   UnauthorizedException,
+  Logger,
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
 import {
@@ -17,7 +18,8 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
+import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
+import { IdempotencyService } from '../../core/idempotency';
 import { PaymentsService } from '../services/payments.service';
 import { PaymentsGateway } from '../../ws/payments.gateway';
 import { MercadopagoService } from '../services/mercado_pago.service';
@@ -25,10 +27,13 @@ import { MercadopagoService } from '../services/mercado_pago.service';
 @ApiTags('Payments')
 @Controller('payments')
 export class PaymentsController {
+  private readonly logger = new Logger(PaymentsController.name);
+
   constructor(
     private readonly paymentsService: PaymentsService,
     private readonly paymentsGateway: PaymentsGateway,
     private readonly mercadoPagoService: MercadopagoService,
+    private readonly idempotencyService: IdempotencyService,
   ) {}
 
   @UseGuards(JwtAuthGuard)
@@ -68,17 +73,14 @@ export class PaymentsController {
     @Req() req: any,
   ) {
     try {
-      console.log('[MP Webhook] Payload recibido:', JSON.stringify(payload));
-      console.log('[MP Webhook] Query params:', JSON.stringify(req.query));
+      this.logger.log('Webhook payload recibido');
 
-      // 1. Determinar ID y Tipo para validación de firma
       const dataId =
         payload?.data?.id ||
         req.query?.['data.id'] ||
         payload?.id ||
         req.query?.id;
 
-      // 2. Validar firma si el header está presente
       if (xSignature && dataId && xRequestId) {
         const isValid = this.paymentsService.validateSignature(
           xSignature,
@@ -86,45 +88,38 @@ export class PaymentsController {
           dataId,
         );
         if (!isValid) {
-          console.error('[MP Webhook] Firma inválida detectada.');
+          this.logger.warn('Firma inválida detectada en webhook');
           throw new UnauthorizedException('Invalid signature');
         }
       } else if (
         process.env.ENV === 'prod' ||
         process.env.NODE_ENV === 'production'
       ) {
-        // En producción, es OBLIGATORIO validar la firma
-        console.error('[MP Webhook] Firma ausente en entorno de producción.');
+        this.logger.warn('Firma ausente en webhook en producción');
         throw new UnauthorizedException('Signature is required in production');
       } else {
-        console.warn(
-          '[MP Webhook] Probable notificación sin firma (entorno no-prod).',
+        this.logger.warn(
+          'Notificación sin firma (entorno no-prod)',
         );
       }
+
+      const idempKey = idempotencyKey || xRequestId || dataId || 'unknown';
 
       let paymentId: string | null = null;
       let merchantOrderId: string | number | null = null;
 
-      // Extraer información de notificación de payment
       if (payload && payload.data && payload.type === 'payment') {
         paymentId = payload.data.id;
-        console.log(
-          '[MP Webhook] Detectado payment con body. paymentId:',
-          paymentId,
-        );
+        this.logger.log(`Detectado payment con body. paymentId: ${paymentId}`);
       } else if (
         req.query &&
         req.query['data.id'] &&
         req.query.type === 'payment'
       ) {
         paymentId = req.query['data.id'];
-        console.log(
-          '[MP Webhook] Detectado payment con query param. paymentId:',
-          paymentId,
-        );
+        this.logger.log(`Detectado payment con query param. paymentId: ${paymentId}`);
       }
 
-      // Extraer información de notificación de merchant_order
       if (
         (payload && payload.topic === 'merchant_order' && payload.resource) ||
         (req.query && req.query.topic === 'merchant_order' && req.query.id)
@@ -134,44 +129,52 @@ export class PaymentsController {
           : req.query.id;
         merchantOrderId = Number(merchantOrderIdRaw);
 
-        // Si no es un número válido, usar como string
         if (!Number.isFinite(merchantOrderId)) {
           merchantOrderId = merchantOrderIdRaw as string;
         }
 
-        console.log(
-          '[MP Webhook] Detectado merchant_order. merchantOrderId:',
-          merchantOrderId,
-        );
+        this.logger.log(`Detectado merchant_order. merchantOrderId: ${merchantOrderId}`);
       }
 
-      // Procesar la notificación y actualizar estados
-      const result = await this.paymentsService.processWebhookNotification(
-        paymentId,
-        merchantOrderId,
+      const actionKey = `payments-webhook:${idempKey}`;
+      const { processed, result } = await this.idempotencyService.tryProcess(
+        actionKey,
+        () => this.paymentsService.processWebhookNotification(
+          paymentId,
+          merchantOrderId,
+        ),
       );
 
-      // Emitir evento por websocket si tenemos orderId
-      if (result.orderId) {
-        console.log(
-          '[MP Webhook] Emitiendo evento WebSocket paymentSuccess para orderId:',
-          result.orderId,
+      if (!processed) {
+        this.logger.log(`Webhook ya procesado: ${idempKey}`);
+        return {
+          message: 'Notificación ya procesada',
+          idempotencyKey,
+        };
+      }
+
+      if (result?.orderId) {
+        this.logger.log(
+          `Emitiendo evento WebSocket paymentSuccess para orderId: ${result.orderId}`,
         );
         this.paymentsGateway.emitPaymentSuccess(result.orderId);
       } else {
-        console.warn(
-          '[MP Webhook] No se pudo determinar orderId, no se emite evento WebSocket',
+        this.logger.warn(
+          'No se pudo determinar orderId, no se emite evento WebSocket',
         );
       }
 
       return {
         message: 'Notificación procesada correctamente',
-        orderId: result.orderId,
-        paymentStatus: result.paymentStatus,
+        orderId: result?.orderId,
+        paymentStatus: result?.paymentStatus,
         idempotencyKey,
       };
     } catch (error) {
-      console.error('[MP Webhook] Error procesando notificación:', error);
+      this.logger.error(
+        'Error procesando notificación webhook',
+        error instanceof Error ? error.stack : undefined,
+      );
       return {
         message: 'Error procesando notificación',
         error: error.message,

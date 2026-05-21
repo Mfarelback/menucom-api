@@ -5,11 +5,11 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
-import { UserService } from 'src/user/user.service';
-import { UserAuthService } from 'src/user/services/user-auth.service';
+import { UserService } from '../../user/user.service';
+import { UserAuthService } from '../../user/services/user-auth.service';
 import { JwtService } from '@nestjs/jwt';
-import { CreateUserDto } from 'src/user/dto/create-user.dto';
-import { LoggerService } from 'src/core/logger/logger.service';
+import { CreateUserDto } from '../../user/dto/create-user.dto';
+import { LoggerService } from '../../core/logger/logger.service';
 import { UserRoleService } from './user-role.service';
 import { RoleType, BusinessContext } from '../models/permissions.model';
 

@@ -30,19 +30,19 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { Request } from 'express';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
+import { JwtAuthGuard } from '../auth/guards/jwt.auth.gards';
 import { ChangePasswordDto } from './dto/password.dto';
 import { GetUsersByRolesDto } from './dto/get-users-by-roles.dto';
 import { UpdateFcmTokenDto } from './dto/update-fcm-token.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { QueryUsersAdminDto } from './dto/query-users-admin.dto';
-import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
+import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import {
   RequireContextPermissions,
   DisablePermissions,
-} from 'src/auth/decorators/permissions.decorator';
-import { Permission, BusinessContext } from 'src/auth/models/permissions.model';
-import { Public } from 'src/auth/decorators/public.decorator';
+} from '../auth/decorators/permissions.decorator';
+import { Permission, BusinessContext } from '../auth/models/permissions.model';
+import { Public } from '../auth/decorators/public.decorator';
 import { ChangeOwnRoleDto } from './dto/change-own-role.dto';
 
 @ApiTags('user')

@@ -180,10 +180,8 @@ export class MercadopagoService {
         }),
         // Incluir metadata para trazabilidad
         ...(options.metadata && { metadata: options.metadata }),
-        // Si binary_mode fue provisto en options, lo propagamos
-        ...((options as any).binary_mode !== undefined && {
-          binary_mode: (options as any).binary_mode,
-        }),
+        // binary_mode: true = pago inmediato, sin estado in_process
+        binary_mode: options.binary_mode ?? true,
         // No incluir redirect_urls legacy
         ...(totalAmount && { total_amount: totalAmount }),
       };

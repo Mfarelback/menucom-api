@@ -18,10 +18,10 @@ import { Request } from 'express';
 import { OrdersService } from '../services/orders.service';
 import { CreateOrderDto } from '../dtos/create.order.dto';
 import { Order } from '../entities/order.entity';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
-import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
-import { RequireContextPermissions } from 'src/auth/decorators/permissions.decorator';
-import { Permission, BusinessContext } from 'src/auth/models/permissions.model';
+import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
+import { PermissionsGuard } from '../../auth/guards/permissions.guard';
+import { RequireContextPermissions } from '../../auth/decorators/permissions.decorator';
+import { Permission, BusinessContext } from '../../auth/models/permissions.model';
 
 @ApiTags('orders')
 @ApiBearerAuth('JWT-auth')

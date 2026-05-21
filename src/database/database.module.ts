@@ -1,4 +1,4 @@
-import { Module, Global, UnauthorizedException } from '@nestjs/common';
+import { Module, Global, UnauthorizedException, Logger } from '@nestjs/common';
 import { ConfigType } from '@nestjs/config';
 import config from '../config';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -11,25 +11,18 @@ import { DataSource } from 'typeorm';
       inject: [config.KEY],
       useFactory: (configService: ConfigType<typeof config>) => {
         try {
-          if (configService.env == 'dev') {
-            return {
-              type: 'postgres',
-              url: configService.postgresql.dev, // Usando la URL completa de PostgreSQL
-              synchronize: true,
-              autoLoadEntities: true,
-              ssl: false,
-            };
-          } else {
-            return {
-              type: 'postgres',
-              url: configService.postgresql.qa, // Usando la URL completa de PostgreSQL
-              synchronize: true,
-              autoLoadEntities: true,
-              ssl: {
-                rejectUnauthorized: false,
-              },
-            };
-          }
+          const isDev = configService.env === 'dev';
+          return {
+            type: 'postgres',
+            url: configService.postgresql.dev,
+            synchronize: isDev,
+            autoLoadEntities: true,
+            ssl: isDev
+              ? false
+              : {
+                  rejectUnauthorized: false,
+                },
+          };
         } catch (e) {
           throw new UnauthorizedException({
             message: 'Hubo un error de integración de datos',
@@ -43,27 +36,19 @@ import { DataSource } from 'typeorm';
       provide: 'DATABASE_CONNECTION',
       useFactory: async (configService: ConfigType<typeof config>) => {
         try {
-          if (configService.env == 'dev') {
-            const connection = new DataSource({
-              type: 'postgres',
-              url: configService.postgresql.dev, // Usando la URL completa de PostgreSQL
-              ssl: false,
-            });
+          const connection = new DataSource({
+            type: 'postgres',
+            url: configService.postgresql.dev,
+            ssl: configService.env === 'dev'
+              ? false
+              : {
+                  rejectUnauthorized: false,
+                },
+          });
 
-            return connection;
-          } else {
-            const connection = new DataSource({
-              type: 'postgres',
-              url: configService.postgresql.qa, // Usando la URL completa de PostgreSQL
-              ssl: {
-                rejectUnauthorized: false,
-              },
-            });
-
-            return connection;
-          }
+          return connection;
         } catch (e) {
-          console.error(`Falló ${e}`);
+          Logger.error(`Falló conexión a DB: ${e}`, DatabaseModule.name);
           throw new UnauthorizedException({
             message: 'DB config error',
           });

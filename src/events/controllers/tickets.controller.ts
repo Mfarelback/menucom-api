@@ -74,7 +74,6 @@ export class TicketsController {
       quantity: number;
       customerName: string;
       customerEmail: string;
-      tenantId: string;
     },
   ) {
     return await this.eventPaymentService.createTicketPreference(
@@ -82,7 +81,6 @@ export class TicketsController {
       body.quantity,
       body.customerName,
       body.customerEmail,
-      body.tenantId,
     );
   }
 

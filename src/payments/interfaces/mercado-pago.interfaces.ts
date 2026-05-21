@@ -59,6 +59,7 @@ export interface CreatePreferenceOptions {
   collector_id?: number; // ID del collector para pagos con vendedor específico
   marketplace_fee?: number; // Comisión del marketplace a cobrar (en la moneda de la preferencia, solo para Checkout Pro)
   metadata?: { [key: string]: any }; // Metadata para trazabilidad
+  binary_mode?: boolean; // true = pago inmediato aprobado/rechazado, sin in_process
 }
 
 export interface PaymentSearchOptions {

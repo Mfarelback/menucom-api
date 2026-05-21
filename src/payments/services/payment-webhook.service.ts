@@ -12,11 +12,11 @@ import { MercadopagoService } from './mercado_pago.service';
 import { PaymentsRepository } from '../repository/payment_repository';
 import { PaymentIntent } from '../entities/payment_intent_entity';
 import { MerchantOrderResponse } from 'mercadopago/dist/clients/merchantOrder/commonTypes';
-import { OrdersService } from 'src/orders/services/orders.service';
-import { LoggerService } from 'src/core/logger/logger.service';
+import { OrdersService } from '../../orders/services/orders.service';
+import { LoggerService } from '../../core/logger/logger.service';
 import { PaymentStatusService } from './payment-status.service';
-import { OrderStatus } from 'src/orders/enums/order-status.enum';
-import { EventPaymentService } from 'src/events/services/event-payment.service';
+import { OrderStatus } from '../../orders/enums/order-status.enum';
+import { EventPaymentService } from '../../events/services/event-payment.service';
 
 /**
  * Servicio especializado en procesamiento de webhooks de MercadoPago
@@ -62,10 +62,10 @@ export class PaymentWebhookService {
   ): boolean {
     const secret = process.env.MP_WEBHOOK_SECRET;
     if (!secret) {
-      this.logger.warn(
-        'MP_WEBHOOK_SECRET no está configurado. Saltando validación de firma (NO RECOMENDADO en producción).',
+      this.logger.error(
+        'MP_WEBHOOK_SECRET no está configurado. La aplicación no debería iniciar sin este secreto.',
       );
-      return true;
+      return false;
     }
 
     try {

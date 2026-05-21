@@ -9,48 +9,11 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 
-/**
- * WebSocket Gateway para pagos.
- *
- * Eventos:
- * - subscribeToOrder: El frontend se suscribe a actualizaciones de una orden específica.
- * - paymentSuccess: El backend emite este evento cuando el pago se confirma exitosamente.
- *
- * Ejemplo de uso en frontend:
- *
- * socket.emit('subscribeToOrder', orderId);
- * socket.on('paymentSuccess', (data) => { ... });
- *
- * ---
- *
- * Ejemplo de conexión desde Flutter/Dart:
- *
- * ```dart
- * import 'package:socket_io_client/socket_io_client.dart' as IO;
- *
- * void main() {
- *   IO.Socket socket = IO.io('http://TU_BACKEND_URL:PUERTO', <String, dynamic>{
- *     'transports': ['websocket'],
- *     'autoConnect': false,
- *   });
- *
- *   socket.connect();
- *
- *   socket.onConnect((_) {
- *     print('Conectado al gateway de pagos');
- *     socket.emit('subscribeToOrder', 'ORDER_ID_AQUI');
- *   });
- *
- *   socket.on('paymentSuccess', (data) {
- *     print('Pago exitoso para la orden: \\${data['orderId']}');
- *   });
- *
- *   socket.onDisconnect((_) => print('Desconectado del gateway de pagos'));
- * }
- * ```
- */
-@WebSocketGateway({ cors: true })
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000').split(',');
+
+@WebSocketGateway({ cors: { origin: allowedOrigins, credentials: true } })
 export class PaymentsGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {
@@ -59,18 +22,32 @@ export class PaymentsGateway
 
   private readonly logger = new Logger(PaymentsGateway.name);
 
-  handleConnection(client: Socket) {
-    this.logger.log(`Client connected: ${client.id}`);
+  constructor(private readonly jwtService: JwtService) {}
+
+  async handleConnection(client: Socket) {
+    try {
+      const token = client.handshake.auth?.token as string | undefined;
+
+      if (!token) {
+        this.logger.warn(`Client ${client.id} disconnected: no auth token`);
+        client.disconnect();
+        return;
+      }
+
+      const payload = await this.jwtService.verifyAsync(token);
+      client.data.userId = payload.sub;
+      client.data.role = payload.username;
+      this.logger.log(`Client ${client.id} authenticated as user ${payload.sub}`);
+    } catch {
+      this.logger.warn(`Client ${client.id} disconnected: invalid auth token`);
+      client.disconnect();
+    }
   }
 
   handleDisconnect(client: Socket) {
     this.logger.log(`Client disconnected: ${client.id}`);
   }
 
-  /**
-   * El frontend puede suscribirse a eventos de pago por orderId
-   * @param orderId ID de la orden a escuchar
-   */
   @SubscribeMessage('subscribeToOrder')
   handleSubscribe(
     @MessageBody() orderId: string,
@@ -94,10 +71,6 @@ export class PaymentsGateway
     }
   }
 
-  /**
-   * Emitir evento de pago exitoso a los clientes suscritos a la orden
-   * @param orderId ID de la orden pagada
-   */
   emitPaymentSuccess(orderId: string) {
     if (!orderId || typeof orderId !== 'string' || orderId.trim() === '') {
       this.logger.warn(`emitPaymentSuccess: Invalid orderId: ${orderId}`);

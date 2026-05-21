@@ -12,6 +12,7 @@ import {
 import { SkipThrottle } from '@nestjs/throttler';
 import { ApiOperation, ApiTags, ApiHeader } from '@nestjs/swagger';
 import * as crypto from 'crypto';
+import { IdempotencyService } from '../../core/idempotency';
 import { TicketsService } from '../services/tickets.service';
 import { TicketPurchaseRepository } from '../repository/ticket-purchase.repository';
 import { TicketPurchaseStatus } from '../enums/ticket-purchase-status.enum';
@@ -32,6 +33,7 @@ export class TicketsWebhookController {
     private readonly ticketRepo: TicketRepository,
     private readonly ticketTypeRepo: TicketTypeRepository,
     private readonly dataSource: DataSource,
+    private readonly idempotencyService: IdempotencyService,
   ) {}
 
   /**
@@ -65,7 +67,7 @@ export class TicketsWebhookController {
     @Query('type') type: string,
   ): Promise<{ status: string; reason?: string }> {
     this.logger.log(
-      `[Tickets Webhook] Received: type=${type}, data.id=${dataId}`,
+      `[Tickets Webhook] Received: type=${type}, data.id=${dataId}, x-request-id=${xRequestId}`,
     );
 
     // 1. Validar parámetros requeridos
@@ -114,9 +116,20 @@ export class TicketsWebhookController {
       `[Tickets Webhook] Processing ticket purchase: ${purchaseId}`,
     );
 
-    // 7. Procesar según la acción
-    const action = body?.action || 'order.processed';
-    await this.processOrderAction(action, purchaseId);
+    // 7. Idempotencia: evitar procesamiento duplicado
+    const idempotencyKey = `tickets-webhook:${xRequestId || dataId}`;
+    const { processed } = await this.idempotencyService.tryProcess(
+      idempotencyKey,
+      () => {
+        const action = body?.action || 'order.processed';
+        return this.processOrderAction(action, purchaseId);
+      },
+    );
+
+    if (!processed) {
+      this.logger.log(`[Tickets Webhook] Already processed: ${purchaseId}`);
+      return { status: 'ok', reason: 'Already processed' };
+    }
 
     this.logger.log(`[Tickets Webhook] Successfully processed: ${purchaseId}`);
     return { status: 'ok' };
@@ -134,10 +147,10 @@ export class TicketsWebhookController {
     const secret = process.env.MP_WEBHOOK_SECRET;
 
     if (!secret) {
-      this.logger.warn(
-        'MP_WEBHOOK_SECRET no está configurado. Saltando validación de firma (NO RECOMENDADO en producción).',
+      this.logger.error(
+        'MP_WEBHOOK_SECRET no está configurado. La aplicación no debería iniciar sin este secreto.',
       );
-      return true;
+      return false;
     }
 
     if (!xSignature || !xRequestId) {

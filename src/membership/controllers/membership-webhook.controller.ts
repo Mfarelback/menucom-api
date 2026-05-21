@@ -101,10 +101,10 @@ export class MembershipWebhookController {
   ): boolean {
     const secret = process.env.MP_WEBHOOK_SECRET;
     if (!secret) {
-      this.logger.warn(
-        'MP_WEBHOOK_SECRET no está configurado. Saltando validación de firma (NO RECOMENDADO en producción).',
+      this.logger.error(
+        'MP_WEBHOOK_SECRET no está configurado. La aplicación no debería iniciar sin este secreto.',
       );
-      return true;
+      return false;
     }
 
     try {

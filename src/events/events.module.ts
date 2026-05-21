@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
+import { ScheduleModule } from '@nestjs/schedule';
 import { Event } from './entities/event.entity';
 import { TicketType } from './entities/ticket-type.entity';
 import { Ticket } from './entities/ticket.entity';
@@ -20,15 +21,16 @@ import { TicketPdfService } from './services/ticket-pdf.service';
 import { EventPaymentService } from './services/event-payment.service';
 import { QRCodeSecureService } from './services/qrcode-secure.service';
 import { TicketValidationService } from './services/ticket-validation.service';
+import { TicketCleanupService } from './services/ticket-cleanup.service';
 import { EventRepository } from './repository/event.repository';
 import { TicketTypeRepository } from './repository/ticket-type.repository';
 import { VenueRepository } from './repository/venue.repository';
 import { TicketRepository } from './repository/ticket.repository';
 
 import { TicketPurchaseRepository } from './repository/ticket-purchase.repository';
-import { PaymentsModule } from 'src/payments/payments.module';
-import { CloudinaryModule } from 'src/cloudinary/cloudinary.module';
-import { AuthModule } from 'src/auth/auth.module';
+import { PaymentsModule } from '../payments/payments.module';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
+import { AuthModule } from '../auth/auth.module';
 import { forwardRef } from '@nestjs/common';
 
 @Module({
@@ -50,6 +52,7 @@ import { forwardRef } from '@nestjs/common';
     forwardRef(() => PaymentsModule),
     AuthModule,
     CloudinaryModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [
     EventsController,
@@ -68,6 +71,7 @@ import { forwardRef } from '@nestjs/common';
     EventPaymentService,
     QRCodeSecureService,
     TicketValidationService,
+    TicketCleanupService,
     EventRepository,
     TicketTypeRepository,
     VenueRepository,

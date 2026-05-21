@@ -4,6 +4,7 @@ import {
   UploadedFile,
   UploadedFiles,
   UseInterceptors,
+  Logger,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags } from '@nestjs/swagger';
@@ -12,6 +13,8 @@ import { CloudinaryService } from '../services/cloudinary.service';
 @ApiTags('uploads')
 @Controller('cloudinary')
 export class CloudinaryController {
+  private readonly logger = new Logger(CloudinaryController.name);
+
   constructor(private readonly cloudinaryService: CloudinaryService) {}
 
   @UseInterceptors(FileInterceptor('file'))
@@ -24,7 +27,7 @@ export class CloudinaryController {
         body: dataUrl,
       };
     } catch (e) {
-      console.log('Error:', e);
+      this.logger.error('Error uploading file', e instanceof Error ? e.stack : undefined);
       throw new Error(e);
     }
   }
@@ -32,7 +35,6 @@ export class CloudinaryController {
   @Post('uploads')
   @UseInterceptors(FilesInterceptor('files'))
   async uploades(@UploadedFiles() files: Array<Express.Multer.File>) {
-    // console.log('files', files);
     let listUrl: string[] = [];
     try {
       for (let index = 0; index < files.length; index++) {
@@ -44,7 +46,7 @@ export class CloudinaryController {
         body: listUrl,
       };
     } catch (e) {
-      console.log('Error:', e);
+      this.logger.error('Error uploading files', e instanceof Error ? e.stack : undefined);
       throw new Error(e);
     }
   }

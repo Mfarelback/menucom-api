@@ -8,8 +8,8 @@ import { MercadoPagoOAuthService } from './mercado-pago-oauth.service';
 import { PaymentsRepository } from '../repository/payment_repository';
 import { PaymentIntent } from '../entities/payment_intent_entity';
 import { v4 as uuidv4 } from 'uuid';
-import { PaymentStatusType } from 'src/config';
-import { LoggerService } from 'src/core/logger/logger.service';
+import { PaymentStatusType } from '../../config';
+import { LoggerService } from '../../core/logger/logger.service';
 
 /**
  * Servicio especializado en gestión de PaymentIntent

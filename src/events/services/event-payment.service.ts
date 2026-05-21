@@ -40,7 +40,6 @@ export class EventPaymentService {
     quantity: number,
     customerName: string,
     customerEmail: string,
-    tenantId: string,
   ): Promise<any> {
     const ticketType = await this.ticketTypeRepo.findOne({
       where: { id: ticketTypeId },
@@ -56,23 +55,29 @@ export class EventPaymentService {
       throw new BadRequestException('No hay suficiente stock disponible');
     }
 
+    if (quantity > ticketType.maxPerUser) {
+      throw new BadRequestException(
+        `Máximo ${ticketType.maxPerUser} tickets por compra`,
+      );
+    }
+
     // 1. Crear el TicketPurchase en estado PENDING usando el servicio de tickets
     const savedPurchase = await this.ticketsService.createPendingPurchase(
       ticketTypeId,
       quantity,
       customerName,
       customerEmail,
-      tenantId,
+      ticketType.event.tenantId,
     );
 
     // 2. Calcular fee dinámico usando el FeeResolver (3 niveles de prioridad)
     const feeCalculation = await this.feeResolver.calculateFee(
       savedPurchase.totalAmount,
-      tenantId,
+      ticketType.event.tenantId,
     );
 
     this.logger.log(
-      `Fee resolved for tenant ${tenantId}: ${feeCalculation.feePercentage}% ` +
+      `Fee resolved for tenant ${ticketType.event.tenantId}: ${feeCalculation.feePercentage}% ` +
         `(${feeCalculation.feeSource} - ${feeCalculation.feeDescription})`,
     );
 
@@ -108,7 +113,7 @@ export class EventPaymentService {
         ticketTypeId: ticketType.id,
         buyerEmail: customerEmail,
         purchaseId: savedPurchase.id,
-        tenantId: tenantId,
+        tenantId: ticketType.event.tenantId,
       },
       // Comisión del marketplace (calculada dinámicamente)
       marketplace_fee: feeCalculation.feeAmount,

@@ -344,7 +344,9 @@ Verifica si un ticket es válido sin consumirlo.
     } catch (error) {
       return {
         valid: false,
-        message: (error instanceof Error ? error.message : String(error)) || 'Error validando ticket',
+        message:
+          (error instanceof Error ? error.message : String(error)) ||
+          'Error validando ticket',
       };
     }
   }

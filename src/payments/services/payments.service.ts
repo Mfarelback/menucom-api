@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PaymentIntent } from '../entities/payment_intent_entity';
-import { LoggerService } from 'src/core/logger/logger.service';
+import { LoggerService } from '../../core/logger/logger.service';
 import { PaymentIntentService } from './payment-intent.service';
 import { PaymentWebhookService } from './payment-webhook.service';
 import { PaymentStatusService } from './payment-status.service';

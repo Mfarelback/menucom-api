@@ -18,11 +18,12 @@ import { MerchantConfig } from './entities/merchant-config.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PaymentsRepository } from './repository/payment_repository';
 import { MercadoPagoRepository } from './services/repository/mercado-pago.repository';
-import { OrdersModule } from 'src/orders/orders.module';
-import { EventsModule } from 'src/events/events.module';
-import { AppDataModule } from 'src/app-data/app-data.module';
-import { User } from 'src/user/entities/user.entity';
-import { Membership } from 'src/membership/entities/membership.entity';
+import { AuthModule } from '../auth/auth.module';
+import { OrdersModule } from '../orders/orders.module';
+import { EventsModule } from '../events/events.module';
+import { AppDataModule } from '../app-data/app-data.module';
+import { User } from '../user/entities/user.entity';
+import { Membership } from '../membership/entities/membership.entity';
 
 @Module({
   imports: [
@@ -36,14 +37,13 @@ import { Membership } from 'src/membership/entities/membership.entity';
     forwardRef(() => OrdersModule),
     forwardRef(() => EventsModule),
     AppDataModule,
+    AuthModule,
   ],
   controllers: [PaymentsController, MercadoPagoOAuthController],
   providers: [
     {
       provide: 'MERCADOPAGO_CLIENT',
       useFactory: () => {
-        console.log(process.env.MP_ACCESS_TOKEN);
-        console.log(process.env.MP_BACK_URL);
         if (!process.env.MP_ACCESS_TOKEN) {
           throw new Error('Falta el Access Token de MercadoPago');
         }

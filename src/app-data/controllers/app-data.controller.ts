@@ -22,11 +22,11 @@ import { AppDataService } from '../services/app-data.service';
 import { CreateAppDataDto } from '../dtos/create-app-data.dto';
 import { UpdateAppDataDto } from '../dtos/update-app-data.dto';
 import { AppData } from '../entities/app-data.entity';
-import { JwtAuthGuard } from 'src/auth/guards/jwt.auth.gards';
-import { PermissionsGuard } from 'src/auth/guards/permissions.guard';
-import { RequireContextPermissions } from 'src/auth/decorators/permissions.decorator';
-import { Public } from 'src/auth/decorators/public.decorator';
-import { Permission, BusinessContext } from 'src/auth/models/permissions.model';
+import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
+import { PermissionsGuard } from '../../auth/guards/permissions.guard';
+import { RequireContextPermissions } from '../../auth/decorators/permissions.decorator';
+import { Public } from '../../auth/decorators/public.decorator';
+import { Permission, BusinessContext } from '../../auth/models/permissions.model';
 import {
   SetMarketplaceFeeDto,
   MarketplaceFeeResponseDto,
