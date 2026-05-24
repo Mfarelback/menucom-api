@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { Observable, map } from 'rxjs';
 import { Reflector } from '@nestjs/core';
+import { SKIP_TRANSFORM_KEY } from '../decorators/skip-transform.decorator';
 
 export interface PaginatedResult<T> {
   data: T[];
@@ -36,6 +37,15 @@ export class ResponseTransformInterceptor<T>
   constructor(private readonly reflector: Reflector) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+    // Saltar transform si el endpoint tiene @SkipResponseTransform()
+    const skipTransform = this.reflector.getAllAndOverride<boolean>(
+      SKIP_TRANSFORM_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (skipTransform) {
+      return next.handle();
+    }
+
     const statusCode =
       this.reflector.get<HttpStatus>(
         '__customHttpCode__',

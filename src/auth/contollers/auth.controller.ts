@@ -6,6 +6,7 @@ import { SocialRegistrationDto } from '../../user/dto/social-user.dto';
 import { AuthService } from '../services/auth.service';
 import { FirebaseAdminService } from '../firebase-admin.service';
 import { LoggerService } from '../../core/logger/logger.service';
+import { SkipResponseTransform } from '../../core/decorators/skip-transform.decorator';
 import {
   ApiTags,
   ApiOperation,
@@ -18,6 +19,7 @@ interface AuthenticatedRequest extends Request {
   user: any;
 }
 
+@SkipResponseTransform()
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
