@@ -26,7 +26,10 @@ import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { RequireContextPermissions } from '../../auth/decorators/permissions.decorator';
 import { Public } from '../../auth/decorators/public.decorator';
-import { Permission, BusinessContext } from '../../auth/models/permissions.model';
+import {
+  Permission,
+  BusinessContext,
+} from '../../auth/models/permissions.model';
 import {
   SetMarketplaceFeeDto,
   MarketplaceFeeResponseDto,

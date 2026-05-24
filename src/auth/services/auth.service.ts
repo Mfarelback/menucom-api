@@ -229,8 +229,14 @@ export class AuthService {
         needToChangePassword: userRegister.needToChangepassword,
       };
     } catch (error) {
-      this.logger.error(`Error en registerUser: ${error instanceof Error ? error.message : String(error)}`, error instanceof Error ? error.stack : String(error));
-      throw new HttpException(error instanceof Error ? error.message : String(error), (error as any).status || 500);
+      this.logger.error(
+        `Error en registerUser: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+      throw new HttpException(
+        error instanceof Error ? error.message : String(error),
+        (error as any).status || 500,
+      );
     }
   }
 
@@ -346,13 +352,17 @@ export class AuthService {
       );
       return response;
     } catch (error) {
-      this.logger.error(`Error en loginSocial: ${error instanceof Error ? error.message : String(error)}`, error instanceof Error ? error.stack : String(error));
+      this.logger.error(
+        `Error en loginSocial: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : String(error),
+      );
       this.logger.logObject('Contexto del error', {
         firebaseUid: firebaseUserData?.uid,
         firebaseEmail: firebaseUserData?.email,
       });
       throw new HttpException(
-        'Error en autenticación social: ' + (error instanceof Error ? error.message : String(error)),
+        'Error en autenticación social: ' +
+          (error instanceof Error ? error.message : String(error)),
         (error as any).status || 500,
       );
     }
@@ -602,7 +612,8 @@ export class AuthService {
         firebaseUid: firebaseUserData?.uid,
       });
       throw new HttpException(
-        'Error al registrar usuario social: ' + (error instanceof Error ? error.message : String(error)),
+        'Error al registrar usuario social: ' +
+          (error instanceof Error ? error.message : String(error)),
         500,
       );
     }
@@ -666,12 +677,17 @@ export class AuthService {
       );
       this.logger.logObject('Contexto del error', {
         message: error instanceof Error ? error.message : String(error),
-        stack: (error instanceof Error ? error.stack : String(error))?.substring(0, 200) + '...',
+        stack:
+          (error instanceof Error ? error.stack : String(error))?.substring(
+            0,
+            200,
+          ) + '...',
         firebaseUid: firebaseUserData?.uid,
         socialDataKeys: Object.keys(socialData || {}),
       });
       throw new HttpException(
-        'Error al registrar usuario con datos sociales: ' + (error instanceof Error ? error.message : String(error)),
+        'Error al registrar usuario con datos sociales: ' +
+          (error instanceof Error ? error.message : String(error)),
         500,
       );
     }

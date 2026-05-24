@@ -39,11 +39,12 @@ import { DataSource } from 'typeorm';
           const connection = new DataSource({
             type: 'postgres',
             url: configService.postgresql.dev,
-            ssl: configService.env === 'dev'
-              ? false
-              : {
-                  rejectUnauthorized: false,
-                },
+            ssl:
+              configService.env === 'dev'
+                ? false
+                : {
+                    rejectUnauthorized: false,
+                  },
           });
 
           return connection;

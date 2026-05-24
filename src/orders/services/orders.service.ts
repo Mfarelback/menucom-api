@@ -17,6 +17,8 @@ import { Catalog } from '../../catalog/entities/catalog.entity';
 import { CatalogItem } from '../../catalog/entities/catalog-item.entity';
 import { LoggerService } from '../../core/logger';
 import { OrderStatus } from '../enums/order-status.enum';
+import { NotificationsService } from '../../notifications/notifications.service';
+import { PaginatedResult } from '../../core/interceptors/response-transform.interceptor';
 
 @Injectable()
 export class OrdersService {
@@ -36,6 +38,7 @@ export class OrdersService {
     private readonly appDataService: AppDataService,
     private readonly logger: LoggerService,
     private readonly dataSource: DataSource,
+    private readonly notificationsService: NotificationsService,
   ) {
     this.logger.setContext('OrdersService');
   }
@@ -184,7 +187,7 @@ export class OrdersService {
     customerPhone = customerPhone || '0000000000';
 
     // 6. Ejecutar todo en una transacción atómica
-    return await this.dataSource.transaction(async (manager) => {
+    const order = await this.dataSource.transaction(async (manager) => {
       try {
         // Crear la orden inicial
         const order = manager.create(Order, {
@@ -246,6 +249,22 @@ export class OrdersService {
         );
       }
     });
+
+    // Notificar al dueño del negocio sobre la nueva orden
+    if (order?.id && ownerId) {
+      this.notificationsService
+        .sendNotificationToUser(
+          ownerId,
+          'Nueva orden recibida',
+          `Has recibido una nueva orden por $${Number(order.total).toFixed(2)}.`,
+          { orderId: order.id, type: 'new_order' },
+        )
+        .catch((err) =>
+          this.logger.warn(`Error enviando notificación al owner: ${err.message}`),
+        );
+    }
+
+    return order;
   }
 
   // Otros métodos (findOne, findAll, update, delete) pueden seguir este patrón
@@ -266,15 +285,19 @@ export class OrdersService {
       );
     }
   }
-  async findAll(page: number = 1, limit: number = 10): Promise<Order[]> {
+  async findAll(
+    page: number = 1,
+    limit: number = 10,
+  ): Promise<PaginatedResult<Order>> {
     try {
       const skip = (page - 1) * limit;
-      return await this.orderRepository.find({
+      const [data, total] = await this.orderRepository.findAndCount({
         relations: ['items'],
         skip,
         take: limit,
         order: { createdAt: 'DESC' },
       });
+      return { data, total, page, limit };
     } catch (error) {
       throw new InternalServerErrorException(
         `Error al obtener las órdenes: ${error.message}`,
@@ -300,7 +323,7 @@ export class OrdersService {
     userId: string,
     page: number = 1,
     limit: number = 10,
-  ): Promise<Order[]> {
+  ): Promise<PaginatedResult<Order>> {
     try {
       const user = await this.userService.findOne(userId);
       if (!user) {
@@ -309,13 +332,14 @@ export class OrdersService {
       this.logger.debug(`Buscando órdenes para el usuario: ${user.email}`);
 
       const skip = (page - 1) * limit;
-      return await this.orderRepository.find({
+      const [data, total] = await this.orderRepository.findAndCount({
         where: { customerEmail: user.email },
         relations: ['items'],
         order: { createdAt: 'DESC' },
         skip,
         take: limit,
       });
+      return { data, total, page, limit };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(
@@ -342,7 +366,7 @@ export class OrdersService {
     ownerId: string,
     page: number = 1,
     limit: number = 10,
-  ): Promise<Order[]> {
+  ): Promise<PaginatedResult<Order>> {
     try {
       if (!ownerId) {
         throw new BadRequestException('El ID del propietario es requerido');
@@ -350,13 +374,14 @@ export class OrdersService {
 
       const skip = (page - 1) * limit;
 
-      return await this.orderRepository.find({
+      const [data, total] = await this.orderRepository.findAndCount({
         where: { ownerId },
         relations: ['items'],
         order: { createdAt: 'DESC' },
         skip,
         take: limit,
       });
+      return { data, total, page, limit };
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
       throw new InternalServerErrorException(
@@ -462,17 +487,126 @@ export class OrdersService {
         return order;
       }
 
+      const prevStatus = order.status;
       order.status = status;
       await this.orderRepository.save(order);
 
-      return await this.orderRepository.findOne({
+      const updatedOrder = await this.orderRepository.findOne({
+        where: { id: orderId },
+        relations: ['items'],
+      });
+
+      // Notificaciones FCM según el nuevo estado
+      this.sendStatusChangeNotifications(updatedOrder, prevStatus, status);
+
+      return updatedOrder;
+    } catch (error) {
+      if (error instanceof NotFoundException) throw error;
+      throw new InternalServerErrorException(
+        `Error al actualizar el estado de la orden: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Actualiza el estado de cumplimiento de la orden (processing, shipped, delivered).
+   * Solo permite transiciones hacia adelante: confirmed → processing → shipped → delivered.
+   * Rechaza cambios si el pago no está approved.
+   */
+  async updateOrderFulfillmentStatus(
+    orderId: string,
+    newStatus: OrderStatus,
+  ): Promise<Order> {
+    try {
+      const order = await this.orderRepository.findOne({
+        where: { id: orderId },
+      });
+
+      if (!order) {
+        throw new NotFoundException(`Orden con id ${orderId} no encontrada`);
+      }
+
+      const validTransitions: Record<OrderStatus, OrderStatus[]> = {
+        [OrderStatus.PENDING]: [OrderStatus.CONFIRMED],
+        [OrderStatus.CONFIRMED]: [OrderStatus.PROCESSING],
+        [OrderStatus.PROCESSING]: [OrderStatus.SHIPPED],
+        [OrderStatus.SHIPPED]: [OrderStatus.DELIVERED],
+        [OrderStatus.DELIVERED]: [],
+        [OrderStatus.CANCELLED]: [],
+        [OrderStatus.FAILED]: [],
+      };
+
+      const allowedNext = validTransitions[order.status];
+      if (!allowedNext || !allowedNext.includes(newStatus)) {
+        throw new BadRequestException(
+          `No se puede cambiar de ${order.status} a ${newStatus}. Transición no válida.`,
+        );
+      }
+
+      if (order.paymentStatus !== 'approved') {
+        throw new BadRequestException(
+          'No se puede actualizar el estado de cumplimiento porque el pago no está aprobado.',
+        );
+      }
+
+      const prevStatus = order.status;
+      order.status = newStatus;
+      await this.orderRepository.save(order);
+
+      const updatedOrder = await this.orderRepository.findOne({
+        where: { id: orderId },
+        relations: ['items'],
+      });
+
+      this.sendStatusChangeNotifications(updatedOrder, prevStatus, newStatus);
+
+      return updatedOrder;
+    } catch (error) {
+      if (
+        error instanceof NotFoundException ||
+        error instanceof BadRequestException
+      )
+        throw error;
+      throw new InternalServerErrorException(
+        `Error al actualizar el estado de cumplimiento: ${error.message}`,
+      );
+    }
+  }
+
+  /**
+   * Actualiza los datos de comisiones de Mercado Pago en una orden.
+   * Se llama desde el webhook cuando MP confirma el pago.
+   */
+  async updateOrderPaymentFees(
+    orderId: string,
+    mpProcessingFee: number,
+    netAmount: number,
+    paymentStatus?: string,
+  ): Promise<Order> {
+    try {
+      const order = await this.orderRepository.findOne({
+        where: { id: orderId },
+      });
+
+      if (!order) {
+        throw new NotFoundException(`Orden con id ${orderId} no encontrada`);
+      }
+
+      order.mpProcessingFee = mpProcessingFee;
+      order.netAmount = netAmount;
+      if (paymentStatus !== undefined) {
+        order.paymentStatus = paymentStatus;
+      }
+      await this.orderRepository.save(order);
+
+      return this.orderRepository.findOne({
         where: { id: orderId },
         relations: ['items'],
       });
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(
-        `Error al actualizar el estado de la orden: ${error.message}`,
+        `Error al actualizar fees de pago: ${error.message}`,
       );
     }
   }
@@ -490,6 +624,120 @@ export class OrdersService {
       throw new InternalServerErrorException(
         `Error al buscar orden por ID de operación: ${error.message}`,
       );
+    }
+  }
+
+  private async sendStatusChangeNotifications(
+    order: Order,
+    prevStatus: OrderStatus,
+    newStatus: OrderStatus,
+  ): Promise<void> {
+    if (!order) return;
+
+    const notifications: Promise<boolean>[] = [];
+
+    if (newStatus === OrderStatus.CONFIRMED && prevStatus !== OrderStatus.CONFIRMED) {
+      // Notificar al comprador que su pago fue confirmado
+      if (order.createdBy) {
+        notifications.push(
+          this.notificationsService.sendNotificationToUser(
+            order.createdBy,
+            'Pago confirmado',
+            `Tu pago de $${Number(order.total).toFixed(2)} ha sido confirmado.`,
+            { orderId: order.id, type: 'payment_confirmed' },
+          ),
+        );
+      }
+
+      // Notificar al dueño que el pago fue recibido
+      if (order.ownerId) {
+        notifications.push(
+          this.notificationsService.sendNotificationToUser(
+            order.ownerId,
+            'Pago recibido',
+            `El pago de la orden por $${Number(order.total).toFixed(2)} ha sido confirmado.`,
+            { orderId: order.id, type: 'payment_received' },
+          ),
+        );
+      }
+    }
+
+    if (newStatus === OrderStatus.CANCELLED && prevStatus !== OrderStatus.CANCELLED) {
+      if (order.createdBy) {
+        notifications.push(
+          this.notificationsService.sendNotificationToUser(
+            order.createdBy,
+            'Orden cancelada',
+            'Tu orden ha sido cancelada.',
+            { orderId: order.id, type: 'order_cancelled' },
+          ),
+        );
+      }
+    }
+
+    if (newStatus === OrderStatus.FAILED && prevStatus !== OrderStatus.FAILED) {
+      if (order.createdBy) {
+        notifications.push(
+          this.notificationsService.sendNotificationToUser(
+            order.createdBy,
+            'Pago fallido',
+            'El pago de tu orden no pudo ser procesado.',
+            { orderId: order.id, type: 'payment_failed' },
+          ),
+        );
+      }
+    }
+
+    // Notificaciones de cumplimiento para el comprador
+    if (newStatus === OrderStatus.PROCESSING && prevStatus !== OrderStatus.PROCESSING) {
+      if (order.createdBy) {
+        notifications.push(
+          this.notificationsService.sendNotificationToUser(
+            order.createdBy,
+            'Orden en preparación',
+            'Tu orden está siendo preparada.',
+            { orderId: order.id, type: 'order_processing' },
+          ),
+        );
+      }
+    }
+
+    if (newStatus === OrderStatus.SHIPPED && prevStatus !== OrderStatus.SHIPPED) {
+      if (order.createdBy) {
+        notifications.push(
+          this.notificationsService.sendNotificationToUser(
+            order.createdBy,
+            'Orden enviada',
+            'Tu orden ha sido enviada.',
+            { orderId: order.id, type: 'order_shipped' },
+          ),
+        );
+      }
+    }
+
+    if (newStatus === OrderStatus.DELIVERED && prevStatus !== OrderStatus.DELIVERED) {
+      if (order.createdBy) {
+        notifications.push(
+          this.notificationsService.sendNotificationToUser(
+            order.createdBy,
+            'Orden entregada',
+            'Tu orden ha sido entregada.',
+            { orderId: order.id, type: 'order_delivered' },
+          ),
+        );
+      }
+    }
+
+    if (notifications.length > 0) {
+      await Promise.allSettled(notifications).then((results) => {
+        results.forEach((r, i) => {
+          if (r.status === 'rejected') {
+            this.logger.warn(
+              `Notificación FCM fallida: ${r.reason?.message || 'unknown error'}`,
+            );
+          }
+        });
+      });
     }
   }
 

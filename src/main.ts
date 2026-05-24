@@ -1,14 +1,21 @@
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
-import { GlobalExceptionFilter } from './core/interceptors/global-exception.filter';
+import {
+  GlobalExceptionFilter,
+  ResponseTransformInterceptor,
+} from './core/interceptors';
 import { LoggerService } from './core/logger/logger.service';
 import helmet from 'helmet';
 import * as express from 'express';
 
 function validateEnvVars(): void {
-  const requiredSecrets: { name: string; validation?: (val: string) => boolean; hint: string }[] = [
+  const requiredSecrets: {
+    name: string;
+    validation?: (val: string) => boolean;
+    hint: string;
+  }[] = [
     {
       name: 'MP_WEBHOOK_SECRET',
       hint: 'Configúralo en el archivo .env con el secreto del webhook de MercadoPago',
@@ -18,11 +25,9 @@ function validateEnvVars(): void {
       validation: (val) => val !== 'default-secret-change-in-production',
       hint: 'Configúralo en el archivo .env con un valor seguro (diferente del default)',
     },
-    {
-      name: 'ALLOWED_ORIGINS',
-      hint: 'Configúralo en el archivo .env con los orígenes permitidos separados por coma (ej: http://localhost:3000,https://midominio.com)',
-    },
   ];
+
+  console.log('[Bootstrap] Validando variables de entorno críticas...');
 
   for (const secret of requiredSecrets) {
     const value = process.env[secret.name];
@@ -44,12 +49,20 @@ async function bootstrap() {
     validateEnvVars();
 
     const app = await NestFactory.create(AppModule, { bodyParser: false });
-    app.getHttpAdapter().getInstance().use(express.json({ limit: '1mb' }));
-    app.getHttpAdapter().getInstance().use(express.urlencoded({ extended: true, limit: '1mb' }));
+    app
+      .getHttpAdapter()
+      .getInstance()
+      .use(express.json({ limit: '1mb' }));
+    app
+      .getHttpAdapter()
+      .getInstance()
+      .use(express.urlencoded({ extended: true, limit: '1mb' }));
 
     const loggerService = app.get(LoggerService);
+    const reflector = app.get(Reflector);
 
     app.useGlobalFilters(new GlobalExceptionFilter(loggerService));
+    app.useGlobalInterceptors(new ResponseTransformInterceptor(reflector));
 
     const config = new DocumentBuilder()
       .setTitle('Menu Com')
@@ -58,7 +71,10 @@ async function bootstrap() {
       .build();
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('docs', app, document);
-    const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:5173').split(',');
+    const allowedOrigins = (
+      process.env.ALLOWED_ORIGINS ||
+      'http://localhost:3000,http://localhost:5173'
+    ).split(',');
     app.enableCors({ origin: allowedOrigins, credentials: true });
 
     app.use(helmet());

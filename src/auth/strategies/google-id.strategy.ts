@@ -34,7 +34,9 @@ export class GoogleIdTokenStrategy extends PassportStrategy(
     try {
       const authHeader = req.headers['authorization'];
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        this.logger.warn('Token de autorización no encontrado o formato inválido');
+        this.logger.warn(
+          'Token de autorización no encontrado o formato inválido',
+        );
         throw new UnauthorizedException(
           'Token de autorización no encontrado o formato inválido',
         );

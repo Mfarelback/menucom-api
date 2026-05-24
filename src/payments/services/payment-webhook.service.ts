@@ -87,7 +87,10 @@ export class PaymentWebhookService {
 
       return generatedHash === receivedHash;
     } catch (error) {
-      this.logger.error('Error validando firma de MP', error instanceof Error ? error.stack : String(error));
+      this.logger.error(
+        'Error validando firma de MP',
+        error instanceof Error ? error.stack : String(error),
+      );
       return false;
     }
   }
@@ -184,6 +187,57 @@ export class PaymentWebhookService {
               this.logger.log(
                 `Order actualizada: ${order.id} → ${updatedOrder.status}`,
               );
+
+              // Extraer datos de comisiones de MP de la respuesta del pago
+              const feeDetails: any[] = paymentInfo.fee_details;
+              const mpNetAmount: number | null = paymentInfo.net_amount ?? null;
+
+              if (
+                (Array.isArray(feeDetails) && feeDetails.length > 0) ||
+                mpNetAmount !== null
+              ) {
+                const mpProcessingFee = Array.isArray(feeDetails)
+                  ? feeDetails
+                      .filter((f: any) => f.type === 'mercadopago_fee')
+                      .reduce(
+                        (sum: number, f: any) => sum + (Number(f.amount) || 0),
+                        0,
+                      )
+                  : 0;
+
+                // Actualizar PaymentIntent con fee details
+                await this.paymentIntentRepository
+                  .updatePaymentFees(
+                    orderId,
+                    mpProcessingFee,
+                    feeDetails || [],
+                    mpNetAmount ?? 0,
+                  )
+                  .catch((err: Error) =>
+                    this.logger.warn(
+                      `Error actualizando fees de PaymentIntent: ${err.message}`,
+                    ),
+                  );
+
+                // Actualizar Order con mpProcessingFee, netAmount y paymentStatus
+                updatedOrder = await this.ordersService
+                  .updateOrderPaymentFees(
+                    order.id,
+                    mpProcessingFee,
+                    mpNetAmount ?? 0,
+                    paymentStatus,
+                  )
+                  .catch((err: Error) => {
+                    this.logger.warn(
+                      `Error actualizando fees de Order: ${err.message}`,
+                    );
+                    return updatedOrder;
+                  });
+
+                this.logger.log(
+                  `Fees MP actualizados - Processing: $${mpProcessingFee}, Net: $${mpNetAmount ?? 0}`,
+                );
+              }
             } else {
               this.logger.warn(
                 `No se encontró orden con operationID: ${orderId}`,
@@ -268,7 +322,10 @@ export class PaymentWebhookService {
         paymentStatus,
       };
     } catch (error) {
-      this.logger.error(`Error procesando notificación webhook`, error instanceof Error ? error.stack : String(error));
+      this.logger.error(
+        `Error procesando notificación webhook`,
+        error instanceof Error ? error.stack : String(error),
+      );
       throw new BadRequestException(
         `Error procesando notificación del webhook: ${error instanceof Error ? error.message : String(error)}`,
       );
@@ -404,7 +461,8 @@ export class PaymentWebhookService {
         throw error;
       }
       throw new BadRequestException(
-        'Error al aprobar el pago: ' + (error instanceof Error ? error.message : String(error)),
+        'Error al aprobar el pago: ' +
+          (error instanceof Error ? error.message : String(error)),
       );
     }
   }

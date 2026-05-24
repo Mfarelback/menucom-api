@@ -48,7 +48,9 @@ export class CloudinaryImageProvider implements ImageProvider {
         `Failed to fetch image from ${imageUrl}:`,
         error instanceof Error ? error.message : String(error),
       );
-      throw new Error(`Unable to fetch image: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Unable to fetch image: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 

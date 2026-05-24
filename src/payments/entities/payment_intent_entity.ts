@@ -19,4 +19,23 @@ export class PaymentIntent {
 
   @Column({ type: 'varchar', length: 500, nullable: true })
   init_point: string | null;
+
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
+  mpProcessingFee: number;
+
+  @Column('json', { nullable: true })
+  mpFeeDetails: object;
+
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+  })
+  mpNetAmount: number;
 }

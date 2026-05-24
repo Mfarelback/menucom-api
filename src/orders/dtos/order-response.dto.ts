@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, PickType } from '@nestjs/swagger';
 import { OrderItem } from '../entities/order.item.entity';
 
 export class OrderResponseDto {
@@ -57,8 +57,31 @@ export class OrderResponseDto {
   @ApiProperty({ example: 1266.0, description: 'Total final con comisiones' })
   total: number;
 
+  @ApiProperty({
+    example: 45.58,
+    description: 'Comisión de procesamiento de Mercado Pago',
+    required: false,
+  })
+  mpProcessingFee?: number;
+
+  @ApiProperty({
+    example: 1154.42,
+    description:
+      'Monto neto que recibe el vendedor después de todas las comisiones',
+    required: false,
+  })
+  netAmount?: number;
+
   @ApiProperty({ example: 'pending' })
   status: string;
+
+  @ApiProperty({
+    example: 'approved',
+    description:
+      'Estado del pago en MercadoPago. Independiente del status de la orden.',
+    required: false,
+  })
+  paymentStatus?: string;
 
   @ApiProperty()
   createdAt: Date;
@@ -66,3 +89,38 @@ export class OrderResponseDto {
   @ApiProperty()
   updatedAt: Date;
 }
+
+/** DTO para respuestas visibles por el comprador. Excluye fees y neto del vendedor. */
+export class OrderForBuyerDto extends PickType(OrderResponseDto, [
+  'id',
+  'customerEmail',
+  'customerName',
+  'customerLastName',
+  'items',
+  'subtotal',
+  'total',
+  'status',
+  'paymentUrl',
+  'createdAt',
+  'updatedAt',
+] as const) {}
+
+/** DTO para respuestas visibles por el vendedor. Incluye desglose completo de comisiones y estado del pago. */
+export class OrderForSellerDto extends PickType(OrderResponseDto, [
+  'id',
+  'customerEmail',
+  'customerName',
+  'customerLastName',
+  'customerPhone',
+  'items',
+  'subtotal',
+  'total',
+  'marketplaceFeePercentage',
+  'marketplaceFeeAmount',
+  'mpProcessingFee',
+  'netAmount',
+  'status',
+  'paymentStatus',
+  'createdAt',
+  'updatedAt',
+] as const) {}

@@ -36,4 +36,20 @@ export class PaymentsRepository {
     payment.state = status;
     return this.paymentRepo.save(payment);
   }
+
+  async updatePaymentFees(
+    id: string,
+    mpProcessingFee: number,
+    mpFeeDetails: object,
+    mpNetAmount: number,
+  ): Promise<PaymentIntent> {
+    const payment = await this.getPaymentById(id);
+    if (!payment) {
+      throw new Error('Payment not found');
+    }
+    payment.mpProcessingFee = mpProcessingFee;
+    payment.mpFeeDetails = mpFeeDetails;
+    payment.mpNetAmount = mpNetAmount;
+    return this.paymentRepo.save(payment);
+  }
 }

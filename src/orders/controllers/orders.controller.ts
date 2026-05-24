@@ -13,18 +13,36 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import {
+  ApiBearerAuth,
+  ApiExtraModels,
+  ApiOkResponse,
+  ApiOperation,
+  ApiBody,
+  ApiTags,
+} from '@nestjs/swagger';
 import { Request } from 'express';
 import { OrdersService } from '../services/orders.service';
 import { CreateOrderDto } from '../dtos/create.order.dto';
+import { UpdateOrderStatusDto } from '../dtos/update-order-status.dto';
 import { Order } from '../entities/order.entity';
+import { PaginatedResult } from '../../core/interceptors/response-transform.interceptor';
+import {
+  OrderResponseDto,
+  OrderForBuyerDto,
+  OrderForSellerDto,
+} from '../dtos/order-response.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
 import { PermissionsGuard } from '../../auth/guards/permissions.guard';
 import { RequireContextPermissions } from '../../auth/decorators/permissions.decorator';
-import { Permission, BusinessContext } from '../../auth/models/permissions.model';
+import {
+  Permission,
+  BusinessContext,
+} from '../../auth/models/permissions.model';
 
 @ApiTags('orders')
 @ApiBearerAuth('JWT-auth')
+@ApiExtraModels(OrderForBuyerDto, OrderForSellerDto, OrderResponseDto)
 @Controller('orders')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class OrdersController {
@@ -34,7 +52,8 @@ export class OrdersController {
   @ApiOperation({
     summary: 'Obtener todas las órdenes del usuario autenticado con paginación',
   })
-  async findAll(@Req() req: Request): Promise<Order[]> {
+  @ApiOkResponse({ type: OrderForBuyerDto, isArray: true })
+  async findAll(@Req() req: Request): Promise<PaginatedResult<Order>> {
     const userId = req['user']['userId'];
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
@@ -45,6 +64,7 @@ export class OrdersController {
   @ApiOperation({
     summary: 'Obtener todas las órdenes creadas por un usuario anónimo',
   })
+  @ApiOkResponse({ type: OrderForBuyerDto, isArray: true })
   async findByAnonymous(
     @Headers('x-anonymous-id') anonymousId: string,
   ): Promise<Order[]> {
@@ -59,10 +79,11 @@ export class OrdersController {
     summary:
       'Obtener todas las órdenes recibidas por un propietario de negocio con paginación',
   })
+  @ApiOkResponse({ type: OrderForSellerDto, isArray: true })
   async findByOwnerId(
     @Param('ownerId') ownerId: string,
     @Req() req: Request,
-  ): Promise<Order[]> {
+  ): Promise<PaginatedResult<Order>> {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     return this.orderService.findByOwnerId(ownerId, page, limit);
@@ -71,6 +92,7 @@ export class OrdersController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Crear una nueva orden con ítems' })
+  @ApiOkResponse({ type: OrderForBuyerDto })
   async create(
     @Body() createOrderDto: CreateOrderDto,
     @Headers('x-anonymous-id') anonymousId?: string,
@@ -95,8 +117,24 @@ export class OrdersController {
     return this.orderService.update(id, updateOrderDto);
   }
 
+  @Put(':id/status')
+  @ApiOperation({
+    summary: 'Actualizar estado de cumplimiento de una orden (vendedor)',
+    description:
+      'Permite al vendedor avanzar la orden a processing, shipped o delivered. Rechaza si el pago no está aprobado.',
+  })
+  @ApiBody({ type: UpdateOrderStatusDto })
+  @ApiOkResponse({ type: OrderForSellerDto })
+  async updateStatus(
+    @Param('id') id: string,
+    @Body() dto: UpdateOrderStatusDto,
+  ): Promise<Order> {
+    return this.orderService.updateOrderFulfillmentStatus(id, dto.status);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Obtener los detalles de una orden por su ID' })
+  @ApiOkResponse({ type: OrderForBuyerDto })
   async findOne(@Param('id') id: string): Promise<Order> {
     return this.orderService.findOne(id);
   }
@@ -113,7 +151,8 @@ export class OrdersController {
     description:
       'Lista todas las órdenes realizadas en el sistema con paginación. Requiere permiso READ_ORDER en el contexto GENERAL.',
   })
-  async findAllAdmin(@Req() req: Request): Promise<Order[]> {
+  @ApiOkResponse({ type: OrderResponseDto, isArray: true })
+  async findAllAdmin(@Req() req: Request): Promise<PaginatedResult<Order>> {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     return this.orderService.findAll(page, limit);

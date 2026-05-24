@@ -98,9 +98,7 @@ export class PaymentsController {
         this.logger.warn('Firma ausente en webhook en producción');
         throw new UnauthorizedException('Signature is required in production');
       } else {
-        this.logger.warn(
-          'Notificación sin firma (entorno no-prod)',
-        );
+        this.logger.warn('Notificación sin firma (entorno no-prod)');
       }
 
       const idempKey = idempotencyKey || xRequestId || dataId || 'unknown';
@@ -117,7 +115,9 @@ export class PaymentsController {
         req.query.type === 'payment'
       ) {
         paymentId = req.query['data.id'];
-        this.logger.log(`Detectado payment con query param. paymentId: ${paymentId}`);
+        this.logger.log(
+          `Detectado payment con query param. paymentId: ${paymentId}`,
+        );
       }
 
       if (
@@ -133,16 +133,19 @@ export class PaymentsController {
           merchantOrderId = merchantOrderIdRaw as string;
         }
 
-        this.logger.log(`Detectado merchant_order. merchantOrderId: ${merchantOrderId}`);
+        this.logger.log(
+          `Detectado merchant_order. merchantOrderId: ${merchantOrderId}`,
+        );
       }
 
       const actionKey = `payments-webhook:${idempKey}`;
       const { processed, result } = await this.idempotencyService.tryProcess(
         actionKey,
-        () => this.paymentsService.processWebhookNotification(
-          paymentId,
-          merchantOrderId,
-        ),
+        () =>
+          this.paymentsService.processWebhookNotification(
+            paymentId,
+            merchantOrderId,
+          ),
       );
 
       if (!processed) {

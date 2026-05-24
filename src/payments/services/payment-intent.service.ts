@@ -179,12 +179,16 @@ export class PaymentIntentService {
 
       return payment;
     } catch (error) {
-      this.logger.error(`Error creando pago para phone ${phone}`, error instanceof Error ? error.stack : String(error));
+      this.logger.error(
+        `Error creando pago para phone ${phone}`,
+        error instanceof Error ? error.stack : String(error),
+      );
       if (error instanceof InternalServerErrorException) {
         throw error;
       }
       throw new BadRequestException(
-        'Error al crear el pago con Mercado Pago: ' + (error instanceof Error ? error.message : String(error)),
+        'Error al crear el pago con Mercado Pago: ' +
+          (error instanceof Error ? error.message : String(error)),
       );
     }
   }
@@ -241,12 +245,18 @@ export class PaymentIntentService {
 
       return intentPayment;
     } catch (error) {
-      this.logger.error(`Error obteniendo PaymentIntent ${id}`, error instanceof Error ? error.stack : String(error));
+      this.logger.error(
+        `Error obteniendo PaymentIntent ${id}`,
+        error instanceof Error ? error.stack : String(error),
+      );
       if (error instanceof InternalServerErrorException) {
         throw error;
       }
       throw new BadRequestException(
-        'Error al obtener el pago con ID ' + id + ': ' + (error instanceof Error ? error.message : String(error)),
+        'Error al obtener el pago con ID ' +
+          id +
+          ': ' +
+          (error instanceof Error ? error.message : String(error)),
       );
     }
   }
@@ -286,12 +296,18 @@ export class PaymentIntentService {
         paymentsOfMp: paymentsOfMp,
       };
     } catch (error) {
-      this.logger.error(`Error obteniendo payment completo ${id}`, error instanceof Error ? error.stack : String(error));
+      this.logger.error(
+        `Error obteniendo payment completo ${id}`,
+        error instanceof Error ? error.stack : String(error),
+      );
       if (error instanceof InternalServerErrorException) {
         throw error;
       }
       throw new BadRequestException(
-        'Error al obtener el pago con ID ' + id + ': ' + (error instanceof Error ? error.message : String(error)),
+        'Error al obtener el pago con ID ' +
+          id +
+          ': ' +
+          (error instanceof Error ? error.message : String(error)),
       );
     }
   }

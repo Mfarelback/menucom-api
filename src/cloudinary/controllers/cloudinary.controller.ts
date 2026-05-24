@@ -29,7 +29,10 @@ export class CloudinaryController {
         body: dataUrl,
       };
     } catch (e) {
-      this.logger.error('Error uploading file', e instanceof Error ? e.stack : undefined);
+      this.logger.error(
+        'Error uploading file',
+        e instanceof Error ? e.stack : undefined,
+      );
       throw new Error(e);
     }
   }
@@ -49,7 +52,10 @@ export class CloudinaryController {
         body: listUrl,
       };
     } catch (e) {
-      this.logger.error('Error uploading files', e instanceof Error ? e.stack : undefined);
+      this.logger.error(
+        'Error uploading files',
+        e instanceof Error ? e.stack : undefined,
+      );
       throw new Error(e);
     }
   }

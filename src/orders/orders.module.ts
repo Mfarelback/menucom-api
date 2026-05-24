@@ -9,6 +9,7 @@ import { UserModule } from '../user/user.module';
 import { Catalog } from '../catalog/entities/catalog.entity';
 import { CatalogItem } from '../catalog/entities/catalog-item.entity';
 import { AppDataModule } from '../app-data/app-data.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AppDataModule } from '../app-data/app-data.module';
     forwardRef(() => PaymentsModule),
     UserModule,
     AppDataModule,
+    NotificationsModule,
   ],
   controllers: [OrdersController],
   providers: [OrdersService],

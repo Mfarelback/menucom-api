@@ -83,11 +83,36 @@ export class Order {
   marketplaceFeeAmount: number;
 
   @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: ColumnNumericTransformer,
+  })
+  mpProcessingFee: number;
+
+  @Column({
+    type: 'decimal',
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: ColumnNumericTransformer,
+  })
+  netAmount: number;
+
+  @Column({
     type: 'enum',
     enum: OrderStatus,
     default: OrderStatus.PENDING,
   })
   status: OrderStatus;
+
+  @Column({
+    type: 'varchar',
+    length: 50,
+    nullable: true,
+  })
+  paymentStatus: string;
 
   @CreateDateColumn()
   createdAt: Date;

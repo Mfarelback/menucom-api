@@ -11,7 +11,9 @@ import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:5173').split(',');
+const allowedOrigins = (
+  process.env.ALLOWED_ORIGINS || 'http://localhost:3000,http://localhost:5173'
+).split(',');
 
 @WebSocketGateway({ cors: { origin: allowedOrigins, credentials: true } })
 export class PaymentsGateway
@@ -37,7 +39,9 @@ export class PaymentsGateway
       const payload = await this.jwtService.verifyAsync(token);
       client.data.userId = payload.sub;
       client.data.role = payload.username;
-      this.logger.log(`Client ${client.id} authenticated as user ${payload.sub}`);
+      this.logger.log(
+        `Client ${client.id} authenticated as user ${payload.sub}`,
+      );
     } catch {
       this.logger.warn(`Client ${client.id} disconnected: invalid auth token`);
       client.disconnect();
