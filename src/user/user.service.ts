@@ -146,7 +146,7 @@ export class UserService {
   async getadminUser(email: string) {
     const user = await this.findByEmail(email);
     if (!user) {
-      throw new HttpException('Users not found', 302);
+      throw new NotFoundException('Users not found');
     }
     user.role = 'admin';
 

@@ -57,6 +57,7 @@ async function bootstrap() {
       .getHttpAdapter()
       .getInstance()
       .use(express.urlencoded({ extended: true, limit: '1mb' }));
+    app.getHttpAdapter().getInstance().disable('etag');
 
     const loggerService = app.get(LoggerService);
     const reflector = app.get(Reflector);

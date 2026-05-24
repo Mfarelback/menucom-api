@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  UseGuards,
+  HttpCode,
+  HttpStatus,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { CreateUserDto } from '../../user/dto/create-user.dto';
@@ -63,6 +72,7 @@ export class AuthController {
 
   @UseGuards(AuthGuard('local'))
   @Post('/login')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Autenticación tradicional con email y contraseña',
   })
@@ -103,6 +113,7 @@ export class AuthController {
 
   @UseGuards(AuthGuard('google-id'))
   @Post('/social/login')
+  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth('Firebase ID Token')
   @ApiOperation({
     summary: 'Autenticación social con Google/Firebase',
@@ -207,6 +218,7 @@ export class AuthController {
 
   @UseGuards(AuthGuard('jwt'))
   @Post('/refresh')
+  @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Refrescar el token JWT',

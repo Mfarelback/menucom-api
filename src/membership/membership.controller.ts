@@ -63,7 +63,7 @@ export class MembershipController {
    * Maneja automático el flujo completo de suscripción con Mercado Pago.
    */
   @Post('subscribe')
-  @HttpCode(HttpStatus.OK)
+  @HttpCode(HttpStatus.CREATED)
   async subscribe(
     @Request() req,
     @Body() dto: SubscribeWithCardDto,

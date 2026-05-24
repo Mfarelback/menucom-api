@@ -8,6 +8,7 @@ import {
   UseGuards,
   Headers,
   HttpCode,
+  HttpStatus,
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
@@ -59,7 +60,7 @@ export class PaymentsController {
   })
   @SkipThrottle()
   @Post('webhooks')
-  @HttpCode(200)
+  @HttpCode(HttpStatus.OK)
   @ApiHeader({
     name: 'x-signature',
     description: 'Firma de seguridad de Mercado Pago',
