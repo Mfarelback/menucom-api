@@ -100,17 +100,16 @@ export class PublicService {
         qb.orderBy('catalog.viewCount', 'DESC');
         break;
       case MerchantSortBy.NAME:
-        qb.orderBy('user."businessName"', 'ASC');
+        qb.orderBy('user.businessName', 'ASC');
         break;
       default:
-        qb.orderBy('user."createdAt"', 'DESC');
+        qb.orderBy('user.createdAt', 'DESC');
     }
 
     qb.addSelect('COALESCE(SUM(catalog.viewCount), 0)', 'totalViews')
       .addSelect('COUNT(DISTINCT catalog.id)', 'catalogCount')
       .addSelect('COUNT(DISTINCT catalog."catalogType")', 'typeCount')
       .addSelect('ARRAY_AGG(DISTINCT catalog."catalogType")', 'catalogTypesArr')
-      .addSelect('COALESCE(SUM(catalog.itemCount), 0)', 'totalItems')
       .groupBy('user.id');
 
     const totalQb = this.userRepository
@@ -421,7 +420,7 @@ export class PublicService {
       .addSelect('COUNT(DISTINCT catalog.ownerId)', 'merchantCount')
       .addSelect('COUNT(DISTINCT catalog.id)', 'catalogCount')
       .groupBy('catalog.catalogType')
-      .orderBy('merchantCount', 'DESC')
+      .orderBy('"merchantCount"', 'DESC')
       .getRawMany();
 
     return results.map((r) => ({
@@ -534,24 +533,25 @@ export class PublicService {
 
     const merchants = q
       ? await this.userRepository
-          .createQueryBuilder('user')
+          .createQueryBuilder('u')
           .innerJoin(
             UserRole,
             'role',
-            'role.userId = user.id AND role.role = :ownerRole',
+            'role.userId = u.id AND role.role = :ownerRole',
             { ownerRole: RoleType.OWNER },
           )
           .innerJoin(
             Catalog,
             'catalog',
-            'catalog.ownerId = user.id AND catalog.status = :active AND catalog.isPublic = :isPublic',
+            'catalog.ownerId = u.id AND catalog.status = :active AND catalog.isPublic = :isPublic',
             { active: CatalogStatus.ACTIVE, isPublic: true },
           )
           .where(
-            '(user."businessName" ILIKE :search OR user.name ILIKE :search OR user."businessDescription" ILIKE :search)',
+            '(u."businessName" ILIKE :search OR u.name ILIKE :search OR u."businessDescription" ILIKE :search)',
             { search: `%${q}%` },
           )
-          .select('DISTINCT user.id')
+          .select('u.id', 'user_id')
+          .distinct(true)
           .limit(5)
           .getRawMany()
       : [];

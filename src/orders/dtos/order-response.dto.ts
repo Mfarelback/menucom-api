@@ -1,6 +1,29 @@
 import { ApiProperty, PickType } from '@nestjs/swagger';
 import { OrderItem } from '../entities/order.item.entity';
 
+export class StoreInfoDto {
+  @ApiProperty({ example: 'owner-uuid-123' })
+  id: string;
+
+  @ApiProperty({ example: 'Mi Tienda', required: false })
+  businessName?: string;
+
+  @ApiProperty({ example: 'mi-tienda', required: false })
+  slug?: string;
+
+  @ApiProperty({ example: 'https://...', required: false })
+  coverImageUrl?: string;
+
+  @ApiProperty({ example: '333-3133-333', required: false })
+  businessPhone?: string;
+
+  @ApiProperty({
+    example: { street: 'Calle 123', city: 'Salta' },
+    required: false,
+  })
+  businessAddress?: Record<string, any>;
+}
+
 export class OrderResponseDto {
   @ApiProperty({ example: 'uuid-123-456' })
   id: string;
@@ -26,6 +49,13 @@ export class OrderResponseDto {
     required: false,
   })
   ownerId?: string;
+
+  @ApiProperty({
+    type: StoreInfoDto,
+    description: 'Información de la tienda/negocio',
+    required: false,
+  })
+  store?: StoreInfoDto;
 
   @ApiProperty({ example: 'mp-operation-123', required: false })
   operationID?: string;
@@ -101,6 +131,7 @@ export class OrderForBuyerDto extends PickType(OrderResponseDto, [
   'total',
   'status',
   'paymentUrl',
+  'store',
   'createdAt',
   'updatedAt',
 ] as const) {}
@@ -121,6 +152,7 @@ export class OrderForSellerDto extends PickType(OrderResponseDto, [
   'netAmount',
   'status',
   'paymentStatus',
+  'store',
   'createdAt',
   'updatedAt',
 ] as const) {}

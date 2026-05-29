@@ -1,0 +1,732 @@
+{
+  "info": {
+    "name": "Menucom API - Endpoints Públicos",
+    "description": "Colección de endpoints públicos de la API de Menucom. No requieren autenticación JWT.\n\nBase URL: http://localhost:3001",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Root",
+      "item": [
+        {
+          "name": "Redirect to Docs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            }
+          }
+        },
+        {
+          "name": "Favicon Redirect",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/favicon.ico",
+              "host": ["{{base_url}}"],
+              "path": ["favicon.ico"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Swagger",
+      "item": [
+        {
+          "name": "Swagger UI",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/docs",
+              "host": ["{{base_url}}"],
+              "path": ["docs"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"usuario@ejemplo.com\",\n  \"password\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            }
+          }
+        },
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nuevo@ejemplo.com\",\n  \"password\": \"123456\",\n  \"name\": \"Nombre Apellido\",\n  \"phone\": \"+541112345678\",\n  \"photoURL\": \"https://ejemplo.com/foto.jpg\",\n  \"role\": \"customer\",\n  \"businessType\": \"food\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Social Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer <FIREBASE_ID_TOKEN>" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/social/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "social", "login"]
+            }
+          }
+        },
+        {
+          "name": "Social Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer <FIREBASE_ID_TOKEN>" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"usuario@ejemplo.com\",\n  \"name\": \"Nombre Apellido\",\n  \"phone\": \"+541112345678\",\n  \"role\": \"customer\",\n  \"photoURL\": \"https://ejemplo.com/foto.jpg\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/social/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "social", "register"]
+            }
+          }
+        },
+        {
+          "name": "Firebase Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/firebase/health",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "firebase", "health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Get User by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/user/user/{{user_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["user", "user", "{{user_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Admin by Email",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/user/admin/admin@ejemplo.com",
+              "host": ["{{base_url}}"],
+              "path": ["user", "admin", "admin@ejemplo.com"]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"emailRecovery\": \"usuario@ejemplo.com\",\n  \"code\": 123456,\n  \"newPassword\": \"nueva-contraseña\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/user/change-password",
+              "host": ["{{base_url}}"],
+              "path": ["user", "change-password"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Catalogos Públicos",
+      "item": [
+        {
+          "name": "Search Public Catalogs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/catalogs/public/search?type=menu&tags=almuerzo,cena",
+              "host": ["{{base_url}}"],
+              "path": ["catalogs", "public", "search"],
+              "query": [
+                { "key": "type", "value": "menu", "description": "CatalogType: menu, wardrobe, product_list, service_list, marketplace" },
+                { "key": "tags", "value": "almuerzo,cena", "description": "Tags separadas por coma" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Public Catalog by Slug",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/catalogs/public/{{slug}}",
+              "host": ["{{base_url}}"],
+              "path": ["catalogs", "public", "{{slug}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Public Catalogs by Owner",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/catalogs/public/owner/{{owner_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["catalogs", "public", "owner", "{{owner_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Membership",
+      "item": [
+        {
+          "name": "Get Plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/membership/plans",
+              "host": ["{{base_url}}"],
+              "path": ["membership", "plans"]
+            }
+          }
+        },
+        {
+          "name": "Get Custom Plans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/membership/custom-plans",
+              "host": ["{{base_url}}"],
+              "path": ["membership", "custom-plans"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payments",
+      "item": [
+        {
+          "name": "Webhook - Payment Notifications",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-signature", "value": "{{mp_signature}}", "description": "Firma HMAC del webhook" },
+              { "key": "x-request-id", "value": "{{$guid}}" },
+              { "key": "x-idempotency-key", "value": "{{$guid}}" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"action\": \"payment.created\",\n  \"api_version\": \"v1\",\n  \"data\": {\n    \"id\": \"123456789\"\n  },\n  \"date_created\": \"2025-01-01T00:00:00Z\",\n  \"id\": 123456,\n  \"live_mode\": false,\n  \"type\": \"payment\",\n  \"user_id\": \"123456789\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/webhooks",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "webhooks"]
+            }
+          }
+        },
+        {
+          "name": "OAuth Callback (POST)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"authorizationCode\": \"TG-1234567890-A1B2C3D4\",\n  \"redirectUri\": \"http://localhost:3000/payments/oauth/callback\",\n  \"vinculation_id\": \"uuid_de_vinculacion\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/payments/oauth/callback",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "oauth", "callback"]
+            }
+          }
+        },
+        {
+          "name": "OAuth Callback (GET - Redirect)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/payments/oauth/callback?code=TG-1234567890-A1B2C3D4&state=uuid_state",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "oauth", "callback"],
+              "query": [
+                { "key": "code", "value": "TG-1234567890-A1B2C3D4" },
+                { "key": "state", "value": "uuid_state" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "OAuth Config Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/payments/oauth/config-check",
+              "host": ["{{base_url}}"],
+              "path": ["payments", "oauth", "config-check"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Webhooks",
+      "item": [
+        {
+          "name": "MercadoPago Subscription Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-hmac-signature", "value": "{{mp_webhook_signature}}", "description": "Firma HMAC-SHA256 del webhook" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"subscription_preapproval\",\n  \"action\": \"created\",\n  \"data\": {\n    \"id\": \"2c9380848a2c1f9c018a2c3f3a4b0123\"\n  },\n  \"date_created\": \"2025-01-01T00:00:00Z\",\n  \"id\": 123456789\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/webhook/mercadopago",
+              "host": ["{{base_url}}"],
+              "path": ["webhook", "mercadopago"]
+            }
+          }
+        },
+        {
+          "name": "Tickets Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "x-hmac-signature", "value": "{{ticket_webhook_signature}}", "description": "Firma HMAC del webhook de tickets" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"payment\",\n  \"action\": \"payment.updated\",\n  \"data\": {\n    \"id\": \"123456789\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/webhooks/tickets",
+              "host": ["{{base_url}}"],
+              "path": ["webhooks", "tickets"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Venues",
+      "item": [
+        {
+          "name": "List All Venues",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/venues",
+              "host": ["{{base_url}}"],
+              "path": ["venues"]
+            }
+          }
+        },
+        {
+          "name": "Get Venue by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/venues/{{venue_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["venues", "{{venue_id}}"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tickets",
+      "item": [
+        {
+          "name": "Checkout - Create Preference",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticketTypeId\": \"uuid_ticket_type\",\n  \"quantity\": 2,\n  \"customerName\": \"Nombre Apellido\",\n  \"customerEmail\": \"usuario@ejemplo.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tickets/checkout",
+              "host": ["{{base_url}}"],
+              "path": ["tickets", "checkout"]
+            }
+          }
+        },
+        {
+          "name": "Validate Offline Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<offline_jwt_token>\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/tickets/validate-offline",
+              "host": ["{{base_url}}"],
+              "path": ["tickets", "validate-offline"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Public - Landing",
+      "item": [
+        {
+          "name": "List Merchants",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public/merchants?page=1&limit=20&type=menu&search=comida&sort=recent",
+              "host": ["{{base_url}}"],
+              "path": ["public", "merchants"],
+              "query": [
+                { "key": "page", "value": "1", "description": "Número de página (default: 1)" },
+                { "key": "limit", "value": "20", "description": "Items por página (default: 20, max: 50)" },
+                { "key": "type", "value": "menu", "description": "Filtrar por tipo: menu, wardrobe, product_list, service_list, marketplace" },
+                { "key": "search", "value": "comida", "description": "Búsqueda por texto" },
+                { "key": "sort", "value": "recent", "description": "Orden: recent, popular, name" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Featured Merchants",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public/merchants/featured?limit=6",
+              "host": ["{{base_url}}"],
+              "path": ["public", "merchants", "featured"],
+              "query": [
+                { "key": "limit", "value": "6", "description": "Cantidad de merchants destacados (default: 6)" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Merchant Profile by Slug",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public/merchants/{{slug}}",
+              "host": ["{{base_url}}"],
+              "path": ["public", "merchants", "{{slug}}"]
+            }
+          }
+        },
+        {
+          "name": "Merchant Catalogs",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public/merchants/{{slug}}/catalogs",
+              "host": ["{{base_url}}"],
+              "path": ["public", "merchants", "{{slug}}", "catalogs"]
+            }
+          }
+        },
+        {
+          "name": "Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public/categories",
+              "host": ["{{base_url}}"],
+              "path": ["public", "categories"]
+            }
+          }
+        },
+        {
+          "name": "Platform Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public/stats",
+              "host": ["{{base_url}}"],
+              "path": ["public", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Search",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public/search?q=pizza&type=menu&page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["public", "search"],
+              "query": [
+                { "key": "q", "value": "pizza", "description": "Texto de búsqueda" },
+                { "key": "type", "value": "menu", "description": "Filtrar por tipo de catálogo" },
+                { "key": "page", "value": "1", "description": "Número de página" },
+                { "key": "limit", "value": "20", "description": "Items por página" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Trending",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/public/trending?period=7d&limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["public", "trending"],
+              "query": [
+                { "key": "period", "value": "7d", "description": "Período: 24h, 7d, 30d (default: 24h)" },
+                { "key": "limit", "value": "10", "description": "Cantidad de resultados (default: 10)" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "App Data",
+      "item": [
+        {
+          "name": "List App Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/app-data?includeInactive=false",
+              "host": ["{{base_url}}"],
+              "path": ["app-data"],
+              "query": [
+                { "key": "includeInactive", "value": "false", "description": "Incluir registros inactivos" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get App Data by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/app-data/{{app_data_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["app-data", "{{app_data_id}}"]
+            }
+          }
+        },
+        {
+          "name": "Get App Data by Key",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/app-data/key/{{key}}",
+              "host": ["{{base_url}}"],
+              "path": ["app-data", "key", "{{key}}"]
+            }
+          }
+        },
+        {
+          "name": "Get App Data Value by Key",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/app-data/value/{{key}}",
+              "host": ["{{base_url}}"],
+              "path": ["app-data", "value", "{{key}}"]
+            }
+          }
+        },
+        {
+          "name": "Get Marketplace Fee",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/app-data/marketplace-fee",
+              "host": ["{{base_url}}"],
+              "path": ["app-data", "marketplace-fee"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Image Proxy",
+      "item": [
+        {
+          "name": "Proxy Image",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/image-proxy/image?url=https://ejemplo.com/imagen.jpg",
+              "host": ["{{base_url}}"],
+              "path": ["image-proxy", "image"],
+              "query": [
+                { "key": "url", "value": "https://ejemplo.com/imagen.jpg", "description": "URL de la imagen a proxear" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Cache Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/image-proxy/stats",
+              "host": ["{{base_url}}"],
+              "path": ["image-proxy", "stats"]
+            }
+          }
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/image-proxy/health",
+              "host": ["{{base_url}}"],
+              "path": ["image-proxy", "health"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3001",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "owner_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "slug",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "venue_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "app_data_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mp_signature",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mp_webhook_signature",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "ticket_webhook_signature",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

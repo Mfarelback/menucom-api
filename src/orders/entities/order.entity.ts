@@ -5,9 +5,12 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   OneToMany,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { OrderItem } from './order.item.entity';
 import { OrderStatus } from '../enums/order-status.enum';
+import { User } from '../../user/entities/user.entity';
 
 const ColumnNumericTransformer = {
   to: (data: number): number => data,
@@ -35,7 +38,11 @@ export class Order {
   createdBy: string; // ID del creador de la orden (x-anonymous-id)
 
   @Column({ nullable: true })
-  ownerId: string; // ID del propietario del menú/wardrobe al que se le está comprando
+  ownerId: string;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'ownerId' })
+  owner: User;
 
   // esto seria el preference de mp
   @Column({ nullable: true })

@@ -260,7 +260,9 @@ export class OrdersService {
           { orderId: order.id, type: 'new_order' },
         )
         .catch((err) =>
-          this.logger.warn(`Error enviando notificación al owner: ${err.message}`),
+          this.logger.warn(
+            `Error enviando notificación al owner: ${err.message}`,
+          ),
         );
     }
 
@@ -268,16 +270,16 @@ export class OrdersService {
   }
 
   // Otros métodos (findOne, findAll, update, delete) pueden seguir este patrón
-  async findOne(id: string): Promise<Order> {
+  async findOne(id: string): Promise<any> {
     try {
       const order = await this.orderRepository.findOne({
         where: { id },
-        relations: ['items'],
+        relations: ['items', 'owner'],
       });
       if (!order) {
         throw new NotFoundException(`Orden con id ${id} no encontrada`);
       }
-      return order;
+      return this.mapOrderStoreInfo(order);
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(
@@ -288,16 +290,16 @@ export class OrdersService {
   async findAll(
     page: number = 1,
     limit: number = 10,
-  ): Promise<PaginatedResult<Order>> {
+  ): Promise<PaginatedResult<any>> {
     try {
       const skip = (page - 1) * limit;
       const [data, total] = await this.orderRepository.findAndCount({
-        relations: ['items'],
+        relations: ['items', 'owner'],
         skip,
         take: limit,
         order: { createdAt: 'DESC' },
       });
-      return { data, total, page, limit };
+      return { data: data.map(this.mapOrderStoreInfo), total, page, limit };
     } catch (error) {
       throw new InternalServerErrorException(
         `Error al obtener las órdenes: ${error.message}`,
@@ -305,13 +307,14 @@ export class OrdersService {
     }
   }
 
-  async findByOwner(customerEmail: string): Promise<Order[]> {
+  async findByOwner(customerEmail: string): Promise<any[]> {
     try {
-      return await this.orderRepository.find({
+      const orders = await this.orderRepository.find({
         where: { customerEmail },
-        relations: ['items'],
+        relations: ['items', 'owner'],
         order: { createdAt: 'DESC' },
       });
+      return orders.map(this.mapOrderStoreInfo);
     } catch (error) {
       throw new InternalServerErrorException(
         `Error al obtener órdenes por email: ${error.message}`,
@@ -319,11 +322,30 @@ export class OrdersService {
     }
   }
 
+  private mapOrderStoreInfo(order: Order): any {
+    if (!order.owner) {
+      const { owner, ...rest } = order;
+      return rest;
+    }
+    const { owner, ...rest } = order;
+    return {
+      ...rest,
+      store: {
+        id: owner.id,
+        businessName: owner.businessName,
+        slug: owner.slug,
+        coverImageUrl: owner.coverImageUrl,
+        businessPhone: owner.businessPhone,
+        businessAddress: owner.businessAddress,
+      },
+    };
+  }
+
   async findByUserId(
     userId: string,
     page: number = 1,
     limit: number = 10,
-  ): Promise<PaginatedResult<Order>> {
+  ): Promise<PaginatedResult<any>> {
     try {
       const user = await this.userService.findOne(userId);
       if (!user) {
@@ -334,12 +356,12 @@ export class OrdersService {
       const skip = (page - 1) * limit;
       const [data, total] = await this.orderRepository.findAndCount({
         where: { customerEmail: user.email },
-        relations: ['items'],
+        relations: ['items', 'owner'],
         order: { createdAt: 'DESC' },
         skip,
         take: limit,
       });
-      return { data, total, page, limit };
+      return { data: data.map(this.mapOrderStoreInfo), total, page, limit };
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(
@@ -348,13 +370,14 @@ export class OrdersService {
     }
   }
 
-  async findByCreator(createdBy: string): Promise<Order[]> {
+  async findByCreator(createdBy: string): Promise<any[]> {
     try {
-      return await this.orderRepository.find({
+      const orders = await this.orderRepository.find({
         where: { createdBy },
-        relations: ['items'],
+        relations: ['items', 'owner'],
         order: { createdAt: 'DESC' },
       });
+      return orders.map(this.mapOrderStoreInfo);
     } catch (error) {
       throw new InternalServerErrorException(
         `Error al obtener órdenes por creador: ${error.message}`,
@@ -366,7 +389,7 @@ export class OrdersService {
     ownerId: string,
     page: number = 1,
     limit: number = 10,
-  ): Promise<PaginatedResult<Order>> {
+  ): Promise<PaginatedResult<any>> {
     try {
       if (!ownerId) {
         throw new BadRequestException('El ID del propietario es requerido');
@@ -376,12 +399,12 @@ export class OrdersService {
 
       const [data, total] = await this.orderRepository.findAndCount({
         where: { ownerId },
-        relations: ['items'],
+        relations: ['items', 'owner'],
         order: { createdAt: 'DESC' },
         skip,
         take: limit,
       });
-      return { data, total, page, limit };
+      return { data: data.map(this.mapOrderStoreInfo), total, page, limit };
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
       throw new InternalServerErrorException(
@@ -423,10 +446,10 @@ export class OrdersService {
 
       await this.orderRepository.save(order);
 
-      return await this.orderRepository.findOne({
+      return this.mapOrderStoreInfo(await this.orderRepository.findOne({
         where: { id },
-        relations: ['items'],
-      });
+        relations: ['items', 'owner'],
+      }));
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(
@@ -599,10 +622,10 @@ export class OrdersService {
       }
       await this.orderRepository.save(order);
 
-      return this.orderRepository.findOne({
+      return this.mapOrderStoreInfo(await this.orderRepository.findOne({
         where: { id: orderId },
-        relations: ['items'],
-      });
+        relations: ['items', 'owner'],
+      }));
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(
@@ -636,7 +659,10 @@ export class OrdersService {
 
     const notifications: Promise<boolean>[] = [];
 
-    if (newStatus === OrderStatus.CONFIRMED && prevStatus !== OrderStatus.CONFIRMED) {
+    if (
+      newStatus === OrderStatus.CONFIRMED &&
+      prevStatus !== OrderStatus.CONFIRMED
+    ) {
       // Notificar al comprador que su pago fue confirmado
       if (order.createdBy) {
         notifications.push(
@@ -662,7 +688,10 @@ export class OrdersService {
       }
     }
 
-    if (newStatus === OrderStatus.CANCELLED && prevStatus !== OrderStatus.CANCELLED) {
+    if (
+      newStatus === OrderStatus.CANCELLED &&
+      prevStatus !== OrderStatus.CANCELLED
+    ) {
       if (order.createdBy) {
         notifications.push(
           this.notificationsService.sendNotificationToUser(
@@ -689,7 +718,10 @@ export class OrdersService {
     }
 
     // Notificaciones de cumplimiento para el comprador
-    if (newStatus === OrderStatus.PROCESSING && prevStatus !== OrderStatus.PROCESSING) {
+    if (
+      newStatus === OrderStatus.PROCESSING &&
+      prevStatus !== OrderStatus.PROCESSING
+    ) {
       if (order.createdBy) {
         notifications.push(
           this.notificationsService.sendNotificationToUser(
@@ -702,7 +734,10 @@ export class OrdersService {
       }
     }
 
-    if (newStatus === OrderStatus.SHIPPED && prevStatus !== OrderStatus.SHIPPED) {
+    if (
+      newStatus === OrderStatus.SHIPPED &&
+      prevStatus !== OrderStatus.SHIPPED
+    ) {
       if (order.createdBy) {
         notifications.push(
           this.notificationsService.sendNotificationToUser(
@@ -715,7 +750,10 @@ export class OrdersService {
       }
     }
 
-    if (newStatus === OrderStatus.DELIVERED && prevStatus !== OrderStatus.DELIVERED) {
+    if (
+      newStatus === OrderStatus.DELIVERED &&
+      prevStatus !== OrderStatus.DELIVERED
+    ) {
       if (order.createdBy) {
         notifications.push(
           this.notificationsService.sendNotificationToUser(
