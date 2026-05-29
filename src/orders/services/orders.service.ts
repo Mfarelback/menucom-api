@@ -325,17 +325,17 @@ export class OrdersService {
   private mapOrderStoreInfo(order: Order): any {
     if (!order.owner) {
       const { owner, ...rest } = order;
-      return rest;
+      return { ...rest, store: null };
     }
     const { owner, ...rest } = order;
     return {
       ...rest,
       store: {
         id: owner.id,
-        businessName: owner.businessName,
+        businessName: owner.businessName || owner.name,
         slug: owner.slug,
-        coverImageUrl: owner.coverImageUrl,
-        businessPhone: owner.businessPhone,
+        coverImageUrl: owner.coverImageUrl || owner.photoURL,
+        businessPhone: owner.businessPhone || owner.phone,
         businessAddress: owner.businessAddress,
       },
     };
