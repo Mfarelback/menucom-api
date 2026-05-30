@@ -481,10 +481,11 @@ export class OrdersService {
   async updateOrderStatus(
     orderId: string,
     status: OrderStatus,
-  ): Promise<Order> {
+  ): Promise<any> {
     try {
       const order = await this.orderRepository.findOne({
         where: { id: orderId },
+        relations: ['items', 'owner'],
       });
 
       if (!order) {
@@ -496,7 +497,7 @@ export class OrdersService {
         this.logger.debug(
           `Order ${orderId} ya está en estado ${status}. Saltando update.`,
         );
-        return order;
+        return this.mapOrderStoreInfo(order);
       }
 
       // Si la orden ya está en un estado final, no permitir cambios (a menos que sea una corrección específica)
@@ -507,17 +508,17 @@ export class OrdersService {
         this.logger.warn(
           `Intento de cambiar orden CONFIRMED ${orderId} a PENDING bloqueado.`,
         );
-        return order;
+        return this.mapOrderStoreInfo(order);
       }
 
       const prevStatus = order.status;
       order.status = status;
       await this.orderRepository.save(order);
 
-      const updatedOrder = await this.orderRepository.findOne({
+      const updatedOrder = this.mapOrderStoreInfo(await this.orderRepository.findOne({
         where: { id: orderId },
-        relations: ['items'],
-      });
+        relations: ['items', 'owner'],
+      }));
 
       // Notificaciones FCM según el nuevo estado
       this.sendStatusChangeNotifications(updatedOrder, prevStatus, status);
@@ -539,7 +540,7 @@ export class OrdersService {
   async updateOrderFulfillmentStatus(
     orderId: string,
     newStatus: OrderStatus,
-  ): Promise<Order> {
+  ): Promise<any> {
     try {
       const order = await this.orderRepository.findOne({
         where: { id: orderId },
@@ -576,10 +577,10 @@ export class OrdersService {
       order.status = newStatus;
       await this.orderRepository.save(order);
 
-      const updatedOrder = await this.orderRepository.findOne({
+      const updatedOrder = this.mapOrderStoreInfo(await this.orderRepository.findOne({
         where: { id: orderId },
-        relations: ['items'],
-      });
+        relations: ['items', 'owner'],
+      }));
 
       this.sendStatusChangeNotifications(updatedOrder, prevStatus, newStatus);
 
@@ -637,12 +638,14 @@ export class OrdersService {
   /**
    * Busca una orden por operationID (PaymentIntent ID)
    */
-  async findByOperationId(operationId: string): Promise<Order | null> {
+  async findByOperationId(operationId: string): Promise<any | null> {
     try {
-      return await this.orderRepository.findOne({
+      const order = await this.orderRepository.findOne({
         where: { operationID: operationId },
-        relations: ['items'],
+        relations: ['items', 'owner'],
       });
+      if (!order) return null;
+      return this.mapOrderStoreInfo(order);
     } catch (error) {
       throw new InternalServerErrorException(
         `Error al buscar orden por ID de operación: ${error.message}`,
