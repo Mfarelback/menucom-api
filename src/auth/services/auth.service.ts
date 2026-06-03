@@ -28,6 +28,11 @@ export class AuthService {
   async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.usersService.findByEmail(email);
     if (user) {
+      if (!user.password) {
+        throw new UnauthorizedException(
+          'Esta cuenta usa inicio de sesión social. Por favor, inicia sesión con Google.',
+        );
+      }
       const isMatch = await bcrypt.compare(pass, user.password);
       if (isMatch) {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
