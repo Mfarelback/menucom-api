@@ -10,6 +10,7 @@ import { UserAuthService } from '../../user/services/user-auth.service';
 import { JwtService } from '@nestjs/jwt';
 import { CreateUserDto } from '../../user/dto/create-user.dto';
 import { LoggerService } from '../../core/logger/logger.service';
+import { CloudinaryService } from '../../cloudinary/services/cloudinary.service';
 import { UserRoleService } from './user-role.service';
 import { RoleType, BusinessContext } from '../models/permissions.model';
 
@@ -20,6 +21,7 @@ export class AuthService {
     private userAuthService: UserAuthService,
     private jwtService: JwtService,
     private logger: LoggerService,
+    private cloudinaryService: CloudinaryService,
     private userRoleService: UserRoleService,
   ) {
     this.logger.setContext('AuthService');
@@ -59,8 +61,33 @@ export class AuthService {
     };
   }
 
-  async registerUser(userData: CreateUserDto) {
+  async registerUser(
+    userData: CreateUserDto,
+    file?: Express.Multer.File,
+  ) {
     try {
+      // Si se proporciona un archivo, subirlo a Cloudinary y asignar URL
+      if (file) {
+        this.logger.debug('Subiendo foto de registro a Cloudinary...');
+        try {
+          const uploadedUrl = await this.cloudinaryService.uploadImage(file);
+          if (typeof uploadedUrl === 'string') {
+            userData = { ...userData, photoURL: uploadedUrl };
+            this.logger.log(
+              `Foto de registro subida exitosamente: ${uploadedUrl}`,
+            );
+          } else {
+            this.logger.error(
+              `Error al subir foto de registro: ${uploadedUrl}`,
+            );
+          }
+        } catch (uploadError) {
+          this.logger.error(
+            `Error en uploadImage durante registro: ${uploadError instanceof Error ? uploadError.message : String(uploadError)}`,
+          );
+        }
+      }
+
       const userRegister = await this.usersService.create(userData);
 
       // NUEVO: Mapeo completo de businessType a (role, context)

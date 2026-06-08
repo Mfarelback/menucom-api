@@ -6,6 +6,7 @@ import { AuthController } from './contollers/auth.controller';
 import { UserRoleController } from './contollers/user-role.controller';
 import { JwtModule } from '@nestjs/jwt';
 import { UserModule } from '../user/user.module';
+import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 import config from '../config';
 import { ConfigType } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
@@ -20,6 +21,7 @@ import { FirebaseAdminService } from './firebase-admin.service';
 @Module({
   imports: [
     forwardRef(() => UserModule),
+    CloudinaryModule,
     TypeOrmModule.forFeature([UserRole, User]),
     JwtModule.registerAsync({
       inject: [config.KEY],

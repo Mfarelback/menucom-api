@@ -7,6 +7,7 @@ import {
   IsOptional,
   IsBoolean,
 } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { ApiProperty } from '@nestjs/swagger';
 
@@ -17,9 +18,9 @@ export class CreateUserDto {
   readonly id: string;
 
   @IsString()
-  @IsNotEmpty()
-  @ApiProperty({ description: 'photoUrl of user' })
-  readonly photoURL: string;
+  @IsOptional()
+  @ApiPropertyOptional({ description: 'photoUrl of user' })
+  readonly photoURL?: string;
 
   @IsString()
   @IsEmail()
@@ -43,6 +44,12 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsBoolean()
+  @Transform(({ value }) => {
+    if (typeof value === 'string') {
+      return value === 'true';
+    }
+    return value;
+  })
   @ApiProperty()
   readonly needToChangepassword: boolean;
 

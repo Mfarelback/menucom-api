@@ -5,11 +5,14 @@ import {
   Post,
   Req,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { AuthGuard } from '@nestjs/passport';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CreateUserDto } from '../../user/dto/create-user.dto';
 import { SocialRegistrationDto } from '../../user/dto/social-user.dto';
 import { AuthService } from '../services/auth.service';
@@ -21,6 +24,8 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
+  ApiConsumes,
+  ApiBody,
 } from '@nestjs/swagger';
 
 // Extender el tipo Request para incluir user
@@ -92,6 +97,12 @@ export class AuthController {
   }
 
   @Post('/register')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    description: 'Datos de registro con foto opcional',
+    type: CreateUserDto,
+  })
   @ApiOperation({ summary: 'Registro de nuevo usuario tradicional' })
   @ApiResponse({
     status: 201,
@@ -104,9 +115,12 @@ export class AuthController {
       },
     },
   })
-  async register(@Body() payload: CreateUserDto) {
+  async register(
+    @Body() payload: CreateUserDto,
+    @UploadedFile() file?: Express.Multer.File,
+  ) {
     this.logger.debug('Registro de usuario tradicional iniciado');
-    return this.authService.registerUser(payload);
+    return this.authService.registerUser(payload, file);
   }
 
   // Nuevos endpoints para autenticación social con Firebase
