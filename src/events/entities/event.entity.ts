@@ -6,19 +6,30 @@ import {
   OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
+  JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
+import { Commerce } from '../../commerce/entities/commerce.entity';
 import { Venue } from './venue.entity';
 import { TicketType } from './ticket-type.entity';
 import { EventStatus } from '../enums/event-status.enum';
 
 @Entity('events')
+@Index(['commerceId'])
 export class Event {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
-  tenantId: string; // Aislamiento multi-tenant
+  tenantId: string; // Legacy: userId del organizer. Mantener para backward compatibility.
+
+  @Column({ type: 'uuid', nullable: true })
+  commerceId: string | null;
+
+  @ManyToOne(() => Commerce, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'commerceId' })
+  commerce: Commerce;
 
   @Column()
   name: string;

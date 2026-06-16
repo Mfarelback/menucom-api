@@ -6,7 +6,7 @@ Esta carpeta contiene la documentación técnica detallada que **expande y compl
 
 | Documento | Ubicación | Propósito |
 |------------|-----------|------------|
-| **Análisis Inicial** | [`../EVENTS_TICKETS_ANALYSIS.md`](../EVENTS_TICKETS_ANALYSIS.md) | Visión general, entidades propuestas, consideraciones generales |
+| **Análisis Inicial** | [[analysis/EVENTS_TICKETS_ANALYSIS]] | Visión general, entidades propuestas, consideraciones generales |
 | **Documentación Técnica** | [`technical-documentation.md`](technical-documentation.md) | Implementación detallada, webhooks, brechas críticas, código |
 
 > ⚠️ **Importante**: Ambos documentos deben leerse **en conjunto** para una visión completa del sistema de eventos y tickets.
@@ -31,7 +31,7 @@ Esta carpeta contiene la documentación técnica detallada que **expande y compl
 
 ## 🚀 Acceso Rápido
 
-1. [Análisis Inicial - EVENTS_TICKETS_ANALYSIS.md](../EVENTS_TICKETS_ANALYSIS.md)
+1. [[analysis/EVENTS_TICKETS_ANALYSIS|Análisis Inicial - EVENTS_TICKETS_ANALYSIS]]
 2. [Documentación Técnica - technical-documentation.md](technical-documentation.md)
 
 ---

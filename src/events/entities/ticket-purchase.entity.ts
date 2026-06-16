@@ -6,8 +6,11 @@ import {
   OneToMany,
   CreateDateColumn,
   UpdateDateColumn,
+  JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
+import { Commerce } from '../../commerce/entities/commerce.entity';
 import { Event } from './event.entity';
 import { Ticket } from './ticket.entity';
 import { Order } from '../../orders/entities/order.entity';
@@ -15,12 +18,20 @@ import { TicketPurchaseStatus } from '../enums/ticket-purchase-status.enum';
 import { TicketType } from './ticket-type.entity';
 
 @Entity('ticket_purchases')
+@Index(['commerceId'])
 export class TicketPurchase {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
-  tenantId: string; // Crítico para multi-tenant
+  tenantId: string; // Legacy: userId. Mantener para backward compatibility.
+
+  @Column({ type: 'uuid', nullable: true })
+  commerceId: string | null;
+
+  @ManyToOne(() => Commerce, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'commerceId' })
+  commerce: Commerce;
 
   @ManyToOne(() => User)
   buyer: User;

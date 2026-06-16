@@ -28,6 +28,7 @@ import {
   CreateEventWithFileDto,
   UpdateEventWithFileDto,
 } from '../dto/event.dto';
+import { AuthenticatedRequest } from '../../auth/types/request.types';
 
 @ApiTags('Events')
 @Controller('events')
@@ -46,41 +47,44 @@ export class EventsController {
   })
   @ApiResponse({ status: 201, description: 'Evento creado exitosamente' })
   async create(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Body() createEventDto: CreateEventDto,
     @UploadedFile() image?: Express.Multer.File,
   ) {
-    const tenantId = req.user.userId;
-    const organizerId = req.user.userId;
+    const tenant = {
+      userId: req.user.userId,
+      commerceId: req.tenantId,
+    };
 
     if (typeof createEventDto.venue === 'string') {
       createEventDto.venue = JSON.parse(createEventDto.venue);
     }
 
-    return await this.eventsService.create(
-      createEventDto,
-      tenantId,
-      organizerId,
-      image,
-    );
+    return await this.eventsService.create(createEventDto, tenant, image);
   }
 
   @Get()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Listar todos los eventos del tenant' })
-  async findAll(@Request() req) {
-    const tenantId = req.user.userId;
-    return await this.eventsService.findAll(tenantId);
+  async findAll(@Request() req: AuthenticatedRequest) {
+    const tenant = {
+      userId: req.user.userId,
+      commerceId: req.tenantId,
+    };
+    return await this.eventsService.findAll(tenant);
   }
 
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtener un evento por ID' })
-  async findOne(@Request() req, @Param('id') id: string) {
-    const tenantId = req.user.userId;
-    return await this.eventsService.findOne(id, tenantId);
+  async findOne(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    const tenant = {
+      userId: req.user.userId,
+      commerceId: req.tenantId,
+    };
+    return await this.eventsService.findOne(id, tenant);
   }
 
   @Put(':id')
@@ -94,26 +98,32 @@ export class EventsController {
     type: UpdateEventWithFileDto,
   })
   async update(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Param('id') id: string,
     @Body() updateEventDto: UpdateEventDto,
     @UploadedFile() image?: Express.Multer.File,
   ) {
-    const tenantId = req.user.userId;
+    const tenant = {
+      userId: req.user.userId,
+      commerceId: req.tenantId,
+    };
 
     if (typeof (updateEventDto as any).venue === 'string') {
       (updateEventDto as any).venue = JSON.parse((updateEventDto as any).venue);
     }
 
-    return await this.eventsService.update(id, updateEventDto, tenantId, image);
+    return await this.eventsService.update(id, updateEventDto, tenant, image);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Eliminar un evento' })
-  async remove(@Request() req, @Param('id') id: string) {
-    const tenantId = req.user.userId;
-    return await this.eventsService.remove(id, tenantId);
+  async remove(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
+    const tenant = {
+      userId: req.user.userId,
+      commerceId: req.tenantId,
+    };
+    return await this.eventsService.remove(id, tenant);
   }
 }

@@ -41,6 +41,7 @@ export const PLAN_FEATURES = {
 
 export const PLAN_LIMITS = {
   [MembershipPlan.FREE]: {
+    maxCommerces: 1,
     maxCatalogs: 1,
     maxCatalogItems: 10,
     maxLocations: 1,
@@ -50,6 +51,7 @@ export const PLAN_LIMITS = {
     storageLimit: 100,
   },
   [MembershipPlan.PREMIUM]: {
+    maxCommerces: 3,
     maxCatalogs: 3,
     maxCatalogItems: 500,
     maxLocations: 3,
@@ -59,6 +61,7 @@ export const PLAN_LIMITS = {
     storageLimit: 1000,
   },
   [MembershipPlan.ENTERPRISE]: {
+    maxCommerces: -1,
     maxCatalogs: -1,
     maxCatalogItems: -1,
     maxLocations: -1,

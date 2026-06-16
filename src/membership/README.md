@@ -100,15 +100,15 @@ DELETE /membership/cancel
 
 ### FREE Plan
 - Features: Basic menu management
-- Limits: 10 menu items, 1 location, 7 days analytics
+- Limits: 1 commerce, 10 menu items, 1 location, 7 days analytics
 
 ### PREMIUM Plan
 - Features: Advanced analytics, custom branding, unlimited items, priority support
-- Limits: 500 menu items, 3 locations, 90 days analytics
+- Limits: 3 commerces, 500 menu items, 3 locations, 90 days analytics
 
 ### ENTERPRISE Plan
 - Features: All premium features + API access, white label, custom integrations, dedicated support
-- Limits: Unlimited everything
+- Limits: Unlimited commerces, unlimited everything
 
 ## Usage Examples
 

@@ -24,6 +24,7 @@ import { EventsModule } from '../events/events.module';
 import { AppDataModule } from '../app-data/app-data.module';
 import { User } from '../user/entities/user.entity';
 import { Membership } from '../membership/entities/membership.entity';
+import { Commerce } from '../commerce/entities/commerce.entity';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { Membership } from '../membership/entities/membership.entity';
       MerchantConfig,
       User,
       Membership,
+      Commerce,
     ]),
     forwardRef(() => OrdersModule),
     forwardRef(() => EventsModule),

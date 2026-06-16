@@ -17,6 +17,11 @@ import { MembershipFeature } from '../enums/membership-plan.enum';
 import { PlanType } from '../entities/subscription-plan.entity';
 
 export class PlanLimitsDto {
+  @ApiProperty({ description: 'Número máximo de comercios', example: 1 })
+  @IsNumber()
+  @Min(-1)
+  maxCommerces: number;
+
   @ApiProperty({ description: 'Número máximo de catálogos', example: 1 })
   @IsNumber()
   @Min(-1) // -1 significa ilimitado

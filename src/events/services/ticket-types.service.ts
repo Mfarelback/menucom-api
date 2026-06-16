@@ -1,9 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { TicketType } from '../entities/ticket-type.entity';
+import { Event } from '../entities/event.entity';
 import { CreateTicketTypeDto, UpdateTicketTypeDto } from '../dto/event.dto';
 import { LoggerService } from '../../core/logger';
 import { TicketTypeRepository } from '../repository/ticket-type.repository';
 import { EventRepository } from '../repository/event.repository';
+import { TenantContext } from '../../auth/types/tenant-context.types';
+import { TenantResolutionService } from '../../auth/services/tenant-resolution.service';
 
 @Injectable()
 export class TicketTypesService {
@@ -17,7 +20,7 @@ export class TicketTypesService {
 
   async create(
     createDto: CreateTicketTypeDto,
-    tenantId: string,
+    tenant: TenantContext,
   ): Promise<TicketType> {
     if (new Date(createDto.saleStartDate) >= new Date(createDto.saleEndDate)) {
       throw new Error(
@@ -25,8 +28,9 @@ export class TicketTypesService {
       );
     }
 
+    const where = TenantResolutionService.buildTenantFilter<Event>(tenant);
     const event = await this.eventRepo.findOne({
-      where: { id: createDto.eventId, tenantId },
+      where: { id: createDto.eventId, ...where },
     });
     if (!event) throw new NotFoundException('Event not found or unauthorized');
 
@@ -39,10 +43,11 @@ export class TicketTypesService {
 
   async findAllByEvent(
     eventId: string,
-    tenantId: string,
+    tenant: TenantContext,
   ): Promise<TicketType[]> {
+    const where = TenantResolutionService.buildTenantFilter<Event>(tenant);
     const event = await this.eventRepo.findOne({
-      where: { id: eventId, tenantId },
+      where: { id: eventId, ...where },
     });
     if (!event) throw new NotFoundException('Event not found or unauthorized');
 
@@ -54,14 +59,25 @@ export class TicketTypesService {
   async update(
     id: string,
     updateDto: UpdateTicketTypeDto,
-    tenantId: string,
+    tenant: TenantContext,
   ): Promise<TicketType> {
     const ticketType = await this.ticketTypeRepo.findOne({
       where: { id },
       relations: ['event'],
     });
 
-    if (!ticketType || ticketType.event.tenantId !== tenantId) {
+    if (!ticketType) {
+      throw new NotFoundException('Ticket type not found');
+    }
+
+    if (
+      tenant.commerceId &&
+      ticketType.event.commerceId &&
+      ticketType.event.commerceId !== tenant.commerceId
+    ) {
+      throw new NotFoundException('Ticket type not found or unauthorized');
+    }
+    if (!tenant.commerceId && ticketType.event.tenantId !== tenant.userId) {
       throw new NotFoundException('Ticket type not found or unauthorized');
     }
 
@@ -69,16 +85,34 @@ export class TicketTypesService {
     return this.ticketTypeRepo.save(updatedTicketType);
   }
 
-  async remove(id: string, tenantId: string): Promise<void> {
+  async remove(id: string, tenant: TenantContext): Promise<void> {
     const ticketType = await this.ticketTypeRepo.findOne({
       where: { id },
       relations: ['event'],
     });
 
-    if (!ticketType || ticketType.event.tenantId !== tenantId) {
-      throw new NotFoundException('Ticket type not found or unauthorized');
+    if (!ticketType) {
+      throw new NotFoundException('Ticket type not found');
     }
 
+    this.validateTicketTypeTenant(ticketType, tenant);
+
     await this.ticketTypeRepo.remove(ticketType);
+  }
+
+  private validateTicketTypeTenant(
+    ticketType: TicketType,
+    tenant: TenantContext,
+  ): void {
+    if (
+      tenant.commerceId &&
+      ticketType.event.commerceId &&
+      ticketType.event.commerceId !== tenant.commerceId
+    ) {
+      throw new NotFoundException('Ticket type not found or unauthorized');
+    }
+    if (!tenant.commerceId && ticketType.event.tenantId !== tenant.userId) {
+      throw new NotFoundException('Ticket type not found or unauthorized');
+    }
   }
 }

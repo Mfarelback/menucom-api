@@ -1,9 +1,8 @@
 import { Module, forwardRef } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './services/auth.service';
-import { AuthController } from './contollers/auth.controller';
-import { UserRoleController } from './contollers/user-role.controller';
+import { AuthController } from './controllers/auth.controller';
+import { UserRoleController } from './controllers/user-role.controller';
 import { JwtModule } from '@nestjs/jwt';
 import { UserModule } from '../user/user.module';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
@@ -14,15 +13,20 @@ import { LocalStrategy } from './local.strategy';
 import { GoogleIdTokenStrategy } from './strategies/google-id.strategy';
 import { UserRole } from './entities/user-role.entity';
 import { User } from '../user/entities/user.entity';
+import { Commerce } from '../commerce/entities/commerce.entity';
 import { UserRoleService } from './services/user-role.service';
 import { PermissionsGuard } from './guards/permissions.guard';
 import { FirebaseAdminService } from './firebase-admin.service';
+import { TenantInterceptor } from './interceptors/tenant.interceptor';
+import { TenantResolutionService } from './services/tenant-resolution.service';
+import { CommerceModule } from '../commerce/commerce.module';
 
 @Module({
   imports: [
     forwardRef(() => UserModule),
-    CloudinaryModule,
-    TypeOrmModule.forFeature([UserRole, User]),
+    forwardRef(() => CloudinaryModule),
+    forwardRef(() => CommerceModule),
+    TypeOrmModule.forFeature([UserRole, User, Commerce]),
     JwtModule.registerAsync({
       inject: [config.KEY],
       useFactory: (configService: ConfigType<typeof config>) => {
@@ -44,6 +48,8 @@ import { FirebaseAdminService } from './firebase-admin.service';
     UserRoleService,
     PermissionsGuard,
     FirebaseAdminService,
+    TenantInterceptor,
+    TenantResolutionService,
   ],
   exports: [
     AuthService,
@@ -51,6 +57,8 @@ import { FirebaseAdminService } from './firebase-admin.service';
     PermissionsGuard,
     FirebaseAdminService,
     JwtModule,
+    TenantInterceptor,
+    TenantResolutionService,
   ],
 })
 export class AuthModule {}

@@ -347,7 +347,7 @@ async calculateOrderAmounts(subtotal: number) {
 **Estado:** ✅ Sistema CREADO Y APLICADO (44 excepciones + GlobalExceptionFilter)  
 **Excepciones totales:** 44 (6 nuevas agregadas para catalog y membership)  
 **Servicios migrados:** catalog.service.ts, membership.service.ts  
-**Documentación:** Ver `src/core/exceptions/README.md`, `MIGRATION-GUIDE.md`, `IMPLEMENTATION-SUMMARY.md`  
+**Documentación:** Ver `src/core/exceptions/README.md`, [[migration/MIGRATION-GUIDE]], [[implementation/IMPLEMENTATION-SUMMARY]]  
 **Pendiente:** Revisar orders/payments para aplicar excepciones donde sea necesario
 
 ---

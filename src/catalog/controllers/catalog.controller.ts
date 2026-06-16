@@ -30,6 +30,7 @@ import {
   UpdateCatalogItemDto,
 } from '../dto/catalog-item.dto';
 import { CatalogType } from '../enums/catalog-type.enum';
+import { AuthenticatedRequest } from '../../auth/types/request.types';
 
 @ApiTags('Catalogs')
 @Controller('catalogs')
@@ -75,13 +76,13 @@ export class CatalogController {
     },
   })
   async createCatalog(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Body() createCatalogDto: CreateCatalogDto,
     @UploadedFile() coverImage?: Express.Multer.File,
   ) {
     const ownerId = req.user.userId;
+    const commerceId = req.tenantId;
 
-    // Si hay imagen, subirla a Cloudinary
     if (coverImage) {
       const uploadResult = await this.cloudinaryService.uploadImage(coverImage);
       if (typeof uploadResult === 'string') {
@@ -89,7 +90,6 @@ export class CatalogController {
       }
     }
 
-    // Parsear campos JSON si vienen como strings
     if (typeof createCatalogDto.metadata === 'string') {
       try {
         createCatalogDto.metadata = JSON.parse(createCatalogDto.metadata);
@@ -106,7 +106,6 @@ export class CatalogController {
       }
     }
 
-    // Parsear tags si vienen como string separado por comas
     if (typeof createCatalogDto.tags === 'string') {
       const tagsString = createCatalogDto.tags as any;
       createCatalogDto.tags = tagsString
@@ -115,7 +114,7 @@ export class CatalogController {
         .filter((tag: string) => tag.length > 0);
     }
 
-    return await this.catalogService.createCatalog(ownerId, createCatalogDto);
+    return await this.catalogService.createCatalog(ownerId, createCatalogDto, commerceId);
   }
 
   /**
@@ -126,9 +125,10 @@ export class CatalogController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtener mis catálogos' })
   @ApiResponse({ status: 200, description: 'Lista de catálogos' })
-  async getMyCatalogs(@Request() req, @Query('type') type?: CatalogType) {
+  async getMyCatalogs(@Request() req: AuthenticatedRequest, @Query('type') type?: CatalogType) {
     const ownerId = req.user.userId;
-    return await this.catalogService.getCatalogsByOwner(ownerId, type);
+    const commerceId = req.tenantId;
+    return await this.catalogService.getCatalogsByOwner(ownerId, type, false, commerceId);
   }
 
   /**
@@ -140,9 +140,10 @@ export class CatalogController {
   @ApiOperation({ summary: 'Obtener catálogo por ID' })
   @ApiResponse({ status: 200, description: 'Catálogo encontrado' })
   @ApiResponse({ status: 404, description: 'Catálogo no encontrado' })
-  async getCatalogById(@Request() req, @Param('catalogId') catalogId: string) {
+  async getCatalogById(@Request() req: AuthenticatedRequest, @Param('catalogId') catalogId: string) {
     const ownerId = req.user.userId;
-    return await this.catalogService.getCatalogById(catalogId, ownerId);
+    const commerceId = req.tenantId;
+    return await this.catalogService.getCatalogById(catalogId, ownerId, true, commerceId);
   }
 
   /**
@@ -178,14 +179,14 @@ export class CatalogController {
     },
   })
   async updateCatalog(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Param('catalogId') catalogId: string,
     @Body() updateCatalogDto: UpdateCatalogDto,
     @UploadedFile() coverImage?: Express.Multer.File,
   ) {
     const ownerId = req.user.userId;
+    const commerceId = req.tenantId;
 
-    // Si hay nueva imagen, subirla a Cloudinary
     if (coverImage) {
       const uploadResult = await this.cloudinaryService.uploadImage(coverImage);
       if (typeof uploadResult === 'string') {
@@ -193,13 +194,11 @@ export class CatalogController {
       }
     }
 
-    // Las transformaciones ahora se manejan automáticamente en el DTO
-    // No necesitamos parsing manual aquí
-
     return await this.catalogService.updateCatalog(
       catalogId,
       ownerId,
       updateCatalogDto,
+      commerceId,
     );
   }
 
@@ -212,9 +211,10 @@ export class CatalogController {
   @ApiOperation({ summary: 'Eliminar catálogo' })
   @ApiResponse({ status: 200, description: 'Catálogo eliminado' })
   @ApiResponse({ status: 404, description: 'Catálogo no encontrado' })
-  async deleteCatalog(@Request() req, @Param('catalogId') catalogId: string) {
+  async deleteCatalog(@Request() req: AuthenticatedRequest, @Param('catalogId') catalogId: string) {
     const ownerId = req.user.userId;
-    return await this.catalogService.deleteCatalog(catalogId, ownerId);
+    const commerceId = req.tenantId;
+    return await this.catalogService.deleteCatalog(catalogId, ownerId, commerceId);
   }
 
   /**
@@ -225,9 +225,10 @@ export class CatalogController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Archivar catálogo' })
   @ApiResponse({ status: 200, description: 'Catálogo archivado' })
-  async archiveCatalog(@Request() req, @Param('catalogId') catalogId: string) {
+  async archiveCatalog(@Request() req: AuthenticatedRequest, @Param('catalogId') catalogId: string) {
     const ownerId = req.user.userId;
-    return await this.catalogService.archiveCatalog(catalogId, ownerId);
+    const commerceId = req.tenantId;
+    return await this.catalogService.archiveCatalog(catalogId, ownerId, commerceId);
   }
 
   /**
@@ -265,14 +266,14 @@ export class CatalogController {
     },
   })
   async addItem(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Param('catalogId') catalogId: string,
     @Body() createItemDto: CreateCatalogItemDto,
     @UploadedFile() photo?: Express.Multer.File,
   ) {
     const ownerId = req.user.userId;
+    const commerceId = req.tenantId;
 
-    // Si hay imagen, subirla a Cloudinary
     if (photo) {
       const uploadResult = await this.cloudinaryService.uploadImage(photo);
       if (typeof uploadResult === 'string') {
@@ -280,10 +281,8 @@ export class CatalogController {
       }
     }
 
-    // Las transformaciones se manejan automáticamente en el DTO
-    // Aseguramos que el catalogId del DTO coincida con el parámetro
     createItemDto.catalogId = catalogId;
-    return await this.catalogService.addItem(ownerId, createItemDto);
+    return await this.catalogService.addItem(ownerId, createItemDto, commerceId);
   }
 
   /**
@@ -295,7 +294,7 @@ export class CatalogController {
   @ApiOperation({ summary: 'Obtener item por ID' })
   @ApiResponse({ status: 200, description: 'Item encontrado' })
   async getItem(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Param('catalogId') catalogId: string,
     @Param('itemId') itemId: string,
   ) {
@@ -336,15 +335,15 @@ export class CatalogController {
     },
   })
   async updateItem(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Param('catalogId') catalogId: string,
     @Param('itemId') itemId: string,
     @Body() updateItemDto: UpdateCatalogItemDto,
     @UploadedFile() photo?: Express.Multer.File,
   ) {
     const ownerId = req.user.userId;
+    const commerceId = req.tenantId;
 
-    // Si hay nueva imagen, subirla a Cloudinary
     if (photo) {
       const uploadResult = await this.cloudinaryService.uploadImage(photo);
       if (typeof uploadResult === 'string') {
@@ -352,17 +351,15 @@ export class CatalogController {
       }
     }
 
-    // Parsear atributos si vienen como string
     if (typeof updateItemDto.attributes === 'string') {
       try {
         updateItemDto.attributes = JSON.parse(updateItemDto.attributes);
       } catch (error) {
-        // Si hay error en el parsing, no modificar los atributos
         delete updateItemDto.attributes;
       }
     }
 
-    return await this.catalogService.updateItem(itemId, ownerId, updateItemDto);
+    return await this.catalogService.updateItem(itemId, ownerId, updateItemDto, commerceId);
   }
 
   /**
@@ -374,12 +371,13 @@ export class CatalogController {
   @ApiOperation({ summary: 'Eliminar item' })
   @ApiResponse({ status: 200, description: 'Item eliminado' })
   async deleteItem(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Param('catalogId') catalogId: string,
     @Param('itemId') itemId: string,
   ) {
     const ownerId = req.user.userId;
-    return await this.catalogService.deleteItem(itemId, ownerId);
+    const commerceId = req.tenantId;
+    return await this.catalogService.deleteItem(itemId, ownerId, commerceId);
   }
 
   /**

@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
 import { UserRole } from '../entities/user-role.entity';
+import { Commerce } from '../../commerce/entities/commerce.entity';
 import {
   RoleType,
   BusinessContext,
@@ -18,6 +19,8 @@ export class UserRoleService {
   constructor(
     @InjectRepository(UserRole)
     private readonly userRoleRepository: Repository<UserRole>,
+    @InjectRepository(Commerce)
+    private readonly commerceRepository: Repository<Commerce>,
   ) {}
 
   /**
@@ -183,6 +186,38 @@ export class UserRoleService {
         userId,
         context,
         isActive: true,
+      },
+    });
+  }
+
+  /**
+   * Obtiene roles de un usuario con filtros combinados (contexto y/o resourceId)
+   * Útil para consultar roles específicos de un comercio
+   */
+  async getUserRolesFiltered(
+    userId: string,
+    filters?: {
+      context?: BusinessContext;
+      resourceId?: string;
+    },
+  ): Promise<UserRole[]> {
+    const where: any = {
+      userId,
+      isActive: true,
+    };
+
+    if (filters?.context) {
+      where.context = filters.context;
+    }
+
+    if (filters?.resourceId !== undefined) {
+      where.resourceId = filters.resourceId;
+    }
+
+    return await this.userRoleRepository.find({
+      where,
+      order: {
+        grantedAt: 'DESC',
       },
     });
   }
@@ -363,10 +398,13 @@ export class UserRoleService {
       businessContext = BusinessContext.GENERAL;
     } else if (ownerRoles.includes(newLegacyRole)) {
       systemRole = RoleType.OWNER;
-      businessContext =
-        newLegacyRole === 'events'
-          ? BusinessContext.EVENTS
-          : BusinessContext.GENERAL;
+      if (newLegacyRole === 'events') {
+        businessContext = BusinessContext.EVENTS;
+      } else if (newLegacyRole === 'retail') {
+        businessContext = BusinessContext.RETAIL;
+      } else {
+        businessContext = BusinessContext.GENERAL;
+      }
     } else {
       systemRole = RoleType.CUSTOMER;
       businessContext = BusinessContext.GENERAL;
@@ -412,6 +450,32 @@ export class UserRoleService {
       userRole: newLegacyRole,
       userRolesUpdated: true,
     };
+  }
+
+  /**
+   * Verifica si un usuario tiene acceso a un comercio específico
+   * Un usuario tiene acceso si:
+   * 1. Tiene algún rol activo con resourceId = commerceId, o
+   * 2. Es el ownerId del commerce (fallback para usuarios legacy)
+   */
+  async hasAccessToCommerce(
+    userId: string,
+    commerceId: string,
+  ): Promise<boolean> {
+    const roleCount = await this.userRoleRepository.count({
+      where: {
+        userId,
+        resourceId: commerceId,
+        isActive: true,
+      },
+    });
+    if (roleCount > 0) return true;
+
+    const commerce = await this.commerceRepository.findOne({
+      where: { id: commerceId },
+      select: ['ownerId'],
+    });
+    return commerce?.ownerId === userId;
   }
 
   /**

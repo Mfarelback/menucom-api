@@ -1,6 +1,6 @@
 # Documentación Técnica: Eventos y Tickets - Menucom API
 
-> **Referencia cruzada**: Este documento expande y complementa el análisis inicial en `EVENTS_TICKETS_ANALYSIS.md`. Ambos documentos deben leerse en conjunto para una visión completa del sistema.
+> **Referencia cruzada**: Este documento expande y complementa el análisis inicial en [[analysis/EVENTS_TICKETS_ANALYSIS]]. Ambos documentos deben leerse en conjunto para una visión completa del sistema.
 
 ---
 
@@ -19,7 +19,7 @@
 
 Menucom API es una plataforma NestJS multi-tenant sólidamente establecida que requiere expansión para soportar **organizadores de eventos y venta de tickets**. 
 
-**Estado**: El análisis en `EVENTS_TICKETS_ANALYSIS.md` identifica la estructura base necesaria, pero **falta implementar**:
+**Estado**: El análisis en [[analysis/EVENTS_TICKETS_ANALYSIS]] identifica la estructura base necesaria, pero **falta implementar**:
 - Validación robusta de webhooks (HMAC SHA256)
 - Manejo correcto de eventos de Order de MercadoPago
 - Discriminación entre pagos de catálogo y tickets
@@ -139,7 +139,7 @@ export class Venue {
 
 ## Webhooks MercadoPago
 
-> **Referencia**: Esta sección implementa lo omitido en `EVENTS_TICKETS_ANALYSIS.md` sección 7.2 y 7.4.
+> **Referencia**: Esta sección implementa lo omitido en [[analysis/EVENTS_TICKETS_ANALYSIS]] sección 7.2 y 7.4.
 
 ### Configuración Inicial (Pasos Obligatorios)
 
@@ -337,7 +337,7 @@ async createTicketPreference(dto: PurchaseTicketsDto, buyer: User) {
 
 ## Brechas Críticas
 
-### Lo que `EVENTS_TICKETS_ANALYSIS.md` NO menciona (o menciona incorrectamente)
+### Lo que [[analysis/EVENTS_TICKETS_ANALYSIS]] NO menciona (o menciona incorrectamente)
 
 | # | Brecha | Impacto | Solución |
 |---|--------|---------|---------|
@@ -392,9 +392,9 @@ async createTicketPreference(dto: PurchaseTicketsDto, buyer: User) {
 ## Referencias
 
 ### Documentos Internos
-- **`EVENTS_TICKETS_ANALYSIS.md`** → Análisis inicial, entidades propuestas, consideraciones generales
-- **`docs/technical/DYNAMIC_MARKETPLACE_FEE.md`** → Cálculo de comisión dinámica
-- **`docs/whoitdone/technical-documentation.md`** (este documento) → Implementación técnica detallada, webhooks, brechas
+- **[[analysis/EVENTS_TICKETS_ANALYSIS]]** → Análisis inicial, entidades propuestas, consideraciones generales
+- **[[technical/DYNAMIC_MARKETPLACE_FEE]]** → Cálculo de comisión dinámica
+- **[[whoitdone/technical-documentation]]** (este documento) → Implementación técnica detallada, webhooks, brechas
 
 ### Documentación Externa (MercadoPago)
 - [Configurar notificaciones Webhook](https://www.mercadopago.com/developers/es/docs/qr-code/notifications)
@@ -421,7 +421,7 @@ El sistema **SÍ puede** soportar organizadores de eventos, pero requiere:
 6. ⚠️ **NUEVO**: Entidad `Venue` independiente
 7. ⚠️ **CORRECCIÓN**: Evento de reembolso es `order.refunded` no `payment.updated`
 
-> **Nota**: Este documento y `EVENTS_TICKETS_ANALYSIS.md` deben mantenerse sincronizados. Los cambios en uno deben reflejarse en el otro.
+> **Nota**: Este documento y [[analysis/EVENTS_TICKETS_ANALYSIS]] deben mantenerse sincronizados. Los cambios en uno deben reflejarse en el otro.
 
 ---
 

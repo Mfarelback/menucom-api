@@ -181,17 +181,17 @@ async getUIConfig(@Request() req) {
 
 ### FREE Plan
 - **Features**: Basic menu management
-- **Limits**: 10 menu items, 1 location, 7 days analytics
+- **Limits**: 1 commerce, 10 menu items, 1 location, 7 days analytics
 - **Price**: $0
 
 ### PREMIUM Plan
 - **Features**: Advanced analytics, custom branding, unlimited items, priority support
-- **Limits**: 500 menu items, 3 locations, 90 days analytics
+- **Limits**: 3 commerces, 500 menu items, 3 locations, 90 days analytics
 - **Price**: $15,000 ARS (~$15 USD)
 
 ### ENTERPRISE Plan
 - **Features**: All premium + API access, white label, custom integrations, dedicated support
-- **Limits**: Unlimited everything
+- **Limits**: Unlimited commerces, unlimited everything
 - **Price**: $45,000 ARS (~$45 USD)
 
 ## 🔄 Technical Flow

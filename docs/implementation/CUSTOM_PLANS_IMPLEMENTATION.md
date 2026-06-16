@@ -14,6 +14,7 @@ Se ha extendido el sistema de membresías existente para permitir que los admini
 
 ### 2. **Control de Límites Extendido**
 Ahora se controlan límites para:
+- **Comercios**: Cantidad de comercios que puede crear un usuario
 - **Menús**: Cantidad de menús que puede crear un usuario
 - **Items de Menú**: Cantidad de items por menú/usuario
 - **Wardrobes**: Cantidad de wardrobes que puede crear
@@ -29,6 +30,7 @@ Ahora se controlan límites para:
 #### **Plan FREE**
 ```json
 {
+  "maxCommerces": 1,
   "maxMenus": 1,
   "maxMenuItems": 10,
   "maxWardrobes": 1,
@@ -44,6 +46,7 @@ Ahora se controlan límites para:
 #### **Plan PREMIUM**
 ```json
 {
+  "maxCommerces": 3,
   "maxMenus": 5,
   "maxMenuItems": 500,
   "maxWardrobes": 5,
@@ -59,6 +62,7 @@ Ahora se controlan límites para:
 #### **Plan ENTERPRISE**
 ```json
 {
+  "maxCommerces": -1,
   "maxMenus": -1,
   "maxMenuItems": -1,
   "maxWardrobes": -1,
@@ -89,6 +93,7 @@ class SubscriptionPlan {
   billingCycle: string; // monthly, yearly, lifetime, etc.
   features: MembershipFeature[];
   limits: {
+    maxCommerces: number;
     maxMenus: number;
     maxMenuItems: number;
     maxWardrobes: number;
@@ -161,6 +166,7 @@ Role: admin
   "billingCycle": "monthly",
   "features": ["basic_menu", "advanced_analytics"],
   "limits": {
+    "maxCommerces": 2,
     "maxMenus": 3,
     "maxMenuItems": 200,
     "maxWardrobes": 3,
@@ -331,6 +337,7 @@ const canCreateWardrobe = limits.usage.wardrobes < limits.limits.maxWardrobes;
 ```typescript
 // Panel de administración para crear planes
 const createPlan = async (planData) => {
+  // planData.limits debe incluir maxCommerces
   const response = await fetch('/admin/subscription-plans', {
     method: 'POST',
     headers: {

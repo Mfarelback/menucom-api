@@ -182,7 +182,21 @@ export class UserController {
     try {
       const userId = req['user']['userId'];
       const { fcmToken } = updateFcmTokenDto;
-      return await this.userProfileService.updateFcmToken(userId, fcmToken);
+      const user = await this.userProfileService.updateFcmToken(userId, fcmToken);
+      // Sanitizar: excluir datos sensibles
+      const {
+        password,
+        email,
+        phone,
+        socialToken,
+        firebaseProvider,
+        fcmToken: _,
+        needToChangepassword,
+        isEmailVerified,
+        lastLoginAt,
+        ...safeUser
+      } = user;
+      return safeUser;
     } catch (error) {
       throw new InternalServerErrorException('Failed to update FCM token');
     }

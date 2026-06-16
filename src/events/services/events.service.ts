@@ -5,6 +5,8 @@ import { LoggerService } from '../../core/logger';
 import { EventRepository } from '../repository/event.repository';
 import { VenueRepository } from '../repository/venue.repository';
 import { CloudinaryService } from '../../cloudinary/services/cloudinary.service';
+import { TenantContext } from '../../auth/types/tenant-context.types';
+import { TenantResolutionService } from '../../auth/services/tenant-resolution.service';
 
 @Injectable()
 export class EventsService {
@@ -19,8 +21,7 @@ export class EventsService {
 
   async create(
     createEventDto: CreateEventDto,
-    tenantId: string,
-    organizerId: string,
+    tenant: TenantContext,
     imageFile?: Express.Multer.File,
   ): Promise<Event> {
     const { venueId, venue: venueDto, ...eventData } = createEventDto;
@@ -40,8 +41,9 @@ export class EventsService {
     const event = this.eventRepo.create({
       ...eventData,
       imageUrl,
-      tenantId,
-      organizer: { id: organizerId } as any,
+      tenantId: tenant.userId,
+      commerceId: tenant.commerceId || null,
+      organizer: { id: tenant.userId } as any,
     });
 
     if (venueId) {
@@ -54,16 +56,18 @@ export class EventsService {
     return this.eventRepo.save(event);
   }
 
-  async findAll(tenantId: string): Promise<Event[]> {
+  async findAll(tenant: TenantContext): Promise<Event[]> {
+    const where = TenantResolutionService.buildTenantFilter<Event>(tenant);
     return this.eventRepo.find({
-      where: { tenantId },
+      where,
       relations: ['venue', 'ticketTypes'],
     });
   }
 
-  async findOne(id: string, tenantId: string): Promise<Event> {
+  async findOne(id: string, tenant: TenantContext): Promise<Event> {
+    const where = TenantResolutionService.buildTenantFilter<Event>(tenant);
     const event = await this.eventRepo.findOne({
-      where: { id, tenantId },
+      where: { id, ...where },
       relations: ['venue', 'ticketTypes'],
     });
     if (!event) throw new NotFoundException(`Event #${id} not found`);
@@ -73,10 +77,10 @@ export class EventsService {
   async update(
     id: string,
     updateEventDto: UpdateEventDto,
-    tenantId: string,
+    tenant: TenantContext,
     imageFile?: Express.Multer.File,
   ): Promise<Event> {
-    const event = await this.findOne(id, tenantId);
+    const event = await this.findOne(id, tenant);
     const { venueId, ...eventData } = updateEventDto;
 
     if (imageFile) {
@@ -95,8 +99,8 @@ export class EventsService {
     return this.eventRepo.save(updatedEvent);
   }
 
-  async remove(id: string, tenantId: string): Promise<void> {
-    const event = await this.findOne(id, tenantId);
+  async remove(id: string, tenant: TenantContext): Promise<void> {
+    const event = await this.findOne(id, tenant);
     await this.eventRepo.remove(event);
   }
 }

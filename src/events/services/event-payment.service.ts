@@ -68,16 +68,18 @@ export class EventPaymentService {
       customerName,
       customerEmail,
       ticketType.event.tenantId,
+      ticketType.event.commerceId,
     );
 
     // 2. Calcular fee dinámico usando el FeeResolver (3 niveles de prioridad)
     const feeCalculation = await this.feeResolver.calculateFee(
       savedPurchase.totalAmount,
       ticketType.event.tenantId,
+      ticketType.event.commerceId,
     );
 
     this.logger.log(
-      `Fee resolved for tenant ${ticketType.event.tenantId}: ${feeCalculation.feePercentage}% ` +
+      `Fee resolved for tenant ${ticketType.event.tenantId}${ticketType.event.commerceId ? ` / commerce ${ticketType.event.commerceId}` : ''}: ${feeCalculation.feePercentage}% ` +
         `(${feeCalculation.feeSource} - ${feeCalculation.feeDescription})`,
     );
 
@@ -114,6 +116,7 @@ export class EventPaymentService {
         buyerEmail: customerEmail,
         purchaseId: savedPurchase.id,
         tenantId: ticketType.event.tenantId,
+        commerceId: ticketType.event.commerceId,
       },
       // Comisión del marketplace (calculada dinámicamente)
       marketplace_fee: feeCalculation.feeAmount,

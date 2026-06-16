@@ -1,5 +1,5 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { PaymentsGateway } from './ws/payments.gateway';
 import { environment } from './enviroment';
@@ -18,6 +18,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { EventsModule } from './events/events.module';
 import { PublicModule } from './public/public.module';
+import { CommerceModule } from './commerce/commerce.module';
+import { TenantInterceptor } from './auth/interceptors/tenant.interceptor';
 // import { MigrationModule } from './scripts/migration.module'; // Módulo temporal de migraciones
 import { LoggerModule } from './core/logger';
 import { IdempotencyModule } from './core/idempotency';
@@ -50,6 +52,7 @@ import { RootController } from './core/controllers/root.controller';
     CatalogModule,
     EventsModule,
     PublicModule,
+    CommerceModule,
     // MigrationModule, // Módulo temporal - deshabilitado
   ],
   controllers: [RootController],
@@ -58,6 +61,10 @@ import { RootController } from './core/controllers/root.controller';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: TenantInterceptor,
     },
   ],
 })

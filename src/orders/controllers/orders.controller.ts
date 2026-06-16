@@ -21,7 +21,6 @@ import {
   ApiBody,
   ApiTags,
 } from '@nestjs/swagger';
-import { Request } from 'express';
 import { OrdersService } from '../services/orders.service';
 import { CreateOrderDto } from '../dtos/create.order.dto';
 import { UpdateOrderStatusDto } from '../dtos/update-order-status.dto';
@@ -39,6 +38,7 @@ import {
   Permission,
   BusinessContext,
 } from '../../auth/models/permissions.model';
+import { AuthenticatedRequest } from '../../auth/types/request.types';
 
 @ApiTags('orders')
 @ApiBearerAuth('JWT-auth')
@@ -53,8 +53,10 @@ export class OrdersController {
     summary: 'Obtener todas las órdenes del usuario autenticado con paginación',
   })
   @ApiOkResponse({ type: OrderForBuyerDto, isArray: true })
-  async findAll(@Req() req: Request): Promise<PaginatedResult<Order>> {
-    const userId = req['user']['userId'];
+  async findAll(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<PaginatedResult<Order>> {
+    const userId = req.user.userId;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     return this.orderService.findByUserId(userId, page, limit);
@@ -82,11 +84,15 @@ export class OrdersController {
   @ApiOkResponse({ type: OrderForSellerDto, isArray: true })
   async findByOwnerId(
     @Param('ownerId') ownerId: string,
-    @Req() req: Request,
+    @Req() req: AuthenticatedRequest,
   ): Promise<PaginatedResult<Order>> {
+    const tenant = {
+      userId: req.user.userId,
+      commerceId: req.tenantId,
+    };
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
-    return this.orderService.findByOwnerId(ownerId, page, limit);
+    return this.orderService.findByOwnerId(ownerId, page, limit, tenant);
   }
 
   @Post()
@@ -96,17 +102,15 @@ export class OrdersController {
   async create(
     @Body() createOrderDto: CreateOrderDto,
     @Headers('x-anonymous-id') anonymousId?: string,
-    @Req() req?: Request,
+    @Req() req?: AuthenticatedRequest,
   ): Promise<Order> {
-    // Prioriza el usuario autenticado, si no existe usa el anonymousId
-    const userId =
-      req?.['user'] && (req['user']['userId'] || req['user']['id']);
+    const userId = req?.user && (req.user.userId || (req.user as any).id);
     const orderWithCreator = {
       ...createOrderDto,
       createdBy: userId || anonymousId,
     };
 
-    return this.orderService.create(orderWithCreator);
+    return this.orderService.create(orderWithCreator, req?.tenantId);
   }
 
   @Put(':id')
@@ -152,7 +156,9 @@ export class OrdersController {
       'Lista todas las órdenes realizadas en el sistema con paginación. Requiere permiso READ_ORDER en el contexto GENERAL.',
   })
   @ApiOkResponse({ type: OrderResponseDto, isArray: true })
-  async findAllAdmin(@Req() req: Request): Promise<PaginatedResult<Order>> {
+  async findAllAdmin(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<PaginatedResult<Order>> {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     return this.orderService.findAll(page, limit);

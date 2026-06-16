@@ -13,14 +13,10 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
-import {
-  ApiTags,
-  ApiOperation,
-  ApiResponse,
-  ApiBearerAuth,
-} from '@nestjs/swagger';
+import { ApiTags, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt.auth.gards';
 import { Public } from '../auth/decorators/public.decorator';
+import { AuthenticatedRequest } from '../auth/types/request.types';
 import { MembershipService } from './membership.service';
 import { MercadoPagoSubscriptionService } from './payment/mercado-pago-subscription.service';
 import { SubscriptionPlanService } from './services/subscription-plan.service';
@@ -52,8 +48,10 @@ export class MembershipController {
    * Si no tiene, se le asigna FREE automáticamente.
    */
   @Get()
-  async getUserMembership(@Request() req): Promise<MembershipResponseDto> {
-    return this.membershipService.getUserMembership(req.user.userId);
+  async getUserMembership(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<MembershipResponseDto> {
+    return this.membershipService.getUserMembership(req.user.userId, req.tenantId);
   }
 
   /**
@@ -65,7 +63,7 @@ export class MembershipController {
   @Post('subscribe')
   @HttpCode(HttpStatus.CREATED)
   async subscribe(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Body() dto: SubscribeWithCardDto,
   ): Promise<any> {
     if (dto.plan === MembershipPlan.FREE) {
@@ -77,11 +75,11 @@ export class MembershipController {
           amount: 0,
           currency: 'ARS',
         },
+        req.tenantId,
       );
       return this.membershipService.formatMembershipResponse(membership);
     }
 
-    // Obtener información del plan desde la base de datos para asegurar precio dinámico
     const planInfo = await this.subscriptionPlanService.getPlanByName(dto.plan);
     const basePrice = planInfo.price;
 
@@ -107,6 +105,7 @@ export class MembershipController {
           paymentMethodId: preapproval.paymentMethodId,
         },
       },
+      req.tenantId,
     );
 
     return {
@@ -126,7 +125,7 @@ export class MembershipController {
    */
   @Put()
   async updateMembership(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
     @Body() updateDto: UpdateMembershipDto,
   ): Promise<MembershipResponseDto> {
     const membership = await this.membershipService.updateMembership(
@@ -142,7 +141,9 @@ export class MembershipController {
    */
   @Delete()
   @HttpCode(HttpStatus.OK)
-  async cancelMembership(@Request() req): Promise<MembershipResponseDto> {
+  async cancelMembership(
+    @Request() req: AuthenticatedRequest,
+  ): Promise<MembershipResponseDto> {
     const membership = await this.membershipService.cancelMembership(
       req.user.userId,
     );
@@ -206,10 +207,11 @@ export class MembershipController {
    */
   @Get('status')
   async getSubscriptionStatus(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ): Promise<SubscriptionStatusResponseDto> {
     const membership = await this.membershipService.getUserMembership(
       req.user.userId,
+      req.tenantId,
     );
 
     if (!membership) {
@@ -246,7 +248,7 @@ export class MembershipController {
   @Delete('subscription')
   @HttpCode(HttpStatus.OK)
   async cancelSubscription(
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ): Promise<CancelSubscriptionResponseDto> {
     const membership = await this.membershipService.getUserMembership(
       req.user.userId,

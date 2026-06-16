@@ -7,6 +7,8 @@ import { MembershipPlan } from '../enums/membership-plan.enum';
 
 import { Catalog } from '../../catalog/entities/catalog.entity';
 import { CatalogItem } from '../../catalog/entities/catalog-item.entity';
+import { Commerce } from '../../commerce/entities/commerce.entity';
+import { TenantContext } from '../../auth/types/tenant-context.types';
 
 @Injectable()
 export class ResourceLimitService {
@@ -19,45 +21,72 @@ export class ResourceLimitService {
     private readonly catalogRepository: Repository<Catalog>,
     @InjectRepository(CatalogItem)
     private readonly catalogItemRepository: Repository<CatalogItem>,
+    @InjectRepository(Commerce)
+    private readonly commerceRepository: Repository<Commerce>,
   ) {}
 
-  async canCreateCatalog(userId: string): Promise<boolean> {
-    const membership = await this.membershipService.getUserMembership(userId);
+  private async resolveEffectiveUserId(ctx: TenantContext): Promise<string> {
+    if (ctx.commerceId) {
+      const commerce = await this.commerceRepository.findOne({
+        where: { id: ctx.commerceId },
+        select: ['ownerId'],
+      });
+      if (commerce) {
+        return commerce.ownerId;
+      }
+    }
+    return ctx.userId;
+  }
+
+  async canCreateCatalog(ctx: TenantContext): Promise<boolean> {
+    const effectiveUserId = await this.resolveEffectiveUserId(ctx);
+    const membership = await this.membershipService.getUserMembership(
+      effectiveUserId,
+      ctx.commerceId,
+    );
     if (membership.subscriptionPlanId) {
-      const currentCount = await this.getCurrentCatalogCount(userId);
+      const currentCount = await this.getCurrentCatalogCount(ctx);
       return this.subscriptionPlanService.canCreateResource(
         membership.subscriptionPlanId,
         'maxCatalogs',
         currentCount,
       );
     }
-    const limits = await this.membershipService.getPlanLimits(userId);
+    const limits = await this.membershipService.getPlanLimits(effectiveUserId);
     const limit = limits.maxCatalogs;
-    const currentCount = await this.getCurrentCatalogCount(userId);
+    const currentCount = await this.getCurrentCatalogCount(ctx);
     return limit === -1 || currentCount < limit;
   }
 
   async canCreateCatalogItem(
-    userId: string,
+    ctx: TenantContext,
     additionalItems: number = 1,
   ): Promise<boolean> {
-    const membership = await this.membershipService.getUserMembership(userId);
+    const effectiveUserId = await this.resolveEffectiveUserId(ctx);
+    const membership = await this.membershipService.getUserMembership(
+      effectiveUserId,
+      ctx.commerceId,
+    );
     if (membership.subscriptionPlanId) {
-      const currentCount = await this.getCurrentCatalogItemCount(userId);
+      const currentCount = await this.getCurrentCatalogItemCount(ctx);
       return this.subscriptionPlanService.canCreateResource(
         membership.subscriptionPlanId,
         'maxCatalogItems',
         currentCount + additionalItems,
       );
     }
-    const limits = await this.membershipService.getPlanLimits(userId);
+    const limits = await this.membershipService.getPlanLimits(effectiveUserId);
     const limit = limits.maxCatalogItems;
-    const currentCount = await this.getCurrentCatalogItemCount(userId);
+    const currentCount = await this.getCurrentCatalogItemCount(ctx);
     return limit === -1 || currentCount + additionalItems < limit;
   }
 
-  async getUserLimits(userId: string): Promise<any> {
-    const membership = await this.membershipService.getUserMembership(userId);
+  async getUserLimits(ctx: TenantContext): Promise<any> {
+    const effectiveUserId = await this.resolveEffectiveUserId(ctx);
+    const membership = await this.membershipService.getUserMembership(
+      effectiveUserId,
+      ctx.commerceId,
+    );
 
     if (membership.subscriptionPlanId) {
       const plan = await this.subscriptionPlanService.getPlanById(
@@ -68,8 +97,8 @@ export class ResourceLimitService {
         type: 'custom',
         limits: plan.limits,
         usage: {
-          catalogs: await this.getCurrentCatalogCount(userId),
-          catalogItems: await this.getCurrentCatalogItemCount(userId),
+          catalogs: await this.getCurrentCatalogCount(ctx),
+          catalogItems: await this.getCurrentCatalogItemCount(ctx),
         },
       };
     }
@@ -82,26 +111,28 @@ export class ResourceLimitService {
         type: 'standard',
         limits: plan.limits,
         usage: {
-          catalogs: await this.getCurrentCatalogCount(userId),
-          catalogItems: await this.getCurrentCatalogItemCount(userId),
+          catalogs: await this.getCurrentCatalogCount(ctx),
+          catalogItems: await this.getCurrentCatalogItemCount(ctx),
         },
       };
     } catch (error) {
-      this.logger.error(`Plan ${planName} not found for user ${userId}`);
+      this.logger.error(
+        `Plan ${planName} not found for user ${effectiveUserId}`,
+      );
       return {
         plan: planName,
         type: 'standard',
         limits: {},
         usage: {
-          catalogs: await this.getCurrentCatalogCount(userId),
-          catalogItems: await this.getCurrentCatalogItemCount(userId),
+          catalogs: await this.getCurrentCatalogCount(ctx),
+          catalogItems: await this.getCurrentCatalogItemCount(ctx),
         },
       };
     }
   }
 
   async validateResourceCreation(
-    userId: string,
+    ctx: TenantContext,
     resourceType: 'catalog' | 'catalogItem',
     quantity: number = 1,
   ): Promise<void> {
@@ -110,32 +141,41 @@ export class ResourceLimitService {
 
     switch (resourceType) {
       case 'catalog':
-        canCreate = await this.canCreateCatalog(userId);
+        canCreate = await this.canCreateCatalog(ctx);
         resourceName = 'catálogos';
         break;
       case 'catalogItem':
-        canCreate = await this.canCreateCatalogItem(userId, quantity);
+        canCreate = await this.canCreateCatalogItem(ctx, quantity);
         resourceName = 'items de catálogo';
         break;
     }
 
     if (!canCreate) {
-      const limits = await this.getUserLimits(userId);
+      const limits = await this.getUserLimits(ctx);
       throw new BadRequestException(
         `No puedes crear más ${resourceName}. Tu plan ${limits.plan} tiene límites específicos. Considera actualizar tu plan.`,
       );
     }
   }
 
-  private async getCurrentCatalogCount(userId: string): Promise<number> {
+  private getTenantFilter(ctx: TenantContext) {
+    if (ctx.commerceId) {
+      return { commerceId: ctx.commerceId };
+    }
+    return { ownerId: ctx.userId };
+  }
+
+  private async getCurrentCatalogCount(ctx: TenantContext): Promise<number> {
     return await this.catalogRepository.count({
-      where: { ownerId: userId },
+      where: this.getTenantFilter(ctx),
     });
   }
 
-  private async getCurrentCatalogItemCount(userId: string): Promise<number> {
+  private async getCurrentCatalogItemCount(
+    ctx: TenantContext,
+  ): Promise<number> {
     const catalogs = await this.catalogRepository.find({
-      where: { ownerId: userId },
+      where: this.getTenantFilter(ctx),
       select: ['id'],
     });
     if (catalogs.length === 0) {

@@ -7,10 +7,12 @@ import {
   OneToMany,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { OrderItem } from './order.item.entity';
 import { OrderStatus } from '../enums/order-status.enum';
 import { User } from '../../user/entities/user.entity';
+import { Commerce } from '../../commerce/entities/commerce.entity';
 
 const ColumnNumericTransformer = {
   to: (data: number): number => data,
@@ -18,6 +20,7 @@ const ColumnNumericTransformer = {
 };
 
 @Entity('orders')
+@Index(['commerceId'])
 export class Order {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -43,6 +46,13 @@ export class Order {
   @ManyToOne(() => User, { nullable: true })
   @JoinColumn({ name: 'ownerId' })
   owner: User;
+
+  @Column({ type: 'uuid', nullable: true })
+  commerceId: string | null;
+
+  @ManyToOne(() => Commerce, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'commerceId' })
+  commerce: Commerce;
 
   // esto seria el preference de mp
   @Column({ nullable: true })

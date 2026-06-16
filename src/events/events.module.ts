@@ -7,6 +7,7 @@ import { TicketType } from './entities/ticket-type.entity';
 import { Ticket } from './entities/ticket.entity';
 import { TicketPurchase } from './entities/ticket-purchase.entity';
 import { Venue } from './entities/venue.entity';
+import { Commerce } from '../commerce/entities/commerce.entity';
 import { EventsController } from './controllers/events.controller';
 import { TicketTypesController } from './controllers/ticket-types.controller';
 import { VenuesController } from './controllers/venues.controller';
@@ -41,6 +42,7 @@ import { forwardRef } from '@nestjs/common';
       Ticket,
       TicketPurchase,
       Venue,
+      Commerce,
     ]),
     JwtModule.register({
       secret:

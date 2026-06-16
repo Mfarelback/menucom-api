@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { MerchantConfig } from '../entities/merchant-config.entity';
 import { AppDataService } from '../../app-data/services/app-data.service';
 import { User } from '../../user/entities/user.entity';
-import { InjectRepository as InjectUserRepo } from '@nestjs/typeorm';
+import { Commerce } from '../../commerce/entities/commerce.entity';
 
 /**
  * Fee Resolution Result
@@ -41,22 +41,31 @@ export class MarketplaceFeeResolverService {
   constructor(
     @InjectRepository(MerchantConfig)
     private readonly merchantConfigRepo: Repository<MerchantConfig>,
-    @InjectUserRepo(User)
+    @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(Commerce)
+    private readonly commerceRepo: Repository<Commerce>,
     private readonly appDataService: AppDataService,
   ) {}
 
   /**
    * Resuelve el porcentaje de marketplace fee para un tenant específico
+   * Soporta commerceId (preferido) o tenantId (legacy userId)
    *
-   * @param tenantId - ID del tenant/comercio
+   * @param tenantId - ID del tenant/comercio (legacy: userId, o commerceId)
+   * @param commerceId - ID del commerce (preferido si está disponible)
    * @returns FeeResolutionResult con el porcentaje y origen
    */
-  async resolveFeePercentage(tenantId: string): Promise<FeeResolutionResult> {
-    this.logger.log(`Resolving marketplace fee for tenant: ${tenantId}`);
+  async resolveFeePercentage(
+    tenantId: string,
+    commerceId?: string | null,
+  ): Promise<FeeResolutionResult> {
+    this.logger.log(
+      `Resolving marketplace fee for tenant: ${tenantId}, commerceId: ${commerceId || 'none'}`,
+    );
 
-    // Nivel 1: Fee personalizado del comercio
-    const customFee = await this.getCustomFee(tenantId);
+    // Nivel 1: Fee personalizado del comercio (buscar por commerceId primero)
+    const customFee = await this.getCustomFee(tenantId, commerceId);
     if (customFee !== null) {
       this.logger.log(`Using custom fee for tenant ${tenantId}: ${customFee}%`);
       return {
@@ -67,7 +76,7 @@ export class MarketplaceFeeResolverService {
     }
 
     // Nivel 2: Fee por tipo de membresía
-    const membershipFee = await this.getMembershipFee(tenantId);
+    const membershipFee = await this.getMembershipFee(tenantId, commerceId);
     if (membershipFee !== null) {
       this.logger.log(
         `Using membership fee for tenant ${tenantId}: ${membershipFee}%`,
@@ -103,14 +112,11 @@ export class MarketplaceFeeResolverService {
 
   /**
    * Calcula el monto del fee basado en el total y el tenant
-   *
-   * @param totalAmount - Monto total de la transacción
-   * @param tenantId - ID del tenant
-   * @returns Objeto con monto del fee, monto neto, y detalles de resolución
    */
   async calculateFee(
     totalAmount: number,
     tenantId: string,
+    commerceId?: string | null,
   ): Promise<{
     feeAmount: number;
     netAmount: number;
@@ -118,7 +124,7 @@ export class MarketplaceFeeResolverService {
     feeSource: string;
     feeDescription: string;
   }> {
-    const feeResolution = await this.resolveFeePercentage(tenantId);
+    const feeResolution = await this.resolveFeePercentage(tenantId, commerceId);
     const feeAmount = Number(
       ((totalAmount * feeResolution.percentage) / 100).toFixed(2),
     );
@@ -135,9 +141,28 @@ export class MarketplaceFeeResolverService {
 
   /**
    * Nivel 1: Obtiene el fee personalizado del comercio
+   * Busca por commerceId (preferido) o tenantId (legacy)
    */
-  private async getCustomFee(tenantId: string): Promise<number | null> {
+  private async getCustomFee(
+    tenantId: string,
+    commerceId?: string | null,
+  ): Promise<number | null> {
     try {
+      // Try by commerceId first (preferred)
+      if (commerceId) {
+        const configByCommerce = await this.merchantConfigRepo.findOne({
+          where: { commerceId, isActive: true },
+        });
+
+        if (
+          configByCommerce?.customMarketplaceFee !== null &&
+          configByCommerce?.customMarketplaceFee !== undefined
+        ) {
+          return Number(configByCommerce.customMarketplaceFee);
+        }
+      }
+
+      // Fallback: search by tenantId (legacy)
       const config = await this.merchantConfigRepo.findOne({
         where: { tenantId, isActive: true },
       });
@@ -160,12 +185,27 @@ export class MarketplaceFeeResolverService {
 
   /**
    * Nivel 2: Obtiene el fee basado en el tipo de membresía del usuario
+   * Soporta lookup por commerceId (resolviendo el owner) o por tenantId directo
    */
-  private async getMembershipFee(tenantId: string): Promise<number | null> {
+  private async getMembershipFee(
+    tenantId: string,
+    commerceId?: string | null,
+  ): Promise<number | null> {
     try {
-      // Buscar usuario por tenantId (asumiendo que el tenant es un usuario OWNER/EVENT_ORGANIZER)
+      let userId = tenantId;
+
+      // If we have a commerceId, resolve the owner
+      if (commerceId) {
+        const commerce = await this.commerceRepo.findOne({
+          where: { id: commerceId },
+        });
+        if (commerce) {
+          userId = commerce.ownerId;
+        }
+      }
+
       const user = await this.userRepo.findOne({
-        where: { id: tenantId },
+        where: { id: userId },
         relations: ['membership'],
       });
 
@@ -202,13 +242,15 @@ export class MarketplaceFeeResolverService {
   /**
    * Crea o actualiza la configuración de fee personalizado para un tenant
    *
-   * @param tenantId - ID del tenant
+   * @param tenantId - ID del tenant (ownerId legacy)
    * @param feePercentage - Porcentaje de fee (ej: 2.5 para 2.5%)
+   * @param commerceId - ID del commerce (opcional, preferido)
    * @returns La configuración creada/actualizada
    */
   async setCustomFee(
     tenantId: string,
     feePercentage: number,
+    commerceId?: string | null,
   ): Promise<MerchantConfig> {
     // Validaciones de entrada
     if (!tenantId || typeof tenantId !== 'string') {
@@ -229,18 +271,31 @@ export class MarketplaceFeeResolverService {
       throw new BadRequestException('El porcentaje debe estar entre 0 y 100');
     }
 
-    let config = await this.merchantConfigRepo.findOne({
-      where: { tenantId },
-    });
+    // Try to find existing config by commerceId first, then by tenantId
+    let config: MerchantConfig | null = null;
+    if (commerceId) {
+      config = await this.merchantConfigRepo.findOne({
+        where: { commerceId },
+      });
+    }
+    if (!config) {
+      config = await this.merchantConfigRepo.findOne({
+        where: { tenantId },
+      });
+    }
 
     if (config) {
       config.customMarketplaceFee = feePercentage;
       config.isActive = true;
+      if (commerceId) {
+        config.commerceId = commerceId;
+      }
     } else {
       config = this.merchantConfigRepo.create({
         tenantId,
         customMarketplaceFee: feePercentage,
         isActive: true,
+        ...(commerceId && { commerceId }),
       });
     }
 
@@ -249,8 +304,19 @@ export class MarketplaceFeeResolverService {
 
   /**
    * Obtiene la configuración de fee personalizado para un tenant
+   * Busca por commerceId (preferido) o tenantId (legacy)
    */
-  async getMerchantConfig(tenantId: string): Promise<MerchantConfig | null> {
+  async getMerchantConfig(
+    tenantId: string,
+    commerceId?: string | null,
+  ): Promise<MerchantConfig | null> {
+    if (commerceId) {
+      const configByCommerce = await this.merchantConfigRepo.findOne({
+        where: { commerceId, isActive: true },
+      });
+      if (configByCommerce) return configByCommerce;
+    }
+
     return await this.merchantConfigRepo.findOne({
       where: { tenantId, isActive: true },
     });
@@ -259,10 +325,22 @@ export class MarketplaceFeeResolverService {
   /**
    * Desactiva el fee personalizado para un tenant (vuelve a usar membresía/global)
    */
-  async disableCustomFee(tenantId: string): Promise<void> {
-    const config = await this.merchantConfigRepo.findOne({
-      where: { tenantId },
-    });
+  async disableCustomFee(
+    tenantId: string,
+    commerceId?: string | null,
+  ): Promise<void> {
+    let config: MerchantConfig | null = null;
+
+    if (commerceId) {
+      config = await this.merchantConfigRepo.findOne({
+        where: { commerceId },
+      });
+    }
+    if (!config) {
+      config = await this.merchantConfigRepo.findOne({
+        where: { tenantId },
+      });
+    }
 
     if (config) {
       config.isActive = false;

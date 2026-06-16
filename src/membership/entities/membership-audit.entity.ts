@@ -5,10 +5,11 @@ import {
   PrimaryGeneratedColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import { Membership } from './membership.entity';
-import { MembershipPlan } from '../enums/membership-plan.enum';
+import { Commerce } from '../../commerce/entities/commerce.entity';
 
 export enum MembershipAuditAction {
   CREATED = 'created',
@@ -31,6 +32,14 @@ export class MembershipAudit {
 
   @Column({ type: 'varchar' })
   userId: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  @Index()
+  commerceId: string | null;
+
+  @ManyToOne(() => Commerce, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'commerceId' })
+  commerce: Commerce | null;
 
   @ManyToOne(() => Membership, { onDelete: 'CASCADE', nullable: true })
   @JoinColumn()

@@ -21,6 +21,7 @@ import { MembershipAdminService } from './services/membership-admin.service';
 import { BillingAdminService } from './services/billing-admin.service';
 import { Catalog } from '../catalog/entities/catalog.entity';
 import { CatalogItem } from '../catalog/entities/catalog-item.entity';
+import { Commerce } from '../commerce/entities/commerce.entity';
 
 import { AuthModule } from '../auth/auth.module';
 
@@ -35,6 +36,7 @@ import { AuthModule } from '../auth/auth.module';
       SubscriptionPayment,
       Catalog,
       CatalogItem,
+      Commerce,
     ]),
   ],
   controllers: [

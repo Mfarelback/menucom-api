@@ -12,11 +12,13 @@ import {
 } from '../decorators/permissions.decorator';
 import { Permission, BusinessContext } from '../models/permissions.model';
 import { UserRoleService } from '../services/user-role.service';
+import { TenantResolutionService } from '../services/tenant-resolution.service';
 import { LoggerService } from '../../core/logger/logger.service';
 
 /**
  * Guard que verifica si el usuario tiene los permisos necesarios
- * en el contexto de negocio especificado
+ * en el contexto de negocio especificado.
+ * Usa TenantResolutionService para resolver el tenantId (evita duplicación con TenantInterceptor).
  *
  * Uso:
  * @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -30,6 +32,7 @@ export class PermissionsGuard implements CanActivate {
     private reflector: Reflector,
     private userRoleService: UserRoleService,
     private logger: LoggerService,
+    private readonly tenantResolution: TenantResolutionService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -38,7 +41,6 @@ export class PermissionsGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    // Si el endpoint deshabilita permisos, permitir acceso
     if (disablePermissions) {
       return true;
     }
@@ -48,7 +50,6 @@ export class PermissionsGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    // Si no hay permisos requeridos, permitir acceso
     if (!requiredPermissions || requiredPermissions.length === 0) {
       return true;
     }
@@ -58,7 +59,6 @@ export class PermissionsGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    // Si no hay contexto especificado, usar GENERAL
     const contextToUse = businessContext || BusinessContext.GENERAL;
 
     const request = context.switchToHttp().getRequest();
@@ -75,13 +75,21 @@ export class PermissionsGuard implements CanActivate {
 
     const userId = user.userId;
 
-    // Obtener permisos del usuario en el contexto
+    if (!request.tenantId) {
+      const resolved = await this.tenantResolution.resolveTenantId(
+        request,
+        userId,
+      );
+      if (resolved) {
+        request.tenantId = resolved;
+      }
+    }
+
     const userPermissions = await this.userRoleService.getUserPermissions(
       userId,
       contextToUse,
     );
 
-    // Verificar si el usuario tiene al menos uno de los permisos requeridos
     const hasRequiredPermission = requiredPermissions.some((permission) =>
       userPermissions.includes(permission),
     );
@@ -92,7 +100,6 @@ export class PermissionsGuard implements CanActivate {
       );
     }
 
-    // Adjuntar contexto y permisos al request para uso posterior
     request.businessContext = contextToUse;
     request.userPermissions = userPermissions;
 

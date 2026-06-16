@@ -21,6 +21,7 @@ export enum BusinessContext {
   MARKETPLACE = 'marketplace', // Contexto de marketplace
   GENERAL = 'general', // Contexto general del sistema
   EVENTS = 'events', // Contexto de eventos y tickets
+  RETAIL = 'retail', // Contexto de comercio minorista (vende de todo)
 }
 
 /**
@@ -167,6 +168,40 @@ export const ROLE_PERMISSIONS_BY_CONTEXT: Record<
     ],
   },
 
+  [BusinessContext.RETAIL]: {
+    [RoleType.OWNER]: [
+      Permission.CREATE_CATALOG,
+      Permission.READ_CATALOG,
+      Permission.UPDATE_CATALOG,
+      Permission.DELETE_CATALOG,
+      Permission.CREATE_ITEM,
+      Permission.READ_ITEM,
+      Permission.UPDATE_ITEM,
+      Permission.DELETE_ITEM,
+      Permission.READ_ORDER,
+      Permission.UPDATE_ORDER,
+      Permission.VIEW_ANALYTICS,
+      Permission.MANAGE_PAYMENTS,
+    ],
+    [RoleType.MANAGER]: [
+      Permission.READ_CATALOG,
+      Permission.UPDATE_CATALOG,
+      Permission.CREATE_ITEM,
+      Permission.READ_ITEM,
+      Permission.UPDATE_ITEM,
+      Permission.DELETE_ITEM,
+      Permission.READ_ORDER,
+      Permission.UPDATE_ORDER,
+    ],
+    [RoleType.CUSTOMER]: [
+      Permission.READ_CATALOG,
+      Permission.READ_ITEM,
+      Permission.CREATE_ORDER,
+      Permission.READ_ORDER,
+      Permission.CANCEL_ORDER,
+    ],
+  },
+
   [BusinessContext.EVENTS]: {
     [RoleType.OWNER]: [
       // NUEVO: Dueño de negocio de eventos (organizador)
@@ -231,3 +266,104 @@ export function hasPermission(
   const permissions = getPermissionsForRole(role, context);
   return permissions.includes(permission);
 }
+
+/**
+ * Configuración de mapeo de businessType a rol + contexto
+ */
+export interface BusinessTypeConfig {
+  role: RoleType;
+  context: BusinessContext;
+  needsCustomerRole: boolean;
+}
+
+/**
+ * Mapeo de businessType (rubro) a rol del sistema y contexto
+ * Usado en registro de usuarios y cambio de rol
+ */
+export const BUSINESS_TYPE_MAPPING: Record<string, BusinessTypeConfig> = {
+  customer: {
+    role: RoleType.CUSTOMER,
+    context: BusinessContext.GENERAL,
+    needsCustomerRole: false,
+  },
+  events: {
+    role: RoleType.OWNER,
+    context: BusinessContext.EVENTS,
+    needsCustomerRole: true,
+  },
+  food: {
+    role: RoleType.OWNER,
+    context: BusinessContext.RESTAURANT,
+    needsCustomerRole: true,
+  },
+  dinning: {
+    role: RoleType.OWNER,
+    context: BusinessContext.RESTAURANT,
+    needsCustomerRole: true,
+  },
+  clothes: {
+    role: RoleType.OWNER,
+    context: BusinessContext.WARDROBE,
+    needsCustomerRole: true,
+  },
+  retail: {
+    role: RoleType.OWNER,
+    context: BusinessContext.RETAIL,
+    needsCustomerRole: true,
+  },
+  grocery: {
+    role: RoleType.OWNER,
+    context: BusinessContext.MARKETPLACE,
+    needsCustomerRole: true,
+  },
+  electronics: {
+    role: RoleType.OWNER,
+    context: BusinessContext.MARKETPLACE,
+    needsCustomerRole: true,
+  },
+  accessories: {
+    role: RoleType.OWNER,
+    context: BusinessContext.MARKETPLACE,
+    needsCustomerRole: true,
+  },
+  pharmacy: {
+    role: RoleType.OWNER,
+    context: BusinessContext.GENERAL,
+    needsCustomerRole: true,
+  },
+  beauty: {
+    role: RoleType.OWNER,
+    context: BusinessContext.GENERAL,
+    needsCustomerRole: true,
+  },
+  construction: {
+    role: RoleType.OWNER,
+    context: BusinessContext.GENERAL,
+    needsCustomerRole: true,
+  },
+  automotive: {
+    role: RoleType.OWNER,
+    context: BusinessContext.GENERAL,
+    needsCustomerRole: true,
+  },
+  pets: {
+    role: RoleType.OWNER,
+    context: BusinessContext.MARKETPLACE,
+    needsCustomerRole: true,
+  },
+  water_distributor: {
+    role: RoleType.OWNER,
+    context: BusinessContext.MARKETPLACE,
+    needsCustomerRole: true,
+  },
+  admin: {
+    role: RoleType.ADMIN,
+    context: BusinessContext.GENERAL,
+    needsCustomerRole: false,
+  },
+  operador: {
+    role: RoleType.OPERATOR,
+    context: BusinessContext.GENERAL,
+    needsCustomerRole: false,
+  },
+};

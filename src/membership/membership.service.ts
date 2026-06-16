@@ -27,7 +27,10 @@ export class MembershipService {
     private readonly subscriptionPlanService: SubscriptionPlanService,
   ) {}
 
-  async createMembership(userId: string): Promise<Membership> {
+  async createMembership(
+    userId: string,
+    commerceId?: string | null,
+  ): Promise<Membership> {
     if (!userId || typeof userId !== 'string') {
       throw new Error('Invalid userId: must be a non-empty string');
     }
@@ -71,6 +74,7 @@ export class MembershipService {
         features: planData?.features || [],
         subscriptionPlanId: planData?.id,
         isActive: true,
+        ...(commerceId && { commerceId }),
       },
     );
 
@@ -80,6 +84,7 @@ export class MembershipService {
       action: MembershipAuditAction.CREATED,
       newPlan: planName,
       description: `Initial membership created with plan: ${planName}`,
+      ...(commerceId && { commerceId }),
     });
 
     this.logger.log(`Created new membership for user ${userId}`);
@@ -89,11 +94,23 @@ export class MembershipService {
   async subscribeToPlan(
     userId: string,
     subscribeDto: SubscribeMembershipDto,
+    commerceId?: string | null,
   ): Promise<Membership> {
-    let membership = await this.membershipRepository.findByUserId(userId);
+    let membership: Membership | null = null;
+
+    if (commerceId) {
+      membership = await this.membershipRepository.findByUserIdAndCommerce(
+        userId,
+        commerceId,
+      );
+    }
 
     if (!membership) {
-      membership = await this.createMembership(userId);
+      membership = await this.membershipRepository.findByUserId(userId);
+    }
+
+    if (!membership) {
+      membership = await this.createMembership(userId, commerceId);
     }
 
     const previousPlan = membership.plan;
@@ -155,11 +172,23 @@ export class MembershipService {
     userId: string,
     plan: SubscriptionPlan,
     subscribeDto: SubscribeToCustomPlanDto,
+    commerceId?: string | null,
   ): Promise<Membership> {
-    let membership = await this.membershipRepository.findByUserId(userId);
+    let membership: Membership | null = null;
+
+    if (commerceId) {
+      membership = await this.membershipRepository.findByUserIdAndCommerce(
+        userId,
+        commerceId,
+      );
+    }
 
     if (!membership) {
-      membership = await this.createMembership(userId);
+      membership = await this.membershipRepository.findByUserId(userId);
+    }
+
+    if (!membership) {
+      membership = await this.createMembership(userId, commerceId);
     }
 
     const previousPlan = membership.plan;
@@ -218,11 +247,25 @@ export class MembershipService {
     return updatedMembership;
   }
 
-  async getUserMembership(userId: string): Promise<MembershipResponseDto> {
-    let membership = await this.membershipRepository.findByUserId(userId);
+  async getUserMembership(
+    userId: string,
+    commerceId?: string | null,
+  ): Promise<MembershipResponseDto> {
+    let membership: Membership | null = null;
+
+    if (commerceId) {
+      membership = await this.membershipRepository.findByUserIdAndCommerce(
+        userId,
+        commerceId,
+      );
+    }
 
     if (!membership) {
-      membership = await this.createMembership(userId);
+      membership = await this.membershipRepository.findByUserId(userId);
+    }
+
+    if (!membership) {
+      membership = await this.createMembership(userId, commerceId);
     }
 
     return this.formatMembershipResponse(membership);

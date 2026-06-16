@@ -65,6 +65,7 @@ export class SubscriptionPlan {
   // Resource Limits
   @Column({ type: 'json' })
   limits: {
+    maxCommerces: number;
     maxCatalogs: number;
     maxCatalogItems: number;
     maxLocations: number;

@@ -7,7 +7,7 @@ import {
   OneToOne,
   ManyToOne,
   JoinColumn,
-  OneToMany,
+  Index,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
 import {
@@ -16,6 +16,7 @@ import {
 } from '../enums/membership-plan.enum';
 import { SubscriptionPlan } from './subscription-plan.entity';
 import { SubscriptionDiscount } from './subscription-discount.entity';
+import { Commerce } from '../../commerce/entities/commerce.entity';
 
 export enum BillingMode {
   NONE = 'none',
@@ -34,6 +35,14 @@ export class Membership {
 
   @Column({ type: 'varchar' })
   userId: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  @Index()
+  commerceId: string | null;
+
+  @ManyToOne(() => Commerce, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'commerceId' })
+  commerce: Commerce | null;
 
   @Column({
     type: 'varchar',

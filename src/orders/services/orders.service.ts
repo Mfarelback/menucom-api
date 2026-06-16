@@ -19,6 +19,13 @@ import { LoggerService } from '../../core/logger';
 import { OrderStatus } from '../enums/order-status.enum';
 import { NotificationsService } from '../../notifications/notifications.service';
 import { PaginatedResult } from '../../core/interceptors/response-transform.interceptor';
+import { Commerce } from '../../commerce/entities/commerce.entity';
+import { TenantContext } from '../../auth/types/tenant-context.types';
+
+interface OwnerResolution {
+  ownerId: string;
+  commerceId: string | null;
+}
 
 @Injectable()
 export class OrdersService {
@@ -31,6 +38,8 @@ export class OrdersService {
     private readonly catalogRepository: Repository<Catalog>,
     @InjectRepository(CatalogItem)
     private readonly catalogItemRepository: Repository<CatalogItem>,
+    @InjectRepository(Commerce)
+    private readonly commerceRepository: Repository<Commerce>,
 
     private paymentService: PaymentsService,
     private userService: UserService,
@@ -44,14 +53,15 @@ export class OrdersService {
   }
 
   /**
-   * Determina automáticamente el ownerId basado en los items de la orden
-   * y valida que todos los items pertenezcan al mismo propietario.
+   * Determina automáticamente el ownerId y commerceId basado en los items de la orden
+   * y valida que todos los items pertenezcan al mismo comercio.
    */
-  private async determineOwnerIdAndValidate(
+  private async determineOwnerAndValidate(
     items: CreateOrderDto['items'],
-  ): Promise<string> {
+  ): Promise<OwnerResolution> {
     try {
       let foundOwnerId: string | null = null;
+      let foundCommerceId: string | null = null;
 
       for (const item of items) {
         const catalogItem = await this.catalogItemRepository.findOne({
@@ -66,6 +76,7 @@ export class OrdersService {
         }
 
         const currentOwnerId = catalogItem.catalog.ownerId;
+        const currentCommerceId = catalogItem.catalog.commerceId;
 
         if (foundOwnerId && foundOwnerId !== currentOwnerId) {
           throw new BadRequestException(
@@ -73,7 +84,18 @@ export class OrdersService {
           );
         }
 
+        if (
+          foundCommerceId &&
+          currentCommerceId &&
+          foundCommerceId !== currentCommerceId
+        ) {
+          throw new BadRequestException(
+            'No se permiten órdenes con productos de diferentes comercios.',
+          );
+        }
+
         foundOwnerId = currentOwnerId;
+        foundCommerceId = currentCommerceId || null;
       }
 
       if (!foundOwnerId) {
@@ -82,7 +104,7 @@ export class OrdersService {
         );
       }
 
-      return foundOwnerId;
+      return { ownerId: foundOwnerId, commerceId: foundCommerceId };
     } catch (error) {
       if (error instanceof BadRequestException) throw error;
       this.logger.error(
@@ -145,24 +167,34 @@ export class OrdersService {
     };
   }
 
-  async create(createOrderDto: CreateOrderDto): Promise<Order> {
+  async create(
+    createOrderDto: CreateOrderDto,
+    tenantId?: string,
+  ): Promise<Order> {
     // 1. Verificar configuraciones del sistema
     await this.checkOrderingConfig();
 
     // 2. Validar límites de items
     await this.validateOrderLimits(createOrderDto.items);
 
-    // 3. Determinar Owner y validar integridad (mismo dueño para todos los items)
-    const ownerId = await this.determineOwnerIdAndValidate(
+    // 3. Determinar Owner y Commerce, validar integridad (mismo dueño para todos los items)
+    const { ownerId, commerceId } = await this.determineOwnerAndValidate(
       createOrderDto.items,
     );
 
-    // 4. Calcular montos seguros (precios de servidor)
+    // 4. Validar que el tenant del usuario coincida con el commerce de los items
+    if (tenantId && commerceId && tenantId !== commerceId) {
+      throw new BadRequestException(
+        'No tienes acceso para crear órdenes en este comercio.',
+      );
+    }
+
+    // 5. Calcular montos seguros (precios de servidor)
     const secureAmounts = await this.calculateSecureOrderAmounts(
       createOrderDto.items,
     );
 
-    // 5. Preparar datos del cliente
+    // 6. Preparar datos del cliente
     let { customerEmail, customerPhone, customerName, customerLastName } =
       createOrderDto;
     const { createdBy } = createOrderDto;
@@ -186,7 +218,7 @@ export class OrdersService {
     customerEmail = customerEmail || 'anon@fake.com';
     customerPhone = customerPhone || '0000000000';
 
-    // 6. Ejecutar todo en una transacción atómica
+    // 7. Ejecutar todo en una transacción atómica
     const order = await this.dataSource.transaction(async (manager) => {
       try {
         // Crear la orden inicial
@@ -196,6 +228,7 @@ export class OrdersService {
           customerName,
           customerLastName,
           ownerId,
+          commerceId,
           createdBy,
           subtotal: secureAmounts.subtotal,
           marketplaceFeePercentage: secureAmounts.marketplaceFeePercentage,
@@ -290,10 +323,16 @@ export class OrdersService {
   async findAll(
     page: number = 1,
     limit: number = 10,
+    tenant?: TenantContext,
   ): Promise<PaginatedResult<any>> {
     try {
       const skip = (page - 1) * limit;
+      const where: any = {};
+      if (tenant?.commerceId) {
+        where.commerceId = tenant.commerceId;
+      }
       const [data, total] = await this.orderRepository.findAndCount({
+        where,
         relations: ['items', 'owner'],
         skip,
         take: limit,
@@ -389,6 +428,7 @@ export class OrdersService {
     ownerId: string,
     page: number = 1,
     limit: number = 10,
+    tenant?: TenantContext,
   ): Promise<PaginatedResult<any>> {
     try {
       if (!ownerId) {
@@ -397,8 +437,23 @@ export class OrdersService {
 
       const skip = (page - 1) * limit;
 
+      const where: any = {};
+      if (tenant?.commerceId) {
+        const commerce = await this.commerceRepository.findOne({
+          where: { id: tenant.commerceId, ownerId },
+        });
+        if (!commerce) {
+          throw new BadRequestException(
+            'El comercio especificado no pertenece al propietario',
+          );
+        }
+        where.commerceId = tenant.commerceId;
+      } else {
+        where.ownerId = ownerId;
+      }
+
       const [data, total] = await this.orderRepository.findAndCount({
-        where: { ownerId },
+        where,
         relations: ['items', 'owner'],
         order: { createdAt: 'DESC' },
         skip,
@@ -446,10 +501,12 @@ export class OrdersService {
 
       await this.orderRepository.save(order);
 
-      return this.mapOrderStoreInfo(await this.orderRepository.findOne({
-        where: { id },
-        relations: ['items', 'owner'],
-      }));
+      return this.mapOrderStoreInfo(
+        await this.orderRepository.findOne({
+          where: { id },
+          relations: ['items', 'owner'],
+        }),
+      );
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(
@@ -478,10 +535,7 @@ export class OrdersService {
   /**
    * Actualiza el estado de una orden
    */
-  async updateOrderStatus(
-    orderId: string,
-    status: OrderStatus,
-  ): Promise<any> {
+  async updateOrderStatus(orderId: string, status: OrderStatus): Promise<any> {
     try {
       const order = await this.orderRepository.findOne({
         where: { id: orderId },
@@ -515,10 +569,12 @@ export class OrdersService {
       order.status = status;
       await this.orderRepository.save(order);
 
-      const updatedOrder = this.mapOrderStoreInfo(await this.orderRepository.findOne({
-        where: { id: orderId },
-        relations: ['items', 'owner'],
-      }));
+      const updatedOrder = this.mapOrderStoreInfo(
+        await this.orderRepository.findOne({
+          where: { id: orderId },
+          relations: ['items', 'owner'],
+        }),
+      );
 
       // Notificaciones FCM según el nuevo estado
       this.sendStatusChangeNotifications(updatedOrder, prevStatus, status);
@@ -577,10 +633,12 @@ export class OrdersService {
       order.status = newStatus;
       await this.orderRepository.save(order);
 
-      const updatedOrder = this.mapOrderStoreInfo(await this.orderRepository.findOne({
-        where: { id: orderId },
-        relations: ['items', 'owner'],
-      }));
+      const updatedOrder = this.mapOrderStoreInfo(
+        await this.orderRepository.findOne({
+          where: { id: orderId },
+          relations: ['items', 'owner'],
+        }),
+      );
 
       this.sendStatusChangeNotifications(updatedOrder, prevStatus, newStatus);
 
@@ -623,10 +681,12 @@ export class OrdersService {
       }
       await this.orderRepository.save(order);
 
-      return this.mapOrderStoreInfo(await this.orderRepository.findOne({
-        where: { id: orderId },
-        relations: ['items', 'owner'],
-      }));
+      return this.mapOrderStoreInfo(
+        await this.orderRepository.findOne({
+          where: { id: orderId },
+          relations: ['items', 'owner'],
+        }),
+      );
     } catch (error) {
       if (error instanceof NotFoundException) throw error;
       throw new InternalServerErrorException(

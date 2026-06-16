@@ -26,7 +26,6 @@ import {
   CatalogUnauthorizedException,
   InvalidCatalogDataException,
 } from '../../core/exceptions';
-
 @Injectable()
 export class CatalogService {
   private readonly logger = new Logger(CatalogService.name);
@@ -45,18 +44,17 @@ export class CatalogService {
   async createCatalog(
     ownerId: string,
     createCatalogDto: CreateCatalogDto,
+    commerceId?: string,
   ): Promise<Catalog> {
     try {
       await this.resourceLimitService.validateResourceCreation(
-        ownerId,
+        { userId: ownerId, commerceId },
         'catalog',
       );
 
-      // Generar slug si no se proporciona
       const slug =
         createCatalogDto.slug || this.generateSlug(createCatalogDto.name || '');
 
-      // Verificar si el slug ya existe
       if (slug) {
         const existingCatalog = await this.catalogRepository.findOne({
           where: { slug },
@@ -69,13 +67,16 @@ export class CatalogService {
         }
       }
 
-      // Obtener capacidad basada en la membresía
-      const limits = await this.resourceLimitService.getUserLimits(ownerId);
+      const limits = await this.resourceLimitService.getUserLimits({
+        userId: ownerId,
+        commerceId,
+      });
       const capacity = limits.limits.maxCatalogItems;
 
       const catalog = this.catalogRepository.create({
         id: uuidv4(),
         ownerId,
+        commerceId: commerceId || null,
         catalogType: createCatalogDto.catalogType,
         name: createCatalogDto.name,
         description: createCatalogDto.description,
@@ -92,7 +93,7 @@ export class CatalogService {
       const savedCatalog = await this.catalogRepository.save(catalog);
 
       this.logger.log(
-        `Catálogo creado: ${savedCatalog.id} por usuario ${ownerId}`,
+        `Catálogo creado: ${savedCatalog.id} por usuario ${ownerId}${commerceId ? ` en comercio ${commerceId}` : ''}`,
       );
 
       return savedCatalog;
@@ -106,17 +107,23 @@ export class CatalogService {
   }
 
   /**
-   * Obtiene todos los catálogos de un usuario, opcionalmente filtrados por tipo
+   * Obtiene todos los catálogos de un tenant, opcionalmente filtrados por tipo
    */
   async getCatalogsByOwner(
     ownerId: string,
     catalogType?: CatalogType,
     includeItems: boolean = false,
+    commerceId?: string,
   ): Promise<Catalog[]> {
     const where: FindOptionsWhere<Catalog> = {
-      ownerId,
       status: CatalogStatus.ACTIVE,
     };
+
+    if (commerceId) {
+      where.commerceId = commerceId;
+    } else {
+      where.ownerId = ownerId;
+    }
 
     if (catalogType) {
       where.catalogType = catalogType;
@@ -132,12 +139,13 @@ export class CatalogService {
   }
 
   /**
-   * Obtiene un catálogo específico con validación de ownership
+   * Obtiene un catálogo específico con validación de ownership o commerceId
    */
   async getCatalogById(
     catalogId: string,
     ownerId?: string,
     includeItems: boolean = true,
+    commerceId?: string,
   ): Promise<Catalog> {
     const relations = includeItems ? ['items', 'owner'] : ['owner'];
     const catalog = await this.catalogRepository.findOne({
@@ -149,8 +157,15 @@ export class CatalogService {
       throw new CatalogNotFoundException(catalogId);
     }
 
-    // Validar ownership si se proporciona
-    if (ownerId && catalog.ownerId !== ownerId) {
+    // Validar acceso por commerceId (preferido) o ownerId (legacy)
+    if (commerceId && catalog.commerceId && catalog.commerceId !== commerceId) {
+      throw new CatalogUnauthorizedException(catalogId, ownerId, {
+        commerceId,
+        catalogCommerceId: catalog.commerceId,
+      });
+    }
+
+    if (ownerId && !commerceId && catalog.ownerId !== ownerId) {
       throw new CatalogUnauthorizedException(catalogId, ownerId);
     }
 
@@ -174,7 +189,6 @@ export class CatalogService {
       throw new CatalogNotFoundException(slug, { searchType: 'slug' });
     }
 
-    // Incrementar contador de vistas
     catalog.viewCount += 1;
     catalog.lastViewedAt = new Date();
     await this.catalogRepository.save(catalog);
@@ -189,10 +203,15 @@ export class CatalogService {
     catalogId: string,
     ownerId: string,
     updateCatalogDto: UpdateCatalogDto,
+    commerceId?: string,
   ): Promise<Catalog> {
-    const catalog = await this.getCatalogById(catalogId, ownerId, false);
+    const catalog = await this.getCatalogById(
+      catalogId,
+      ownerId,
+      false,
+      commerceId,
+    );
 
-    // Si se actualiza el slug, verificar que no exista
     if ('slug' in updateCatalogDto && updateCatalogDto.slug) {
       const existingCatalog = await this.catalogRepository.findOne({
         where: { slug: updateCatalogDto.slug },
@@ -220,8 +239,17 @@ export class CatalogService {
   /**
    * Elimina un catálogo y todos sus items
    */
-  async deleteCatalog(catalogId: string, ownerId: string): Promise<void> {
-    const catalog = await this.getCatalogById(catalogId, ownerId, false);
+  async deleteCatalog(
+    catalogId: string,
+    ownerId: string,
+    commerceId?: string,
+  ): Promise<void> {
+    const catalog = await this.getCatalogById(
+      catalogId,
+      ownerId,
+      false,
+      commerceId,
+    );
 
     await this.catalogRepository.remove(catalog);
 
@@ -231,8 +259,17 @@ export class CatalogService {
   /**
    * Archiva un catálogo (soft delete)
    */
-  async archiveCatalog(catalogId: string, ownerId: string): Promise<Catalog> {
-    const catalog = await this.getCatalogById(catalogId, ownerId, false);
+  async archiveCatalog(
+    catalogId: string,
+    ownerId: string,
+    commerceId?: string,
+  ): Promise<Catalog> {
+    const catalog = await this.getCatalogById(
+      catalogId,
+      ownerId,
+      false,
+      commerceId,
+    );
 
     catalog.status = CatalogStatus.ARCHIVED;
     catalog.archivedAt = new Date();
@@ -246,9 +283,10 @@ export class CatalogService {
   async addItem(
     ownerId: string,
     createItemDto: CreateCatalogItemDto,
+    commerceId?: string,
   ): Promise<CatalogItem> {
     await this.resourceLimitService.validateResourceCreation(
-      ownerId,
+      { userId: ownerId, commerceId },
       'catalogItem',
     );
 
@@ -256,9 +294,9 @@ export class CatalogService {
       createItemDto.catalogId,
       ownerId,
       true,
+      commerceId,
     );
 
-    // Verificar capacidad
     const currentItemCount = catalog.items?.length || 0;
     if (currentItemCount >= catalog.capacity) {
       throw new InvalidCatalogDataException(
@@ -311,7 +349,6 @@ export class CatalogService {
       throw new CatalogItemNotFoundException(itemId);
     }
 
-    // Incrementar contador de vistas
     item.viewCount += 1;
     await this.catalogItemRepository.save(item);
 
@@ -325,6 +362,7 @@ export class CatalogService {
     itemId: string,
     catalogOwnerId: string,
     updateItemDto: UpdateCatalogItemDto,
+    commerceId?: string,
   ): Promise<CatalogItem> {
     const item = await this.catalogItemRepository.findOne({
       where: { id: itemId },
@@ -335,8 +373,20 @@ export class CatalogService {
       throw new CatalogItemNotFoundException(itemId);
     }
 
-    // Validar ownership
-    if (item.catalog.ownerId !== catalogOwnerId) {
+    // Validar ownership: por commerceId o por ownerId
+    if (commerceId && item.catalog.commerceId) {
+      if (item.catalog.commerceId !== commerceId) {
+        throw new CatalogUnauthorizedException(
+          item.catalog.id,
+          catalogOwnerId,
+          {
+            operation: 'update',
+            itemId,
+            commerceId,
+          },
+        );
+      }
+    } else if (item.catalog.ownerId !== catalogOwnerId) {
       throw new CatalogUnauthorizedException(item.catalog.id, catalogOwnerId, {
         operation: 'update',
         itemId,
@@ -358,7 +408,11 @@ export class CatalogService {
   /**
    * Elimina un item
    */
-  async deleteItem(itemId: string, catalogOwnerId: string): Promise<void> {
+  async deleteItem(
+    itemId: string,
+    catalogOwnerId: string,
+    commerceId?: string,
+  ): Promise<void> {
     const item = await this.catalogItemRepository.findOne({
       where: { id: itemId },
       relations: ['catalog'],
@@ -368,7 +422,20 @@ export class CatalogService {
       throw new CatalogItemNotFoundException(itemId);
     }
 
-    if (item.catalog.ownerId !== catalogOwnerId) {
+    // Validar ownership: por commerceId o por ownerId
+    if (commerceId && item.catalog.commerceId) {
+      if (item.catalog.commerceId !== commerceId) {
+        throw new CatalogUnauthorizedException(
+          item.catalog.id,
+          catalogOwnerId,
+          {
+            operation: 'delete',
+            itemId,
+            commerceId,
+          },
+        );
+      }
+    } else if (item.catalog.ownerId !== catalogOwnerId) {
       throw new CatalogUnauthorizedException(item.catalog.id, catalogOwnerId, {
         operation: 'delete',
         itemId,
@@ -396,7 +463,6 @@ export class CatalogService {
       });
     }
 
-    // Filtrar solo items disponibles
     const availableItems = catalog.items
       ? catalog.items.filter(
           (item) =>
@@ -404,7 +470,6 @@ export class CatalogService {
         )
       : [];
 
-    // Incrementar contador de vistas
     catalog.viewCount += 1;
     catalog.lastViewedAt = new Date();
     await this.catalogRepository.save(catalog);

@@ -8,6 +8,7 @@ import { User } from './entities/user.entity';
 import { RecoveryPassword } from './entities/recovery-password.entity';
 import { Membership } from '../membership/entities/membership.entity';
 import { UserRole } from '../auth/entities/user-role.entity';
+import { Commerce } from '../commerce/entities/commerce.entity';
 import { ImageProxyModule } from '../image-proxy/image-proxy.module';
 import { CloudinaryModule } from '../cloudinary/cloudinary.module';
 import { UserAuthService } from './services/user-auth.service';
@@ -20,7 +21,7 @@ import { UserRoleService } from '../auth/services/user-role.service';
 @Module({
   imports: [
     forwardRef(() => AuthModule),
-    TypeOrmModule.forFeature([User, RecoveryPassword, Membership, UserRole]),
+    TypeOrmModule.forFeature([User, RecoveryPassword, Membership, UserRole, Commerce]),
     ImageProxyModule,
     CloudinaryModule,
     CatalogModule,

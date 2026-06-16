@@ -9,7 +9,7 @@ Este índice contiene toda la documentación relevante para el sistema de evento
 ## 🆕 Documentación Actualizada (Nuevo Sistema de Roles)
 
 ### ⭐ Principal - Flujo de Eventos
-**Archivo:** [`EVENT-FLOW-COMPLETE.md`](./EVENT-FLOW-COMPLETE.md)
+**Archivo:** [[implementation/EVENT-FLOW-COMPLETE|EVENT-FLOW-COMPLETE.md]]
 
 Documentación completa y actualizada del flujo de eventos incluyendo:
 - ✅ Registro con `businessType`
@@ -23,7 +23,7 @@ Documentación completa y actualizada del flujo de eventos incluyendo:
 ---
 
 ### ⭐ Actualización del Sistema de Roles (Mayo 2026)
-**Archivo:** [`ROLES-SYSTEM-UPDATE-2026.md`](./ROLES-SYSTEM-UPDATE-2026.md)
+**Archivo:** [[project/ROLES-SYSTEM-UPDATE-2026|ROLES-SYSTEM-UPDATE-2026.md]]
 
 Resumen de cambios del nuevo sistema:
 - Problema corregido (CUSTOMER vs OWNER)
@@ -37,7 +37,7 @@ Resumen de cambios del nuevo sistema:
 ---
 
 ### ⭐ Resumen de Implementación
-**Archivo:** [`IMPLEMENTATION-SUMMARY.md`](./IMPLEMENTATION-SUMMARY.md)
+**Archivo:** [[implementation/ROLES-CODE-CHANGES-SUMMARY|IMPLEMENTATION-SUMMARY.md]]
 
 Checklist completo de implementación:
 - Archivos modificados
@@ -53,7 +53,7 @@ Checklist completo de implementación:
 ## 📖 Documentación de Análisis y Planificación
 
 ### Análisis Profundo del Sistema de Roles
-**Archivo:** [`ROLES-AND-CONTEXTS-DEEP-DIVE.md`](./ROLES-AND-CONTEXTS-DEEP-DIVE.md)
+**Archivo:** [[project/ROLES-AND-CONTEXTS-DEEP-DIVE|ROLES-AND-CONTEXTS-DEEP-DIVE.md]]
 
 Análisis detallado del problema y soluciones:
 - Conceptos fundamentales (Contextos vs Roles)
@@ -67,7 +67,7 @@ Análisis detallado del problema y soluciones:
 ---
 
 ### Identificación de Organizadores
-**Archivo:** [`IDENTIFYING-ORGANIZERS-WITHOUT-ROLE.md`](./IDENTIFYING-ORGANIZERS-WITHOUT-ROLE.md.md)
+**Archivo:** [[project/IDENTIFYING-ORGANIZERS-WITHOUT-ROLE|IDENTIFYING-ORGANIZERS-WITHOUT-ROLE.md]]
 
 Explicación de por qué no necesitamos `EVENT_ORGANIZER`:
 - OWNER en EVENTS vs EVENT_ORGANIZER
@@ -80,7 +80,7 @@ Explicación de por qué no necesitamos `EVENT_ORGANIZER`:
 ---
 
 ### Plan de Implementación
-**Archivo:** [`ROLE-SYSTEM-IMPLEMENTATION-PLAN.md`](./ROLE-SYSTEM-IMPLEMENTATION-PLAN.md)
+**Archivo:** [[implementation/ROLE-SYSTEM-IMPLEMENTATION-PLAN|ROLE-SYSTEM-IMPLEMENTATION-PLAN.md]]
 
 Plan completo para implementar los cambios:
 - Análisis de impacto
@@ -94,7 +94,7 @@ Plan completo para implementar los cambios:
 ---
 
 ### Cambios Requeridos en Código
-**Archivo:** [`CODE-CHANGES-REQUIRED.md`](./CODE-CHANGES-REQUIRED.md)
+**Archivo:** [[implementation/CODE-CHANGES-REQUIRED|CODE-CHANGES-REQUIRED.md]]
 
 Código exacto a modificar:
 - DTOs (CreateUserDto)
@@ -113,7 +113,7 @@ Código exacto a modificar:
 
 Guía completa del sistema de roles anterior.
 
-**Nota:** Ver [`ROLES-SYSTEM-UPDATE-2026.md`](./ROLES-SYSTEM-UPDATE-2026.md) para cambios recientes.
+**Nota:** Ver [[project/ROLES-SYSTEM-UPDATE-2026|ROLES-SYSTEM-UPDATE-2026.md]] para cambios recientes.
 
 ---
 
@@ -211,19 +211,19 @@ Resumen de migraciones anteriores.
 
 ### Para desarrolladores que implementan el nuevo sistema:
 
-1. **Leer primero:** [`ROLES-SYSTEM-UPDATE-2026.md`](./ROLES-SYSTEM-UPDATE-2026.md)
-2. **Ver flujo completo:** [`EVENT-FLOW-COMPLETE.md`](./EVENT-FLOW-COMPLETE.md)
+1. **Leer primero:** [[project/ROLES-SYSTEM-UPDATE-2026|ROLES-SYSTEM-UPDATE-2026.md]]
+2. **Ver flujo completo:** [[implementation/EVENT-FLOW-COMPLETE|EVENT-FLOW-COMPLETE.md]]
 3. **Ejecutar migración:** 
    ```bash
    npm run migrate:roles
    ```
-4. **Verificar:** [`IMPLEMENTATION-SUMMARY.md`](./IMPLEMENTATION-SUMMARY.md)
+4. **Verificar:** [[implementation/ROLES-CODE-CHANGES-SUMMARY|IMPLEMENTATION-SUMMARY.md]]
 
 ### Para entender el problema y solución:
 
-1. **Problema:** [`ROLES-AND-CONTEXTS-DEEP-DIVE.md`](./ROLES-AND-CONTEXTS-DEEP-DIVE.md)
-2. **Concepto:** [`IDENTIFYING-ORGANIZERS-WITHOUT-ROLE.md`](./IDENTIFYING-ORGANIZERS-WITHOUT-ROLE.md)
-3. **Plan:** [`ROLE-SYSTEM-IMPLEMENTATION-PLAN.md`](./ROLE-SYSTEM-IMPLEMENTATION-PLAN.md)
+1. **Problema:** [[project/ROLES-AND-CONTEXTS-DEEP-DIVE|ROLES-AND-CONTEXTS-DEEP-DIVE.md]]
+2. **Concepto:** [[project/IDENTIFYING-ORGANIZERS-WITHOUT-ROLE|IDENTIFYING-ORGANIZERS-WITHOUT-ROLE.md]]
+3. **Plan:** [[implementation/ROLE-SYSTEM-IMPLEMENTATION-PLAN|ROLE-SYSTEM-IMPLEMENTATION-PLAN.md]]
 
 ---
 
@@ -242,10 +242,10 @@ Resumen de migraciones anteriores.
 ## 📞 Soporte
 
 Si tienes dudas sobre:
-- **Cómo funciona:** Leer [`ROLES-SYSTEM-UPDATE-2026.md`](./ROLES-SYSTEM-UPDATE-2026.md)
-- **Implementación:** Leer [`IMPLEMENTATION-SUMMARY.md`](./IMPLEMENTATION-SUMMARY.md)
-- **Flujo de eventos:** Leer [`EVENT-FLOW-COMPLETE.md`](./EVENT-FLOW-COMPLETE.md)
-- **Problemas:** Revisar troubleshooting en [`IMPLEMENTATION-SUMMARY.md`](./IMPLEMENTATION-SUMMARY.md)
+- **Cómo funciona:** Leer [[project/ROLES-SYSTEM-UPDATE-2026|ROLES-SYSTEM-UPDATE-2026.md]]
+- **Implementación:** Leer [[implementation/ROLES-CODE-CHANGES-SUMMARY|IMPLEMENTATION-SUMMARY.md]]
+- **Flujo de eventos:** Leer [[implementation/EVENT-FLOW-COMPLETE|EVENT-FLOW-COMPLETE.md]]
+- **Problemas:** Revisar troubleshooting en [[implementation/ROLES-CODE-CHANGES-SUMMARY|IMPLEMENTATION-SUMMARY.md]]
 
 ---
 

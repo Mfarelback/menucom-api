@@ -34,6 +34,7 @@ export class TicketsService {
     customerName: string,
     customerEmail: string,
     tenantId: string,
+    commerceId?: string | null,
   ): Promise<any> {
     return await this.dataSource.transaction(async (manager) => {
       const ticketType = await this.ticketTypeRepo.findOneWithLock(
@@ -53,21 +54,24 @@ export class TicketsService {
       }
 
       // 1. Crear el registro de la compra PENDING
-      const purchase = this.purchaseRepo.create(
-        {
-          tenantId: tenantId || 'system',
-          totalAmount: Number(ticketType.price) * quantity,
-          quantity,
-          paymentStatus: TicketPurchaseStatus.PENDING,
-          event: ticketType.event,
-          ticketType,
-          appliedFeePercentage: 0,
-          feeAmount: 0,
-          customerName,
-          customerEmail,
-        },
-        manager,
-      );
+      const purchaseData: any = {
+        tenantId: tenantId || 'system',
+        totalAmount: Number(ticketType.price) * quantity,
+        quantity,
+        paymentStatus: TicketPurchaseStatus.PENDING,
+        event: ticketType.event,
+        ticketType,
+        appliedFeePercentage: 0,
+        feeAmount: 0,
+        customerName,
+        customerEmail,
+      };
+
+      if (commerceId) {
+        purchaseData.commerceId = commerceId;
+      }
+
+      const purchase = this.purchaseRepo.create(purchaseData, manager);
 
       const savedPurchase = await this.purchaseRepo.save(purchase, manager);
 

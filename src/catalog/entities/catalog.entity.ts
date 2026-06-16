@@ -4,11 +4,13 @@ import {
   OneToMany,
   PrimaryColumn,
   ManyToOne,
+  JoinColumn,
   Index,
   CreateDateColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../user/entities/user.entity';
+import { Commerce } from '../../commerce/entities/commerce.entity';
 import { CatalogType, CatalogStatus } from '../enums/catalog-type.enum';
 
 /**
@@ -19,6 +21,7 @@ import { CatalogType, CatalogStatus } from '../enums/catalog-type.enum';
 @Index(['ownerId', 'catalogType'])
 @Index(['catalogType', 'status'])
 @Index(['ownerId', 'status'])
+@Index(['commerceId'])
 export class Catalog {
   @PrimaryColumn({ type: 'varchar' })
   id: string;
@@ -27,7 +30,20 @@ export class Catalog {
   ownerId: string;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'ownerId' })
   owner: User;
+
+  /**
+   * ID del comercio al que pertenece el catálogo (multi-tenant).
+   * Nullable para backward compatibility durante la migración.
+   * Una vez migrado, será el campo principal de aislamiento de datos.
+   */
+  @Column({ type: 'uuid', nullable: true })
+  commerceId: string | null;
+
+  @ManyToOne(() => Commerce, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'commerceId' })
+  commerce: Commerce;
 
   @Column({
     type: 'enum',

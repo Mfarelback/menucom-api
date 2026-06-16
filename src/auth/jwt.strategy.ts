@@ -4,6 +4,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 
 import config from '../config';
 import { ConfigType } from '@nestjs/config';
+import { JwtPayload, AuthenticatedUser } from './types/auth.types';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
@@ -20,12 +21,13 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
-  async validate(payload: any) {
+  async validate(payload: JwtPayload): Promise<AuthenticatedUser> {
     this.logger.log(`Usuario ${payload.sub} autenticado exitosamente`);
     return {
       userId: payload.sub,
       username: payload.username,
-      role: payload.username,
+      role: payload.role,
+      commerceId: payload.commerceId,
     };
   }
 }

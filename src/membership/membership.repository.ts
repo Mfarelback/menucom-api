@@ -24,6 +24,16 @@ export class MembershipRepository {
     });
   }
 
+  async findByUserIdAndCommerce(
+    userId: string,
+    commerceId: string,
+  ): Promise<Membership | null> {
+    return this.membershipRepository.findOne({
+      where: { userId, commerceId },
+      relations: ['user'],
+    });
+  }
+
   async createMembership(
     userId: string,
     membershipData: Partial<Membership>,

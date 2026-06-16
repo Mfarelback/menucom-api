@@ -44,6 +44,7 @@ export class SubscriptionPlanService {
         billingCycle: 'monthly',
         features: PLAN_FEATURES[MembershipPlan.FREE],
         limits: {
+          maxCommerces: PLAN_LIMITS[MembershipPlan.FREE].maxCommerces,
           maxCatalogs: PLAN_LIMITS[MembershipPlan.FREE].maxCatalogs,
           maxCatalogItems: PLAN_LIMITS[MembershipPlan.FREE].maxCatalogItems,
           maxLocations: PLAN_LIMITS[MembershipPlan.FREE].maxLocations,
@@ -70,6 +71,7 @@ export class SubscriptionPlanService {
         billingCycle: 'monthly',
         features: PLAN_FEATURES[MembershipPlan.PREMIUM],
         limits: {
+          maxCommerces: PLAN_LIMITS[MembershipPlan.PREMIUM].maxCommerces,
           maxCatalogs: PLAN_LIMITS[MembershipPlan.PREMIUM].maxCatalogs,
           maxCatalogItems: PLAN_LIMITS[MembershipPlan.PREMIUM].maxCatalogItems,
           maxLocations: PLAN_LIMITS[MembershipPlan.PREMIUM].maxLocations,
@@ -99,6 +101,7 @@ export class SubscriptionPlanService {
         billingCycle: 'monthly',
         features: PLAN_FEATURES[MembershipPlan.ENTERPRISE],
         limits: {
+          maxCommerces: PLAN_LIMITS[MembershipPlan.ENTERPRISE].maxCommerces,
           maxCatalogs: PLAN_LIMITS[MembershipPlan.ENTERPRISE].maxCatalogs,
           maxCatalogItems:
             PLAN_LIMITS[MembershipPlan.ENTERPRISE].maxCatalogItems,

@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UserService } from '../../user/user.service';
@@ -12,7 +13,13 @@ import { CreateUserDto } from '../../user/dto/create-user.dto';
 import { LoggerService } from '../../core/logger/logger.service';
 import { CloudinaryService } from '../../cloudinary/services/cloudinary.service';
 import { UserRoleService } from './user-role.service';
-import { RoleType, BusinessContext } from '../models/permissions.model';
+import { CommerceService } from '../../commerce/services/commerce.service';
+import {
+  RoleType,
+  BusinessContext,
+  BUSINESS_TYPE_MAPPING,
+} from '../models/permissions.model';
+import { JwtPayload } from '../types/auth.types';
 
 @Injectable()
 export class AuthService {
@@ -23,8 +30,69 @@ export class AuthService {
     private logger: LoggerService,
     private cloudinaryService: CloudinaryService,
     private userRoleService: UserRoleService,
+    private commerceService: CommerceService,
   ) {
     this.logger.setContext('AuthService');
+  }
+
+  private buildVisualUsername(role: string, context?: string): string {
+    return context ? `${role} | ${context}` : role;
+  }
+
+  private async resolveInitialCommerceId(
+    userId: string,
+  ): Promise<{ commerceId: string; commerceContext?: string } | undefined> {
+    try {
+      const commerces = await this.commerceService.getUserContexts(userId);
+      if (commerces.length === 1) {
+        return {
+          commerceId: commerces[0].id,
+          commerceContext: commerces[0].context,
+        };
+      }
+      if (commerces.length === 0) {
+        const user = await this.usersService.findOne(userId);
+        if (!user) {
+          this.logger.warn(
+            `Usuario ${userId} no encontrado al resolver commerceId`,
+          );
+          return undefined;
+        }
+
+        const typeKey = user.role || 'customer';
+        const mapping =
+          BUSINESS_TYPE_MAPPING[typeKey] || BUSINESS_TYPE_MAPPING['customer'];
+
+        try {
+          const commerce = await this.commerceService.create(userId, {
+            businessName:
+              user.businessName ||
+              user.name ||
+              user.email?.split('@')[0] ||
+              'Mi Negocio',
+            slug: user.slug || `${typeKey}-${userId.substring(0, 8)}`,
+            businessType: typeKey,
+            context: mapping.context as BusinessContext,
+          });
+
+          this.logger.log(
+            `Commerce auto-creado para usuario legacy ${userId}: ${commerce.id}`,
+          );
+          return { commerceId: commerce.id, commerceContext: commerce.context };
+        } catch (createError) {
+          this.logger.error(
+            `Error creando commerce automático para usuario legacy ${userId}: ${createError instanceof Error ? createError.message : String(createError)}`,
+          );
+          return undefined;
+        }
+      }
+      return undefined;
+    } catch (error) {
+      this.logger.error(
+        `Error resolviendo commerceId inicial para usuario ${userId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      return undefined;
+    }
   }
 
   async validateUser(email: string, pass: string): Promise<any> {
@@ -49,22 +117,28 @@ export class AuthService {
   }
 
   async login(user: any) {
-    const payload = {
-      username: user['user']['role'],
-      sub: user['user']['id'],
+    const userId = user['user']['id'];
+    const resolved = await this.resolveInitialCommerceId(userId);
+    const legacyRole = user['user']['role'];
+    const mapping =
+      BUSINESS_TYPE_MAPPING[legacyRole] || BUSINESS_TYPE_MAPPING['customer'];
+
+    const payload: JwtPayload = {
+      sub: userId,
+      username: this.buildVisualUsername(legacyRole, resolved?.commerceContext),
+      role: mapping.role,
+      ...(resolved?.commerceId && { commerceId: resolved.commerceId }),
     };
 
     const userLog = await this.usersService.findOne(payload.sub);
     return {
       access_token: this.jwtService.sign(payload),
       needToChangePassword: userLog.needToChangepassword,
+      ...(resolved?.commerceId && { commerceId: resolved.commerceId }),
     };
   }
 
-  async registerUser(
-    userData: CreateUserDto,
-    file?: Express.Multer.File,
-  ) {
+  async registerUser(userData: CreateUserDto, file?: Express.Multer.File) {
     try {
       // Si se proporciona un archivo, subirlo a Cloudinary y asignar URL
       if (file) {
@@ -90,112 +164,9 @@ export class AuthService {
 
       const userRegister = await this.usersService.create(userData);
 
-      // NUEVO: Mapeo completo de businessType a (role, context)
-      const businessTypeMapping: Record<
-        string,
-        {
-          role: RoleType;
-          context: BusinessContext;
-          needsCustomerRole: boolean;
-        }
-      > = {
-        // Cliente final - solo compra
-        customer: {
-          role: RoleType.CUSTOMER,
-          context: BusinessContext.GENERAL,
-          needsCustomerRole: false,
-        },
-
-        // Comerciantes - OWNER en su contexto + CUSTOMER para comprar en otros
-        food: {
-          role: RoleType.OWNER,
-          context: BusinessContext.RESTAURANT,
-          needsCustomerRole: true,
-        },
-        dinning: {
-          role: RoleType.OWNER,
-          context: BusinessContext.RESTAURANT,
-          needsCustomerRole: true,
-        },
-        clothes: {
-          role: RoleType.OWNER,
-          context: BusinessContext.WARDROBE,
-          needsCustomerRole: true,
-        },
-        retail: {
-          role: RoleType.OWNER,
-          context: BusinessContext.MARKETPLACE,
-          needsCustomerRole: true,
-        },
-        grocery: {
-          role: RoleType.OWNER,
-          context: BusinessContext.MARKETPLACE,
-          needsCustomerRole: true,
-        },
-        electronics: {
-          role: RoleType.OWNER,
-          context: BusinessContext.MARKETPLACE,
-          needsCustomerRole: true,
-        },
-        accessories: {
-          role: RoleType.OWNER,
-          context: BusinessContext.MARKETPLACE,
-          needsCustomerRole: true,
-        },
-        pharmacy: {
-          role: RoleType.OWNER,
-          context: BusinessContext.GENERAL,
-          needsCustomerRole: true,
-        },
-        beauty: {
-          role: RoleType.OWNER,
-          context: BusinessContext.GENERAL,
-          needsCustomerRole: true,
-        },
-        construction: {
-          role: RoleType.OWNER,
-          context: BusinessContext.GENERAL,
-          needsCustomerRole: true,
-        },
-        automotive: {
-          role: RoleType.OWNER,
-          context: BusinessContext.GENERAL,
-          needsCustomerRole: true,
-        },
-        pets: {
-          role: RoleType.OWNER,
-          context: BusinessContext.MARKETPLACE,
-          needsCustomerRole: true,
-        },
-        water_distributor: {
-          role: RoleType.OWNER,
-          context: BusinessContext.MARKETPLACE,
-          needsCustomerRole: true,
-        },
-        events: {
-          // NUEVO: Organizador de eventos
-          role: RoleType.OWNER,
-          context: BusinessContext.EVENTS,
-          needsCustomerRole: true,
-        },
-
-        // Administradores del sistema
-        admin: {
-          role: RoleType.ADMIN,
-          context: BusinessContext.GENERAL,
-          needsCustomerRole: false,
-        },
-        operador: {
-          role: RoleType.OPERATOR,
-          context: BusinessContext.GENERAL,
-          needsCustomerRole: false,
-        },
-      };
-
-      // Usar businessType (nuevo) o role (legacy) para determinar el tipo
       const typeKey = userData.businessType || userData.role || 'customer';
       const mapping =
-        businessTypeMapping[typeKey] || businessTypeMapping['customer'];
+        BUSINESS_TYPE_MAPPING[typeKey] || BUSINESS_TYPE_MAPPING['customer'];
 
       this.logger.log(
         `Registrando usuario ${userRegister.email} con businessType: ${typeKey} → ` +
@@ -251,14 +222,45 @@ export class AuthService {
         }
       }
 
-      const payload = {
-        username: userRegister.role,
+      let commerceId: string | undefined;
+
+      if (mapping.role === RoleType.OWNER) {
+        try {
+          const slugBase = (userData.businessType || 'general').replace(
+            /[^a-zA-Z0-9]/g,
+            '-',
+          );
+          const commerce = await this.commerceService.create(userRegister.id, {
+            businessName:
+              userRegister.name ||
+              userRegister.email?.split('@')[0] ||
+              'Mi Negocio',
+            slug: `${slugBase}-${userRegister.id.substring(0, 8)}`,
+            businessType: userData.businessType || 'general',
+            context: mapping.context as BusinessContext,
+          });
+          commerceId = commerce.id;
+          this.logger.log(
+            `✅ Commerce creado con ID: ${commerce.id} para usuario ${userRegister.id}`,
+          );
+        } catch (commerceError) {
+          this.logger.warn(
+            `No se pudo crear Commerce para ${userRegister.id}: ${commerceError instanceof Error ? commerceError.message : String(commerceError)}`,
+          );
+        }
+      }
+
+      const tokenPayload: JwtPayload = {
         sub: userRegister.id,
+        username: this.buildVisualUsername(userRegister.role, mapping.context),
+        role: mapping.role,
+        ...(commerceId && { commerceId }),
       };
 
       return {
-        access_token: this.jwtService.sign(payload),
+        access_token: this.jwtService.sign(tokenPayload),
         needToChangePassword: userRegister.needToChangepassword,
+        ...(commerceId && { commerceId }),
       };
     } catch (error) {
       this.logger.error(
@@ -357,12 +359,21 @@ export class AuthService {
       }
 
       // Generar JWT
-      const payload = {
-        username: user.role,
+      const resolved = await this.resolveInitialCommerceId(user.id);
+      const legacyRole = user.role;
+      const mapping =
+        BUSINESS_TYPE_MAPPING[legacyRole] || BUSINESS_TYPE_MAPPING['customer'];
+      const jwtPayload: JwtPayload = {
         sub: user.id,
+        username: this.buildVisualUsername(
+          legacyRole,
+          resolved?.commerceContext,
+        ),
+        role: mapping.role,
+        ...(resolved?.commerceId && { commerceId: resolved.commerceId }),
       };
 
-      const jwtToken = this.jwtService.sign(payload);
+      const jwtToken = this.jwtService.sign(jwtPayload);
       this.logger.log('JWT token generado exitosamente');
 
       const response = {
@@ -401,6 +412,59 @@ export class AuthService {
   }
 
   /**
+   * Cambia el contexto de comercio activo del usuario
+   * Valida que el usuario tenga acceso al comercio y genera un nuevo JWT
+   */
+  async switchContext(userId: string, commerceId: string) {
+    this.logger.debug(
+      `Switch context: usuario ${userId} → comercio ${commerceId}`,
+    );
+
+    const hasAccess = await this.userRoleService.hasAccessToCommerce(
+      userId,
+      commerceId,
+    );
+    if (!hasAccess) {
+      throw new ForbiddenException('No tienes acceso a este comercio');
+    }
+
+    const commerce = await this.commerceService.findById(commerceId);
+    if (!commerce.isActive) {
+      throw new ForbiddenException('Este comercio está desactivado');
+    }
+
+    const user = await this.usersService.findOne(userId);
+    if (!user) {
+      throw new UnauthorizedException('Usuario no encontrado');
+    }
+
+    const legacyRole = user.role;
+    const mapping =
+      BUSINESS_TYPE_MAPPING[legacyRole] || BUSINESS_TYPE_MAPPING['customer'];
+    const payload: JwtPayload = {
+      sub: userId,
+      username: this.buildVisualUsername(legacyRole, commerce.context),
+      role: mapping.role,
+      commerceId,
+    };
+
+    const contexts = await this.commerceService.getUserContexts(userId);
+
+    return {
+      access_token: this.jwtService.sign(payload),
+      commerceId,
+      context: commerce.context,
+      availableContexts: contexts.map((c) => ({
+        id: c.id,
+        businessName: c.businessName,
+        slug: c.slug,
+        context: c.context,
+        businessType: c.businessType,
+      })),
+    };
+  }
+
+  /**
    * Refresca el token JWT para el usuario actual
    * @param userId - ID del usuario extraído del token actual
    * @returns Nuevo token JWT y datos del usuario actualizados
@@ -413,9 +477,16 @@ export class AuthService {
       throw new UnauthorizedException('Usuario no encontrado');
     }
 
-    const payload = {
-      username: user.role,
+    const resolved = await this.resolveInitialCommerceId(user.id);
+    const legacyRole = user.role;
+    const mapping =
+      BUSINESS_TYPE_MAPPING[legacyRole] || BUSINESS_TYPE_MAPPING['customer'];
+
+    const payload: JwtPayload = {
       sub: user.id,
+      username: this.buildVisualUsername(legacyRole, resolved?.commerceContext),
+      role: mapping.role,
+      ...(resolved?.commerceId && { commerceId: resolved.commerceId }),
     };
 
     return {
@@ -427,6 +498,7 @@ export class AuthService {
         photoURL: user.photoURL,
         role: user.role,
       },
+      ...(resolved?.commerceId && { commerceId: resolved.commerceId }),
     };
   }
 
@@ -485,104 +557,9 @@ export class AuthService {
         role: userRegister.role,
       });
 
-      // NUEVO: Usar el mismo mapeo que el registro tradicional
-      const businessTypeMapping: Record<
-        string,
-        {
-          role: RoleType;
-          context: BusinessContext;
-          needsCustomerRole: boolean;
-        }
-      > = {
-        customer: {
-          role: RoleType.CUSTOMER,
-          context: BusinessContext.GENERAL,
-          needsCustomerRole: false,
-        },
-        events: {
-          role: RoleType.OWNER,
-          context: BusinessContext.EVENTS,
-          needsCustomerRole: true,
-        },
-        food: {
-          role: RoleType.OWNER,
-          context: BusinessContext.RESTAURANT,
-          needsCustomerRole: true,
-        },
-        dinning: {
-          role: RoleType.OWNER,
-          context: BusinessContext.RESTAURANT,
-          needsCustomerRole: true,
-        },
-        clothes: {
-          role: RoleType.OWNER,
-          context: BusinessContext.WARDROBE,
-          needsCustomerRole: true,
-        },
-        retail: {
-          role: RoleType.OWNER,
-          context: BusinessContext.MARKETPLACE,
-          needsCustomerRole: true,
-        },
-        grocery: {
-          role: RoleType.OWNER,
-          context: BusinessContext.MARKETPLACE,
-          needsCustomerRole: true,
-        },
-        electronics: {
-          role: RoleType.OWNER,
-          context: BusinessContext.MARKETPLACE,
-          needsCustomerRole: true,
-        },
-        accessories: {
-          role: RoleType.OWNER,
-          context: BusinessContext.MARKETPLACE,
-          needsCustomerRole: true,
-        },
-        pharmacy: {
-          role: RoleType.OWNER,
-          context: BusinessContext.GENERAL,
-          needsCustomerRole: true,
-        },
-        beauty: {
-          role: RoleType.OWNER,
-          context: BusinessContext.GENERAL,
-          needsCustomerRole: true,
-        },
-        construction: {
-          role: RoleType.OWNER,
-          context: BusinessContext.GENERAL,
-          needsCustomerRole: true,
-        },
-        automotive: {
-          role: RoleType.OWNER,
-          context: BusinessContext.GENERAL,
-          needsCustomerRole: true,
-        },
-        pets: {
-          role: RoleType.OWNER,
-          context: BusinessContext.MARKETPLACE,
-          needsCustomerRole: true,
-        },
-        water_distributor: {
-          role: RoleType.OWNER,
-          context: BusinessContext.MARKETPLACE,
-          needsCustomerRole: true,
-        },
-        admin: {
-          role: RoleType.ADMIN,
-          context: BusinessContext.GENERAL,
-          needsCustomerRole: false,
-        },
-        operador: {
-          role: RoleType.OPERATOR,
-          context: BusinessContext.GENERAL,
-          needsCustomerRole: false,
-        },
-      };
-
       const mapping =
-        businessTypeMapping[businessType] || businessTypeMapping['customer'];
+        BUSINESS_TYPE_MAPPING[businessType] ||
+        BUSINESS_TYPE_MAPPING['customer'];
 
       this.logger.log(
         `Registrando usuario social ${userRegister.email} con businessType: ${businessType} → ` +
@@ -633,6 +610,29 @@ export class AuthService {
         }
       }
 
+      // Crear Commerce si es OWNER (misma lógica que registerUser)
+      if (mapping.role === RoleType.OWNER) {
+        try {
+          const slugBase = (businessType || 'general').replace(
+            /[^a-zA-Z0-9]/g,
+            '-',
+          );
+          await this.commerceService.create(userRegister.id, {
+            businessName:
+              userRegister.name ||
+              userRegister.email?.split('@')[0] ||
+              'Mi Negocio',
+            slug: `${slugBase}-${userRegister.id.substring(0, 8)}`,
+            businessType: businessType || 'general',
+            context: mapping.context as BusinessContext,
+          });
+        } catch (commerceError) {
+          this.logger.warn(
+            `No se pudo crear Commerce para usuario social ${userRegister.id}: ${commerceError instanceof Error ? commerceError.message : String(commerceError)}`,
+          );
+        }
+      }
+
       return userRegister;
     } catch (error) {
       this.logger.error(
@@ -670,7 +670,7 @@ export class AuthService {
     try {
       const userData = {
         ...firebaseUserData,
-        ...socialData, // Los datos del formulario sobreescriben los de Firebase
+        ...socialData,
         socialToken: firebaseUserData.uid,
         isEmailVerified: firebaseUserData.email_verified,
         firebaseProvider: firebaseUserData.firebaseProvider,
@@ -685,17 +685,91 @@ export class AuthService {
 
       this.logger.debug('Enviando datos a UserService...');
       const userRegister = await this.userAuthService.createOfSocial(userData);
-      this.logger.log('Usuario registrado, generando JWT...');
+      this.logger.log('Usuario registrado, asignando roles...');
 
-      const payload = {
-        username: userRegister.role,
+      const typeKey = userData.businessType || userData.role || 'customer';
+      const mapping =
+        BUSINESS_TYPE_MAPPING[typeKey] || BUSINESS_TYPE_MAPPING['customer'];
+
+      // Asignar rol principal
+      try {
+        await this.userRoleService.assignRole(
+          userRegister.id,
+          mapping.role,
+          mapping.context,
+          {
+            grantedBy: 'system',
+            metadata: {
+              source: 'social-registration-with-data',
+              provider: firebaseUserData.firebaseProvider,
+              businessType: typeKey,
+            },
+          },
+        );
+        this.logger.log(
+          `✅ Rol ${mapping.role} en ${mapping.context} asignado a ${userRegister.email}`,
+        );
+      } catch (roleError) {
+        this.logger.warn(
+          `No se pudo asignar rol: ${roleError instanceof Error ? roleError.message : String(roleError)}`,
+        );
+      }
+
+      // Asignar CUSTOMER adicional si es comerciante
+      if (mapping.needsCustomerRole) {
+        try {
+          await this.userRoleService.assignRole(
+            userRegister.id,
+            RoleType.CUSTOMER,
+            BusinessContext.GENERAL,
+            {
+              grantedBy: 'system',
+              metadata: { source: 'social-registration-dual-role' },
+            },
+          );
+          this.logger.log(`✅ Rol dual CUSTOMER asignado`);
+        } catch (roleError) {
+          this.logger.warn(
+            `No se pudo asignar rol CUSTOMER: ${roleError instanceof Error ? roleError.message : String(roleError)}`,
+          );
+        }
+      }
+
+      // Crear Commerce si es OWNER
+      let commerceId: string | undefined;
+      if (mapping.role === RoleType.OWNER) {
+        try {
+          const slugBase = (typeKey || 'general').replace(/[^a-zA-Z0-9]/g, '-');
+          const commerce = await this.commerceService.create(userRegister.id, {
+            businessName:
+              userRegister.name ||
+              userRegister.email?.split('@')[0] ||
+              'Mi Negocio',
+            slug: `${slugBase}-${userRegister.id.substring(0, 8)}`,
+            businessType: typeKey || 'general',
+            context: mapping.context as BusinessContext,
+          });
+          commerceId = commerce.id;
+          this.logger.log(`✅ Commerce creado con ID: ${commerce.id}`);
+        } catch (commerceError) {
+          this.logger.warn(
+            `No se pudo crear Commerce: ${commerceError instanceof Error ? commerceError.message : String(commerceError)}`,
+          );
+        }
+      }
+
+      const payload: JwtPayload = {
+        username: this.buildVisualUsername(userRegister.role, mapping.context),
         sub: userRegister.id,
+        role: mapping.role,
+        ...(commerceId && { commerceId }),
       };
 
       const response = {
         access_token: this.jwtService.sign(payload),
         needToChangePassword: userRegister.needToChangepassword || false,
         user: userRegister,
+        ...(commerceId && { commerceId }),
       };
 
       this.logger.log(
