@@ -5,16 +5,27 @@ import {
   UpdateDateColumn,
   PrimaryGeneratedColumn,
   Index,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
+import { Commerce } from '../../commerce/entities/commerce.entity';
 
 @Entity('mercado_pago_accounts')
-@Index(['userId'], { unique: true })
+@Index(['userId'])
+@Index(['commerceId'], { unique: true, where: '"commerceId" IS NOT NULL' })
 export class MercadoPagoAccount {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column({ type: 'varchar', length: 255 })
-  userId: string; // ID del usuario vendedor
+  userId: string;
+
+  @Column({ type: 'uuid', nullable: true })
+  commerceId: string | null;
+
+  @ManyToOne(() => Commerce, { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'commerceId' })
+  commerce: Commerce;
 
   @Column({ type: 'varchar', length: 255 })
   accessToken: string; // Token de acceso OAuth

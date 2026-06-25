@@ -34,9 +34,7 @@ export class TenantResolutionService {
     request: any,
     userId: string,
   ): Promise<string | undefined> {
-    const headerTenantId = request.headers['x-tenant-id'] as
-      | string
-      | undefined;
+    const headerTenantId = request.headers['x-tenant-id'] as string | undefined;
 
     if (headerTenantId) {
       const hasAccess = await this.userRoleService.hasAccessToCommerce(
@@ -62,13 +60,19 @@ export class TenantResolutionService {
       return request.user.commerceId;
     }
 
+    const roles = await this.userRoleService.getUserRoles(userId);
+    const commerceRole = roles.find((r) => r.resourceId);
+    if (commerceRole?.resourceId) {
+      this.logger.debug(
+        `Tenant resuelto desde roles: ${commerceRole.resourceId} para usuario ${userId}`,
+      );
+      return commerceRole.resourceId;
+    }
+
     return undefined;
   }
 
-  async resolveTenantIdOrFail(
-    request: any,
-    userId: string,
-  ): Promise<string> {
+  async resolveTenantIdOrFail(request: any, userId: string): Promise<string> {
     const tenantId = await this.resolveTenantId(request, userId);
     if (!tenantId) {
       throw new ForbiddenException(

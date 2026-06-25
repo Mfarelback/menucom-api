@@ -72,7 +72,18 @@ export class CommerceController {
   @ApiOperation({ summary: 'Listar comercios donde tengo acceso' })
   @ApiResponse({ status: 200, description: 'Lista de comercios' })
   async getMyCommerces(@Request() req) {
-    return this.commerceService.getUserContexts(req.user.userId);
+    const contexts = await this.commerceService.getUserContexts(req.user.userId);
+    return contexts.map(({ commerce: c, role }) => ({
+      id: c.id,
+      businessName: c.businessName,
+      slug: c.slug,
+      context: c.context,
+      businessType: c.businessType,
+      role,
+      logoUrl: c.logoUrl,
+      coverImageUrl: c.coverImageUrl,
+      isActive: c.isActive,
+    }));
   }
 
   @Get(':commerceId')
@@ -114,7 +125,9 @@ export class CommerceController {
         throw new BadRequestException('No hay un comercio activo en tu sesión');
       }
       if (id !== req.user.commerceId) {
-        throw new ForbiddenException('Solo puedes editar el comercio en el que estás logueado');
+        throw new ForbiddenException(
+          'Solo puedes editar el comercio en el que estás logueado',
+        );
       }
     }
 
@@ -128,7 +141,12 @@ export class CommerceController {
       const url = await this.cloudinaryService.uploadImage(files.coverImage[0]);
       if (typeof url === 'string') dto.coverImageUrl = url;
     }
-    return this.commerceService.update(targetCommerceId, req.user.userId, dto, isAdmin);
+    return this.commerceService.update(
+      targetCommerceId,
+      req.user.userId,
+      dto,
+      isAdmin,
+    );
   }
 
   @Delete(':commerceId')
@@ -137,7 +155,10 @@ export class CommerceController {
   @ApiOperation({ summary: 'Desactivar comercio (soft delete)' })
   @ApiResponse({ status: 200, description: 'Comercio desactivado' })
   @ApiResponse({ status: 400, description: 'Sin contexto activo' })
-  @ApiResponse({ status: 403, description: 'No puedes desactivar otro comercio' })
+  @ApiResponse({
+    status: 403,
+    description: 'No puedes desactivar otro comercio',
+  })
   async deactivate(@Request() req, @Param('commerceId') id: string) {
     const isAdmin = req.user.role === 'admin';
 
@@ -146,12 +167,18 @@ export class CommerceController {
         throw new BadRequestException('No hay un comercio activo en tu sesión');
       }
       if (id !== req.user.commerceId) {
-        throw new ForbiddenException('Solo puedes desactivar el comercio en el que estás logueado');
+        throw new ForbiddenException(
+          'Solo puedes desactivar el comercio en el que estás logueado',
+        );
       }
     }
 
     const targetCommerceId = isAdmin ? id : req.user.commerceId;
-    await this.commerceService.deactivate(targetCommerceId, req.user.userId, isAdmin);
+    await this.commerceService.deactivate(
+      targetCommerceId,
+      req.user.userId,
+      isAdmin,
+    );
     return { message: 'Comercio desactivado exitosamente' };
   }
 }

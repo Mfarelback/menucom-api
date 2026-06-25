@@ -46,8 +46,8 @@ export class AuthService {
       const commerces = await this.commerceService.getUserContexts(userId);
       if (commerces.length === 1) {
         return {
-          commerceId: commerces[0].id,
-          commerceContext: commerces[0].context,
+          commerceId: commerces[0].commerce.id,
+          commerceContext: commerces[0].commerce.context,
         };
       }
       if (commerces.length === 0) {
@@ -454,12 +454,13 @@ export class AuthService {
       access_token: this.jwtService.sign(payload),
       commerceId,
       context: commerce.context,
-      availableContexts: contexts.map((c) => ({
+      availableContexts: contexts.map(({ commerce: c, role }) => ({
         id: c.id,
         businessName: c.businessName,
         slug: c.slug,
         context: c.context,
         businessType: c.businessType,
+        role,
       })),
     };
   }

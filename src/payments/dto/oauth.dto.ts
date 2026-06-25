@@ -6,7 +6,7 @@ export class InitiateOAuthDto {
     description: 'URL de redirección después de la autorización',
     example: 'https://myapp.com/oauth/callback',
   })
-  @IsUrl()
+  @IsUrl({ require_tld: false })
   redirectUri: string;
 
   @ApiProperty({
@@ -47,7 +47,7 @@ export class TokenExchangeDto {
   @ApiProperty({
     description: 'URI de redirección usada en la autorización inicial',
   })
-  @IsUrl()
+  @IsUrl({ require_tld: false })
   redirectUri: string;
 
   @ApiProperty({
@@ -56,4 +56,13 @@ export class TokenExchangeDto {
   })
   @IsString()
   vinculation_id: string;
+
+  @ApiProperty({
+    description: 'ID del comercio para multi-tenant (recibido en initiateOAuth)',
+    example: 'commerce-uuid-456',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  commerceId?: string;
 }

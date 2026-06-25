@@ -11,6 +11,9 @@ import {
   HttpCode,
   HttpStatus,
   Request,
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,34 +21,34 @@ import {
   ApiResponse,
   ApiBearerAuth,
   ApiParam,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../guards/jwt.auth.gards';
 import { PermissionsGuard } from '../guards/permissions.guard';
-import {
-  RequireContextPermissions,
-  DisablePermissions,
-} from '../decorators/permissions.decorator';
-import { Permission, BusinessContext } from '../models/permissions.model';
+import { DisablePermissions } from '../decorators/permissions.decorator';
 import { UserRoleService } from '../services/user-role.service';
 import { AssignRoleDto } from '../dto/assign-role.dto';
 import { RevokeRoleDto } from '../dto/revoke-role.dto';
 import { UpdateRoleDto } from '../dto/update-role.dto';
 import { QueryUserRolesDto } from '../dto/query-user-roles.dto';
-import { ChangeOwnRoleDto } from '../../user/dto/change-own-role.dto';
+import { UserService } from '../../user/user.service';
 
 @ApiTags('User Roles Management')
 @Controller('user-roles')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class UserRoleController {
-  constructor(private readonly userRoleService: UserRoleService) {}
+  constructor(
+    private readonly userRoleService: UserRoleService,
+    private readonly userService: UserService,
+  ) {}
 
   @Post('assign')
-  @RequireContextPermissions(BusinessContext.GENERAL, Permission.MANAGE_USERS)
+  @DisablePermissions()
   @ApiOperation({
     summary: 'Asignar un rol a un usuario',
     description:
-      'Asigna un rol específico a un usuario en un contexto de negocio. Solo usuarios con permiso MANAGE_USERS pueden asignar roles.',
+      'Asigna un rol a un usuario en un contexto de negocio. ADMIN puede asignar cualquier rol. OWNER puede asignar MANAGER/OPERATOR a su propio comercio.',
   })
   @ApiResponse({
     status: 201,
@@ -60,6 +63,13 @@ export class UserRoleController {
     description: 'No tienes permisos para asignar roles',
   })
   async assignRole(@Body() assignRoleDto: AssignRoleDto, @Request() req) {
+    await this.userRoleService.authorizeTeamManagement(
+      req.user.userId,
+      assignRoleDto.role,
+      assignRoleDto.context,
+      assignRoleDto.resourceId,
+    );
+
     const grantedBy = req.user.userId;
 
     const userRole = await this.userRoleService.assignRole(
@@ -83,12 +93,12 @@ export class UserRoleController {
   }
 
   @Delete('revoke')
-  @RequireContextPermissions(BusinessContext.GENERAL, Permission.MANAGE_USERS)
+  @DisablePermissions()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Revocar un rol de un usuario',
     description:
-      'Elimina permanentemente un rol de un usuario. Solo usuarios con permiso MANAGE_USERS pueden revocar roles.',
+      'Revoca un rol de un usuario. ADMIN puede revocar cualquier rol. OWNER puede revocar roles de su propio comercio.',
   })
   @ApiResponse({
     status: 200,
@@ -102,7 +112,15 @@ export class UserRoleController {
     status: 403,
     description: 'No tienes permisos para revocar roles',
   })
-  async revokeRole(@Body() revokeRoleDto: RevokeRoleDto) {
+  async revokeRole(@Body() revokeRoleDto: RevokeRoleDto, @Request() req) {
+    await this.userRoleService.authorizeTeamManagement(
+      req.user.userId,
+      revokeRoleDto.role,
+      revokeRoleDto.context,
+      revokeRoleDto.resourceId,
+      revokeRoleDto.userId,
+    );
+
     await this.userRoleService.revokeRole(
       revokeRoleDto.userId,
       revokeRoleDto.role,
@@ -116,11 +134,11 @@ export class UserRoleController {
   }
 
   @Patch(':roleId')
-  @RequireContextPermissions(BusinessContext.GENERAL, Permission.MANAGE_USERS)
+  @DisablePermissions()
   @ApiOperation({
     summary: 'Actualizar un rol existente',
     description:
-      'Actualiza propiedades de un rol como estado activo, fecha de expiración o metadata.',
+      'Actualiza propiedades de un rol como estado activo, fecha de expiración o metadata. ADMIN puede actualizar cualquier rol. OWNER puede actualizar roles de su comercio.',
   })
   @ApiParam({
     name: 'roleId',
@@ -138,7 +156,18 @@ export class UserRoleController {
   async updateRole(
     @Param('roleId') roleId: string,
     @Body() updateRoleDto: UpdateRoleDto,
+    @Request() req,
   ) {
+    const existingRole = await this.userRoleService.findRoleById(roleId);
+
+    await this.userRoleService.authorizeTeamManagement(
+      req.user.userId,
+      existingRole.role,
+      existingRole.context,
+      existingRole.resourceId,
+      existingRole.userId,
+    );
+
     const updatedRole = await this.userRoleService.updateRole(
       roleId,
       updateRoleDto,
@@ -151,7 +180,7 @@ export class UserRoleController {
   }
 
   @Get('user/:userId')
-  @RequireContextPermissions(BusinessContext.GENERAL, Permission.MANAGE_USERS)
+  @DisablePermissions()
   @ApiOperation({
     summary: 'Obtener todos los roles de un usuario',
     description:
@@ -182,7 +211,7 @@ export class UserRoleController {
   }
 
   @Get('user/:userId/permissions/:context')
-  @RequireContextPermissions(BusinessContext.GENERAL, Permission.MANAGE_USERS)
+  @DisablePermissions()
   @ApiOperation({
     summary: 'Obtener permisos de un usuario en un contexto',
     description:
@@ -280,6 +309,128 @@ export class UserRoleController {
         context,
         permissions,
       },
+    };
+  }
+
+  @Get('find-user')
+  @DisablePermissions()
+  @ApiOperation({
+    summary: 'Buscar un usuario por email',
+    description:
+      'Busca un usuario por su email y retorna su ID, nombre y email. Útil para resolver emails a userId antes de asignar roles.',
+  })
+  @ApiQuery({
+    name: 'email',
+    description: 'Email del usuario a buscar',
+    example: 'usuario@ejemplo.com',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Usuario encontrado',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Usuario no encontrado',
+  })
+  async findUserByEmail(@Query('email') email: string) {
+    if (!email) {
+      throw new BadRequestException('El parámetro email es requerido');
+    }
+
+    const user = await this.userService.findByEmail(email);
+    if (!user) {
+      throw new NotFoundException(
+        `No se encontró ningún usuario con el email ${email}`,
+      );
+    }
+
+    return {
+      message: 'Usuario encontrado',
+      data: {
+        userId: user.id,
+        name: user.name,
+        email: user.email,
+      },
+    };
+  }
+
+  @Get('my-team')
+  @DisablePermissions()
+  @ApiOperation({
+    summary: 'Obtener equipo del comercio actual',
+    description:
+      'Lista todos los usuarios con roles activos en el comercio del contexto actual. Incluye nombre, email y roles de cada usuario.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Equipo obtenido exitosamente',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'No hay contexto de comercio activo',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'No tienes acceso a este comercio',
+  })
+  async getMyTeam(@Request() req) {
+    const commerceId = req.user.commerceId || req.tenantId;
+
+    if (!commerceId) {
+      throw new BadRequestException(
+        'No hay un contexto de comercio activo. Asegúrate de tener un commerceId en tu sesión.',
+      );
+    }
+
+    const hasAccess = await this.userRoleService.hasAccessToCommerce(
+      req.user.userId,
+      commerceId,
+    );
+
+    if (!hasAccess) {
+      throw new ForbiddenException('No tienes acceso a este comercio');
+    }
+
+    const roles = await this.userRoleService.getTeamByCommerce(commerceId);
+
+    const usersMap = new Map<
+      string,
+      {
+        userId: string;
+        name: string;
+        email: string;
+        roles: Array<{
+          id: string;
+          role: string;
+          context: string;
+          isActive: boolean;
+          grantedAt: Date;
+        }>;
+      }
+    >();
+
+    for (const role of roles) {
+      if (!usersMap.has(role.userId)) {
+        usersMap.set(role.userId, {
+          userId: role.user.id,
+          name: role.user.name,
+          email: role.user.email,
+          roles: [],
+        });
+      }
+
+      usersMap.get(role.userId)!.roles.push({
+        id: role.id,
+        role: role.role,
+        context: role.context,
+        isActive: role.isActive,
+        grantedAt: role.grantedAt,
+      });
+    }
+
+    return {
+      commerceId,
+      users: Array.from(usersMap.values()),
     };
   }
 }

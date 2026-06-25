@@ -21,7 +21,13 @@ import { UserRoleService } from '../auth/services/user-role.service';
 @Module({
   imports: [
     forwardRef(() => AuthModule),
-    TypeOrmModule.forFeature([User, RecoveryPassword, Membership, UserRole, Commerce]),
+    TypeOrmModule.forFeature([
+      User,
+      RecoveryPassword,
+      Membership,
+      UserRole,
+      Commerce,
+    ]),
     ImageProxyModule,
     CloudinaryModule,
     CatalogModule,

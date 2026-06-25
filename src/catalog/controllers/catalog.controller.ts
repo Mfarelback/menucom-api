@@ -11,6 +11,7 @@ import {
   Request,
   UseInterceptors,
   UploadedFile,
+  BadRequestException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -114,21 +115,56 @@ export class CatalogController {
         .filter((tag: string) => tag.length > 0);
     }
 
-    return await this.catalogService.createCatalog(ownerId, createCatalogDto, commerceId);
+    return await this.catalogService.createCatalog(
+      ownerId,
+      createCatalogDto,
+      commerceId,
+    );
   }
 
   /**
    * Obtener todos los catálogos del usuario autenticado
+   * Agrupados en linked (vinculados a comercio) y unlinked (sin comercio)
    */
   @Get('my-catalogs')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtener mis catálogos' })
-  @ApiResponse({ status: 200, description: 'Lista de catálogos' })
-  async getMyCatalogs(@Request() req: AuthenticatedRequest, @Query('type') type?: CatalogType) {
+  @ApiResponse({
+    status: 200,
+    description: 'Lista de catálogos agrupados por vinculación',
+  })
+  async getMyCatalogs(
+    @Request() req: AuthenticatedRequest,
+    @Query('type') type?: string,
+  ) {
     const ownerId = req.user.userId;
     const commerceId = req.tenantId;
-    return await this.catalogService.getCatalogsByOwner(ownerId, type, false, commerceId);
+
+    const catalogType = this.validateCatalogType(type);
+
+    if (commerceId) {
+      return await this.catalogService.getMyCatalogsGrouped(
+        ownerId,
+        commerceId,
+        catalogType,
+      );
+    }
+
+    const catalogs = await this.catalogService.getCatalogsByOwner(
+      ownerId,
+      catalogType,
+    );
+    return { linked: [], unlinked: catalogs };
+  }
+
+  private validateCatalogType(raw?: string): CatalogType | undefined {
+    if (!raw) return undefined;
+
+    const validCatalogTypes = Object.values(CatalogType) as string[];
+    if (validCatalogTypes.includes(raw)) return raw as CatalogType;
+
+    return undefined;
   }
 
   /**
@@ -140,10 +176,18 @@ export class CatalogController {
   @ApiOperation({ summary: 'Obtener catálogo por ID' })
   @ApiResponse({ status: 200, description: 'Catálogo encontrado' })
   @ApiResponse({ status: 404, description: 'Catálogo no encontrado' })
-  async getCatalogById(@Request() req: AuthenticatedRequest, @Param('catalogId') catalogId: string) {
+  async getCatalogById(
+    @Request() req: AuthenticatedRequest,
+    @Param('catalogId') catalogId: string,
+  ) {
     const ownerId = req.user.userId;
     const commerceId = req.tenantId;
-    return await this.catalogService.getCatalogById(catalogId, ownerId, true, commerceId);
+    return await this.catalogService.getCatalogById(
+      catalogId,
+      ownerId,
+      true,
+      commerceId,
+    );
   }
 
   /**
@@ -211,10 +255,17 @@ export class CatalogController {
   @ApiOperation({ summary: 'Eliminar catálogo' })
   @ApiResponse({ status: 200, description: 'Catálogo eliminado' })
   @ApiResponse({ status: 404, description: 'Catálogo no encontrado' })
-  async deleteCatalog(@Request() req: AuthenticatedRequest, @Param('catalogId') catalogId: string) {
+  async deleteCatalog(
+    @Request() req: AuthenticatedRequest,
+    @Param('catalogId') catalogId: string,
+  ) {
     const ownerId = req.user.userId;
     const commerceId = req.tenantId;
-    return await this.catalogService.deleteCatalog(catalogId, ownerId, commerceId);
+    return await this.catalogService.deleteCatalog(
+      catalogId,
+      ownerId,
+      commerceId,
+    );
   }
 
   /**
@@ -225,10 +276,50 @@ export class CatalogController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Archivar catálogo' })
   @ApiResponse({ status: 200, description: 'Catálogo archivado' })
-  async archiveCatalog(@Request() req: AuthenticatedRequest, @Param('catalogId') catalogId: string) {
+  async archiveCatalog(
+    @Request() req: AuthenticatedRequest,
+    @Param('catalogId') catalogId: string,
+  ) {
     const ownerId = req.user.userId;
     const commerceId = req.tenantId;
-    return await this.catalogService.archiveCatalog(catalogId, ownerId, commerceId);
+    return await this.catalogService.archiveCatalog(
+      catalogId,
+      ownerId,
+      commerceId,
+    );
+  }
+
+  /**
+   * Vincular catálogo sin comercio al comercio actual
+   */
+  @Post(':catalogId/assign-to-commerce')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Vincular catálogo a comercio' })
+  @ApiResponse({ status: 200, description: 'Catálogo vinculado exitosamente' })
+  @ApiResponse({
+    status: 400,
+    description: 'Catálogo ya vinculado o sin contexto de comercio',
+  })
+  @ApiResponse({ status: 404, description: 'Catálogo no encontrado' })
+  async assignToCommerce(
+    @Request() req: AuthenticatedRequest,
+    @Param('catalogId') catalogId: string,
+  ) {
+    const ownerId = req.user.userId;
+    const commerceId = req.tenantId;
+
+    if (!commerceId) {
+      throw new BadRequestException(
+        'No se encontró un comercio para vincular el catálogo',
+      );
+    }
+
+    return await this.catalogService.assignCatalogToCommerce(
+      catalogId,
+      ownerId,
+      commerceId,
+    );
   }
 
   /**
@@ -282,7 +373,11 @@ export class CatalogController {
     }
 
     createItemDto.catalogId = catalogId;
-    return await this.catalogService.addItem(ownerId, createItemDto, commerceId);
+    return await this.catalogService.addItem(
+      ownerId,
+      createItemDto,
+      commerceId,
+    );
   }
 
   /**
@@ -359,7 +454,12 @@ export class CatalogController {
       }
     }
 
-    return await this.catalogService.updateItem(itemId, ownerId, updateItemDto, commerceId);
+    return await this.catalogService.updateItem(
+      itemId,
+      ownerId,
+      updateItemDto,
+      commerceId,
+    );
   }
 
   /**
@@ -396,6 +496,30 @@ export class CatalogController {
   }
 
   /**
+   * Obtener catálogo público por ID
+   */
+  @Get('public/id/:catalogId')
+  @ApiOperation({ summary: 'Obtener catálogo público por ID' })
+  @ApiResponse({ status: 200, description: 'Catálogo encontrado' })
+  @ApiResponse({ status: 404, description: 'Catálogo no encontrado' })
+  async getPublicCatalogById(@Param('catalogId') catalogId: string) {
+    return await this.catalogService.getPublicCatalogById(catalogId);
+  }
+
+  /**
+   * Obtener catálogos públicos de un comercio por slug o UUID
+   */
+  @Get('public/commerce/:identifier')
+  @ApiOperation({ summary: 'Obtener catálogos públicos de un comercio' })
+  @ApiResponse({ status: 200, description: 'Catálogos encontrados' })
+  @ApiResponse({ status: 404, description: 'No se encontraron catálogos' })
+  async getPublicCatalogsByCommerce(
+    @Param('identifier') identifier: string,
+  ) {
+    return await this.catalogService.getPublicCatalogsByCommerce(identifier);
+  }
+
+  /**
    * Obtener catálogo público por slug
    */
   @Get('public/:slug')
@@ -408,6 +532,7 @@ export class CatalogController {
 
   /**
    * Obtener catálogos públicos por ownerId (sin autenticación)
+   * @deprecated Usar getPublicCatalogsByCommerce en su lugar
    */
   @Get('public/owner/:ownerId')
   @ApiOperation({

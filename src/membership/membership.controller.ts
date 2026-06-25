@@ -51,7 +51,10 @@ export class MembershipController {
   async getUserMembership(
     @Request() req: AuthenticatedRequest,
   ): Promise<MembershipResponseDto> {
-    return this.membershipService.getUserMembership(req.user.userId, req.tenantId);
+    return this.membershipService.getUserMembership(
+      req.user.userId,
+      req.tenantId,
+    );
   }
 
   /**

@@ -1,11 +1,6 @@
-import {
-  Injectable,
-  ConflictException,
-  Logger,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere } from 'typeorm';
+import { Repository, FindOptionsWhere, IsNull } from 'typeorm';
 import { Catalog } from '../entities/catalog.entity';
 import { CatalogItem } from '../entities/catalog-item.entity';
 import {
@@ -20,6 +15,9 @@ import {
   UpdateCatalogItemDto,
 } from '../dto/catalog-item.dto';
 import { ResourceLimitService } from '../../membership/services/resource-limit.service';
+import { UserRoleService } from '../../auth/services/user-role.service';
+import { Permission, BusinessContext } from '../../auth/models/permissions.model';
+import { Commerce } from '../../commerce/entities/commerce.entity';
 import {
   CatalogNotFoundException,
   CatalogItemNotFoundException,
@@ -35,7 +33,10 @@ export class CatalogService {
     private readonly catalogRepository: Repository<Catalog>,
     @InjectRepository(CatalogItem)
     private readonly catalogItemRepository: Repository<CatalogItem>,
+    @InjectRepository(Commerce)
+    private readonly commerceRepository: Repository<Commerce>,
     private readonly resourceLimitService: ResourceLimitService,
+    private readonly userRoleService: UserRoleService,
   ) {}
 
   /**
@@ -47,6 +48,10 @@ export class CatalogService {
     commerceId?: string,
   ): Promise<Catalog> {
     try {
+      if (commerceId) {
+        await this.validateCatalogPermission(ownerId, commerceId, Permission.CREATE_CATALOG);
+      }
+
       await this.resourceLimitService.validateResourceCreation(
         { userId: ownerId, commerceId },
         'catalog',
@@ -139,6 +144,85 @@ export class CatalogService {
   }
 
   /**
+   * Obtiene catálogos agrupados por vinculación al comercio
+   */
+  async getMyCatalogsGrouped(
+    ownerId: string,
+    commerceId: string,
+    catalogType?: CatalogType,
+  ): Promise<{ linked: Catalog[]; unlinked: Catalog[] }> {
+    const baseWhere: FindOptionsWhere<Catalog> = {
+      status: CatalogStatus.ACTIVE,
+    };
+
+    if (catalogType) {
+      baseWhere.catalogType = catalogType;
+    }
+
+    this.logger.log(
+      `getMyCatalogsGrouped: ownerId=${ownerId}, commerceId=${commerceId}, catalogType=${catalogType || 'all'}`,
+    );
+
+    const linked = await this.catalogRepository.find({
+      where: { ...baseWhere, commerceId },
+      order: { createdAt: 'DESC' },
+    });
+
+    this.logger.log(`getMyCatalogsGrouped: linked=${linked.length} catalogs`);
+
+    const unlinked = await this.catalogRepository.find({
+      where: {
+        ...baseWhere,
+        ownerId,
+        commerceId: IsNull(),
+      },
+      order: { createdAt: 'DESC' },
+    });
+
+    this.logger.log(`getMyCatalogsGrouped: unlinked=${unlinked.length} catalogs`);
+
+    return { linked, unlinked };
+  }
+
+  /**
+   * Vincula un catálogo sin comercio al comercio del usuario
+   */
+  async assignCatalogToCommerce(
+    catalogId: string,
+    ownerId: string,
+    commerceId: string,
+  ): Promise<Catalog> {
+    const catalog = await this.catalogRepository.findOne({
+      where: { id: catalogId },
+    });
+
+    if (!catalog) {
+      throw new CatalogNotFoundException(catalogId);
+    }
+
+    if (catalog.ownerId !== ownerId) {
+      throw new CatalogUnauthorizedException(catalogId, ownerId);
+    }
+
+    if (catalog.commerceId) {
+      throw new InvalidCatalogDataException(
+        'El catálogo ya está vinculado a un comercio',
+        { catalogId, currentCommerceId: catalog.commerceId },
+      );
+    }
+
+    catalog.commerceId = commerceId;
+
+    const updated = await this.catalogRepository.save(catalog);
+
+    this.logger.log(
+      `Catálogo ${catalogId} vinculado al comercio ${commerceId} por usuario ${ownerId}`,
+    );
+
+    return updated;
+  }
+
+  /**
    * Obtiene un catálogo específico con validación de ownership o commerceId
    */
   async getCatalogById(
@@ -147,7 +231,7 @@ export class CatalogService {
     includeItems: boolean = true,
     commerceId?: string,
   ): Promise<Catalog> {
-    const relations = includeItems ? ['items', 'owner'] : ['owner'];
+    const relations = includeItems ? ['items'] : [];
     const catalog = await this.catalogRepository.findOne({
       where: { id: catalogId },
       relations,
@@ -157,7 +241,6 @@ export class CatalogService {
       throw new CatalogNotFoundException(catalogId);
     }
 
-    // Validar acceso por commerceId (preferido) o ownerId (legacy)
     if (commerceId && catalog.commerceId && catalog.commerceId !== commerceId) {
       throw new CatalogUnauthorizedException(catalogId, ownerId, {
         commerceId,
@@ -179,7 +262,7 @@ export class CatalogService {
     slug: string,
     includeItems: boolean = true,
   ): Promise<Catalog> {
-    const relations = includeItems ? ['items', 'owner'] : ['owner'];
+    const relations = includeItems ? ['items'] : [];
     const catalog = await this.catalogRepository.findOne({
       where: { slug, status: CatalogStatus.ACTIVE },
       relations,
@@ -211,6 +294,14 @@ export class CatalogService {
       false,
       commerceId,
     );
+
+    if (commerceId || catalog.commerceId) {
+      await this.validateCatalogPermission(
+        ownerId,
+        commerceId || catalog.commerceId,
+        Permission.UPDATE_CATALOG,
+      );
+    }
 
     if ('slug' in updateCatalogDto && updateCatalogDto.slug) {
       const existingCatalog = await this.catalogRepository.findOne({
@@ -251,6 +342,14 @@ export class CatalogService {
       commerceId,
     );
 
+    if (commerceId || catalog.commerceId) {
+      await this.validateCatalogPermission(
+        ownerId,
+        commerceId || catalog.commerceId,
+        Permission.DELETE_CATALOG,
+      );
+    }
+
     await this.catalogRepository.remove(catalog);
 
     this.logger.log(`Catálogo eliminado: ${catalogId} por usuario ${ownerId}`);
@@ -271,6 +370,14 @@ export class CatalogService {
       commerceId,
     );
 
+    if (commerceId || catalog.commerceId) {
+      await this.validateCatalogPermission(
+        ownerId,
+        commerceId || catalog.commerceId,
+        Permission.UPDATE_CATALOG,
+      );
+    }
+
     catalog.status = CatalogStatus.ARCHIVED;
     catalog.archivedAt = new Date();
 
@@ -285,6 +392,10 @@ export class CatalogService {
     createItemDto: CreateCatalogItemDto,
     commerceId?: string,
   ): Promise<CatalogItem> {
+    if (commerceId) {
+      await this.validateCatalogPermission(ownerId, commerceId, Permission.CREATE_ITEM);
+    }
+
     await this.resourceLimitService.validateResourceCreation(
       { userId: ownerId, commerceId },
       'catalogItem',
@@ -393,6 +504,11 @@ export class CatalogService {
       });
     }
 
+    const resolvedCommerceId = commerceId || item.catalog.commerceId;
+    if (resolvedCommerceId) {
+      await this.validateCatalogPermission(catalogOwnerId, resolvedCommerceId, Permission.UPDATE_ITEM);
+    }
+
     Object.assign(item, {
       ...updateItemDto,
       updatedAt: new Date(),
@@ -440,6 +556,11 @@ export class CatalogService {
         operation: 'delete',
         itemId,
       });
+    }
+
+    const resolvedCommerceId = commerceId || item.catalog.commerceId;
+    if (resolvedCommerceId) {
+      await this.validateCatalogPermission(catalogOwnerId, resolvedCommerceId, Permission.DELETE_ITEM);
     }
 
     await this.catalogItemRepository.remove(item);
@@ -588,6 +709,82 @@ export class CatalogService {
   }
 
   /**
+   * Obtiene catálogos públicos de un comercio por slug o UUID
+   */
+  async getPublicCatalogsByCommerce(identifier: string): Promise<any> {
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        identifier,
+      );
+
+    const commerce = isUUID
+      ? await this.commerceRepository.findOne({
+          where: { id: identifier, isActive: true },
+        })
+      : await this.commerceRepository.findOne({
+          where: { slug: identifier, isActive: true },
+        });
+
+    if (!commerce) {
+      throw new CatalogNotFoundException(identifier, {
+        searchType: 'commerce',
+        isPublic: true,
+      });
+    }
+
+    const catalogs = await this.catalogRepository.find({
+      where: {
+        commerceId: commerce.id,
+        status: CatalogStatus.ACTIVE,
+        isPublic: true,
+      },
+      relations: ['items'],
+      order: { createdAt: 'DESC' },
+    });
+
+    if (!catalogs || catalogs.length === 0) {
+      throw new CatalogNotFoundException(identifier, {
+        searchType: 'commerce',
+        isPublic: true,
+      });
+    }
+
+    return catalogs.map((catalog) => {
+      const availableItems = catalog.items
+        ? catalog.items.filter(
+            (item) =>
+              item.isAvailable && item.status === CatalogItemStatus.AVAILABLE,
+          )
+        : [];
+
+      return {
+        id: catalog.id,
+        type: catalog.catalogType,
+        name: catalog.name,
+        description: catalog.description,
+        coverImageUrl: catalog.coverImageUrl,
+        tags: catalog.tags,
+        slug: catalog.slug,
+        commerceId: commerce.id,
+        metadata: catalog.metadata,
+        commerce: {
+          id: commerce.id,
+          name: commerce.businessName,
+          slug: commerce.slug,
+          logoUrl: commerce.logoUrl,
+          description: commerce.description,
+          address: commerce.address,
+          phone: commerce.phone,
+        },
+        items: availableItems,
+        itemCount: availableItems.length,
+        viewCount: catalog.viewCount,
+        createdAt: catalog.createdAt,
+      };
+    });
+  }
+
+  /**
    * Busca catálogos públicos por tipo y/o tags
    */
   async searchPublicCatalogs(
@@ -629,5 +826,30 @@ export class CatalogService {
       .replace(/[^\w\s-]/g, '')
       .replace(/[\s_-]+/g, '-')
       .replace(/^-+|-+$/g, '');
+  }
+
+  private async validateCatalogPermission(
+    userId: string,
+    commerceId: string,
+    permission: Permission,
+  ): Promise<void> {
+    const commerce = await this.commerceRepository.findOne({
+      where: { id: commerceId },
+      select: ['context'],
+    });
+
+    const context = commerce?.context as BusinessContext || BusinessContext.GENERAL;
+
+    const hasPermission = await this.userRoleService.userHasPermission(
+      userId,
+      context,
+      permission,
+    );
+
+    if (!hasPermission) {
+      throw new ForbiddenException(
+        `No tienes permiso para realizar esta acción (${permission}) en el comercio`,
+      );
+    }
   }
 }

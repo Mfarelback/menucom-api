@@ -305,9 +305,17 @@ export class AuthController {
           slug: { type: 'string' },
           context: { type: 'string' },
           businessType: { type: 'string' },
+          role: {
+            type: 'string',
+            description: 'Rol del usuario en este comercio (owner, manager, operator)',
+          },
           logoUrl: { type: 'string', nullable: true },
           coverImageUrl: { type: 'string', nullable: true },
-          isCurrent: { type: 'boolean', description: 'Indica si este es el comercio actualmente seleccionado' },
+          isCurrent: {
+            type: 'boolean',
+            description:
+              'Indica si este es el comercio actualmente seleccionado',
+          },
         },
       },
     },
@@ -315,13 +323,14 @@ export class AuthController {
   async getMyContexts(@Req() req: AuthenticatedRequest) {
     const userId = req.user.userId;
     const currentCommerceId = req.user.commerceId;
-    const commerces = await this.commerceService.getUserContexts(userId);
-    return commerces.map((c) => ({
+    const contexts = await this.commerceService.getUserContexts(userId);
+    return contexts.map(({ commerce: c, role }) => ({
       id: c.id,
       businessName: c.businessName,
       slug: c.slug,
       context: c.context,
       businessType: c.businessType,
+      role,
       logoUrl: c.logoUrl,
       coverImageUrl: c.coverImageUrl,
       isCurrent: c.id === currentCommerceId,

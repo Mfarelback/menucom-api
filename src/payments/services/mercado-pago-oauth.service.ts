@@ -10,6 +10,7 @@ import { Repository } from 'typeorm';
 import { ConfigService } from '@nestjs/config';
 import axios from 'axios';
 import { MercadoPagoAccount } from '../entities/mercado-pago-account.entity';
+import { Commerce } from '../../commerce/entities/commerce.entity';
 
 @Injectable()
 export class MercadoPagoOAuthService {
@@ -21,6 +22,8 @@ export class MercadoPagoOAuthService {
   constructor(
     @InjectRepository(MercadoPagoAccount)
     private readonly mpAccountRepository: Repository<MercadoPagoAccount>,
+    @InjectRepository(Commerce)
+    private readonly commerceRepository: Repository<Commerce>,
     private readonly configService: ConfigService,
   ) {
     this.baseUrl = 'https://api.mercadopago.com';
@@ -41,17 +44,22 @@ export class MercadoPagoOAuthService {
     userId: string,
     redirectUri: string,
     state?: string,
+    commerceId?: string,
   ): string {
     if (!this.clientId) {
       throw new BadRequestException('OAuth not configured');
     }
+
+    const defaultState = commerceId
+      ? `user_${userId}_commerce_${commerceId}_${Date.now()}`
+      : `user_${userId}_${Date.now()}`;
 
     const params = new URLSearchParams({
       client_id: this.clientId,
       response_type: 'code',
       platform_id: 'mp',
       redirect_uri: redirectUri,
-      state: state || `user_${userId}_${Date.now()}`,
+      state: state || defaultState,
     });
 
     const authUrl = `https://auth.mercadopago.com/authorization?${params.toString()}`;
@@ -138,9 +146,10 @@ export class MercadoPagoOAuthService {
     userId: string,
     authorizationCode: string,
     redirectUri: string,
+    commerceId?: string,
   ): Promise<MercadoPagoAccount> {
     this.logger.log(
-      `Starting OAuth account linking for user: ${userId}, redirectUri: ${redirectUri}`,
+      `Starting OAuth account linking for user: ${userId}, commerce: ${commerceId || 'none'}, redirectUri: ${redirectUri}`,
     );
 
     // Verificar configuración OAuth
@@ -150,15 +159,27 @@ export class MercadoPagoOAuthService {
       );
     }
 
-    // Verificar si el usuario ya tiene una cuenta vinculada
-    const existingAccount = await this.mpAccountRepository.findOne({
-      where: { userId },
-    });
+    // Verificar si ya existe una cuenta vinculada para este commerce o usuario
+    let existingAccount: MercadoPagoAccount | null = null;
+
+    if (commerceId) {
+      existingAccount = await this.mpAccountRepository.findOne({
+        where: { commerceId },
+      });
+    }
+
+    if (!existingAccount) {
+      existingAccount = await this.mpAccountRepository.findOne({
+        where: { userId },
+      });
+    }
 
     if (existingAccount && existingAccount.isActive) {
-      this.logger.warn(`User ${userId} already has a linked MP account`);
+      this.logger.warn(
+        `User ${userId} already has a linked MP account for commerce ${commerceId}`,
+      );
       throw new ConflictException(
-        'User already has a linked Mercado Pago account',
+        'User already has a linked Mercado Pago account for this commerce',
       );
     }
 
@@ -183,7 +204,7 @@ export class MercadoPagoOAuthService {
       );
 
       // Crear o actualizar la cuenta
-      const accountData = {
+      const accountData: Partial<MercadoPagoAccount> = {
         userId,
         accessToken: tokenData.access_token,
         refreshToken: tokenData.refresh_token,
@@ -202,6 +223,10 @@ export class MercadoPagoOAuthService {
         },
         isActive: true,
       };
+
+      if (commerceId) {
+        accountData.commerceId = commerceId;
+      }
 
       let mpAccount: MercadoPagoAccount;
 
@@ -227,14 +252,18 @@ export class MercadoPagoOAuthService {
   /**
    * Refresca el token de acceso usando el refresh token
    */
-  async refreshAccessToken(userId: string): Promise<MercadoPagoAccount> {
-    const account = await this.mpAccountRepository.findOne({
-      where: { userId, isActive: true },
-    });
+  async refreshAccessToken(
+    identifier: string,
+    byCommerceId: boolean = false,
+  ): Promise<MercadoPagoAccount> {
+    const account = await this.getUserMercadoPagoAccount(
+      identifier,
+      byCommerceId,
+    );
 
     if (!account || !account.refreshToken) {
       throw new NotFoundException(
-        'No active Mercado Pago account found for user',
+        'No active Mercado Pago account found',
       );
     }
 
@@ -248,7 +277,6 @@ export class MercadoPagoOAuthService {
 
       const tokenData = response.data;
 
-      // Actualizar tokens en la base de datos
       account.accessToken = tokenData.access_token;
       if (tokenData.refresh_token) {
         account.refreshToken = tokenData.refresh_token;
@@ -262,12 +290,14 @@ export class MercadoPagoOAuthService {
 
       const updatedAccount = await this.mpAccountRepository.save(account);
 
-      this.logger.log(`Refreshed access token for user ${userId}`);
+      this.logger.log(
+        `Refreshed access token for ${byCommerceId ? 'commerce' : 'user'} ${identifier}`,
+      );
 
       return updatedAccount;
     } catch (error) {
       this.logger.error(
-        `Error refreshing token for user ${userId}:`,
+        `Error refreshing token for ${identifier}:`,
         error.response?.data || error.message,
       );
       throw new BadRequestException('Failed to refresh access token');
@@ -275,27 +305,36 @@ export class MercadoPagoOAuthService {
   }
 
   /**
-   * Obtiene la cuenta de Mercado Pago de un usuario
+   * Obtiene la cuenta de Mercado Pago de un usuario o commerce
    */
   async getUserMercadoPagoAccount(
-    userId: string,
+    identifier: string,
+    byCommerceId: boolean = false,
   ): Promise<MercadoPagoAccount | null> {
+    if (byCommerceId) {
+      return this.getAccountByCommerce(identifier);
+    }
     return this.mpAccountRepository.findOne({
-      where: { userId, isActive: true },
+      where: { userId: identifier, isActive: true },
     });
   }
 
   /**
-   * Desvincula la cuenta de Mercado Pago de un usuario
+   * Desvincula la cuenta de Mercado Pago de un usuario o commerce
    */
-  async unlinkAccount(userId: string): Promise<void> {
-    const account = await this.mpAccountRepository.findOne({
-      where: { userId, isActive: true },
-    });
+  async unlinkAccount(
+    identifier: string,
+    byCommerceId: boolean = false,
+  ): Promise<void> {
+    const where = byCommerceId
+      ? { commerceId: identifier, isActive: true }
+      : { userId: identifier, isActive: true };
+
+    const account = await this.mpAccountRepository.findOne({ where });
 
     if (!account) {
       throw new NotFoundException(
-        'No active Mercado Pago account found for user',
+        'No active Mercado Pago account found',
       );
     }
 
@@ -303,17 +342,23 @@ export class MercadoPagoOAuthService {
     account.status = 'inactive';
     await this.mpAccountRepository.save(account);
 
-    this.logger.log(`Unlinked MP account for user ${userId}`);
+    this.logger.log(
+      `Unlinked MP account for ${byCommerceId ? 'commerce' : 'user'} ${identifier}`,
+    );
   }
 
   /**
    * Verifica si el token está próximo a expirar
    */
   async isTokenExpiringSoon(
-    userId: string,
+    identifier: string,
     minutesThreshold: number = 30,
+    byCommerceId: boolean = false,
   ): Promise<boolean> {
-    const account = await this.getUserMercadoPagoAccount(userId);
+    const account = await this.getUserMercadoPagoAccount(
+      identifier,
+      byCommerceId,
+    );
 
     if (!account || !account.tokenExpiresAt) {
       return false;
@@ -328,21 +373,26 @@ export class MercadoPagoOAuthService {
   }
 
   /**
-   * Obtiene el access token válido para un usuario (renovándolo si es necesario)
+   * Obtiene el access token válido para un usuario o commerce (renovándolo si es necesario)
    */
-  async getValidAccessToken(userId: string): Promise<string> {
-    let account = await this.getUserMercadoPagoAccount(userId);
+  async getValidAccessToken(
+    identifier: string,
+    byCommerceId: boolean = false,
+  ): Promise<string> {
+    let account = await this.getUserMercadoPagoAccount(
+      identifier,
+      byCommerceId,
+    );
 
     if (!account) {
       throw new NotFoundException(
-        'No Mercado Pago account linked for this user',
+        'No Mercado Pago account linked',
       );
     }
 
-    // Verificar si el token está próximo a expirar
-    if (await this.isTokenExpiringSoon(userId)) {
-      this.logger.log(`Token expiring soon for user ${userId}, refreshing...`);
-      account = await this.refreshAccessToken(userId);
+    if (await this.isTokenExpiringSoon(identifier, 30, byCommerceId)) {
+      this.logger.log(`Token expiring soon for ${identifier}, refreshing...`);
+      account = await this.refreshAccessToken(identifier, byCommerceId);
     }
 
     return account.accessToken;
@@ -416,5 +466,54 @@ export class MercadoPagoOAuthService {
       );
       throw new BadRequestException('Error getting account data');
     }
+  }
+
+  async getAccountByCommerce(
+    commerceId: string,
+  ): Promise<MercadoPagoAccount | null> {
+    let account = await this.mpAccountRepository.findOne({
+      where: { commerceId, isActive: true },
+    });
+
+    if (!account) {
+      const commerce = await this.commerceRepository.findOne({
+        where: { id: commerceId },
+      });
+      if (commerce?.ownerId) {
+        account = await this.mpAccountRepository.findOne({
+          where: { userId: commerce.ownerId, isActive: true },
+        });
+      }
+    }
+
+    return account;
+  }
+
+  async getAccountDataForPreferenceByCommerce(commerceId: string): Promise<{
+    collectorId: number;
+    accessToken: string;
+  } | null> {
+    const account = await this.getAccountByCommerce(commerceId);
+    if (!account) {
+      this.logger.warn(
+        `No active MercadoPago account found for commerce ${commerceId}`,
+      );
+      return null;
+    }
+
+    this.logger.log(
+      `Found account data for commerce ${commerceId}: collector_id=${account.collectorId}`,
+    );
+
+    return {
+      collectorId: parseInt(account.collectorId, 10),
+      accessToken: account.accessToken,
+    };
+  }
+
+  async getCollectorIdByCommerce(commerceId: string): Promise<number | null> {
+    const account = await this.getAccountByCommerce(commerceId);
+    if (!account) return null;
+    return parseInt(account.collectorId, 10);
   }
 }

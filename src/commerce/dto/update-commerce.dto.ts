@@ -28,7 +28,10 @@ export class UpdateCommerceDto {
   @MaxLength(100)
   businessType?: string;
 
-  @ApiPropertyOptional({ description: 'Contexto de negocio', enum: BusinessContext })
+  @ApiPropertyOptional({
+    description: 'Contexto de negocio',
+    enum: BusinessContext,
+  })
   @IsOptional()
   @IsEnum(BusinessContext)
   context?: BusinessContext;
@@ -47,12 +50,17 @@ export class UpdateCommerceDto {
   })
   coverImage?: any;
 
-  @ApiPropertyOptional({ description: 'URL del logo (se asigna automáticamente al subir archivo)' })
+  @ApiPropertyOptional({
+    description: 'URL del logo (se asigna automáticamente al subir archivo)',
+  })
   @IsOptional()
   @IsString()
   logoUrl?: string;
 
-  @ApiPropertyOptional({ description: 'URL de imagen de portada (se asigna automáticamente al subir archivo)' })
+  @ApiPropertyOptional({
+    description:
+      'URL de imagen de portada (se asigna automáticamente al subir archivo)',
+  })
   @IsOptional()
   @IsString()
   coverImageUrl?: string;

@@ -9,9 +9,7 @@ import { TenantResolutionService } from '../services/tenant-resolution.service';
 
 @Injectable()
 export class TenantInterceptor implements NestInterceptor {
-  constructor(
-    private readonly tenantResolution: TenantResolutionService,
-  ) {}
+  constructor(private readonly tenantResolution: TenantResolutionService) {}
 
   async intercept(
     context: ExecutionContext,

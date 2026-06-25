@@ -255,6 +255,7 @@ export class OrdersService {
           secureAmounts.total,
           `Orden #${savedOrder.id.substring(0, 8)}`,
           ownerId,
+          commerceId,
           createdBy,
           savedOrder.id,
           secureAmounts.marketplaceFeeAmount,

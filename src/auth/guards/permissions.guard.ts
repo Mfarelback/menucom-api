@@ -3,8 +3,11 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  Optional,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import {
   PERMISSIONS_KEY,
   CONTEXT_KEY,
@@ -13,19 +16,9 @@ import {
 import { Permission, BusinessContext } from '../models/permissions.model';
 import { UserRoleService } from '../services/user-role.service';
 import { TenantResolutionService } from '../services/tenant-resolution.service';
+import { Commerce } from '../../commerce/entities/commerce.entity';
 import { LoggerService } from '../../core/logger/logger.service';
 
-/**
- * Guard que verifica si el usuario tiene los permisos necesarios
- * en el contexto de negocio especificado.
- * Usa TenantResolutionService para resolver el tenantId (evita duplicación con TenantInterceptor).
- *
- * Uso:
- * @UseGuards(JwtAuthGuard, PermissionsGuard)
- * @RequirePermissions(Permission.CREATE_CATALOG)
- * @BusinessContextDecorator(BusinessContext.RESTAURANT)
- * async createRestaurantMenu() { ... }
- */
 @Injectable()
 export class PermissionsGuard implements CanActivate {
   constructor(
@@ -33,6 +26,9 @@ export class PermissionsGuard implements CanActivate {
     private userRoleService: UserRoleService,
     private logger: LoggerService,
     private readonly tenantResolution: TenantResolutionService,
+    @Optional()
+    @InjectRepository(Commerce)
+    private readonly commerceRepository: Repository<Commerce> | null,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -59,8 +55,6 @@ export class PermissionsGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
 
-    const contextToUse = businessContext || BusinessContext.GENERAL;
-
     const request = context.switchToHttp().getRequest();
     const user = request.user;
 
@@ -82,6 +76,22 @@ export class PermissionsGuard implements CanActivate {
       );
       if (resolved) {
         request.tenantId = resolved;
+      }
+    }
+
+    let contextToUse = businessContext || BusinessContext.GENERAL;
+
+    if (!businessContext && request.tenantId && this.commerceRepository) {
+      const commerce = await this.commerceRepository.findOne({
+        where: { id: request.tenantId },
+        select: ['context'],
+      });
+      if (commerce) {
+        contextToUse = commerce.context;
+        this.logger.debug(
+          `Contexto resuelto desde commerce: ${contextToUse} para tenant ${request.tenantId}`,
+          'PermissionsGuard',
+        );
       }
     }
 

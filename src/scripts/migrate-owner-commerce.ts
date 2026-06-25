@@ -44,7 +44,11 @@ async function migrateOwnerCommerce() {
     // 1. APPLY DDL
     // ==========================================
     console.log('Phase 1: Applying DDL (commerce table)...');
-    const ddlPath = path.join(__dirname, 'migrations', '009_create_commerce_table.sql');
+    const ddlPath = path.join(
+      __dirname,
+      'migrations',
+      '009_create_commerce_table.sql',
+    );
     if (!fs.existsSync(ddlPath)) {
       console.error(`Migration file not found: ${ddlPath}`);
       process.exit(1);
@@ -85,10 +89,15 @@ async function migrateOwnerCommerce() {
 
     for (const merchant of merchantsResult.rows) {
       const context = mapCatalogTypeToContext(merchant.catalog_type);
-      const businessName = merchant.businessName || merchant.name || 'Mi Negocio';
-      const slug = merchant.slug
-        || businessName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
-        || `negocio-${merchant.id.substring(0, 8)}`;
+      const businessName =
+        merchant.businessName || merchant.name || 'Mi Negocio';
+      const slug =
+        merchant.slug ||
+        businessName
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '') ||
+        `negocio-${merchant.id.substring(0, 8)}`;
 
       const existingSlug = await client.query(
         'SELECT id FROM commerce WHERE slug = $1',
@@ -96,7 +105,9 @@ async function migrateOwnerCommerce() {
       );
 
       if (existingSlug.rows.length > 0) {
-        console.log(`  Skipped ${merchant.email || merchant.id}: slug conflict (${slug})`);
+        console.log(
+          `  Skipped ${merchant.email || merchant.id}: slug conflict (${slug})`,
+        );
         skipped++;
         continue;
       }
@@ -119,10 +130,15 @@ async function migrateOwnerCommerce() {
           ],
         );
 
-        console.log(`  Created commerce for ${merchant.email || merchant.id} (${businessName})`);
+        console.log(
+          `  Created commerce for ${merchant.email || merchant.id} (${businessName})`,
+        );
         created++;
       } catch (err) {
-        console.error(`  Failed for ${merchant.email || merchant.id}:`, err.message);
+        console.error(
+          `  Failed for ${merchant.email || merchant.id}:`,
+          err.message,
+        );
         skipped++;
       }
     }
@@ -145,12 +161,16 @@ async function migrateOwnerCommerce() {
         AND ur.resource_id IS NULL
     `);
 
-    console.log(`Updated ${result.rowCount} user_roles with commerce resourceId\n`);
+    console.log(
+      `Updated ${result.rowCount} user_roles with commerce resourceId\n`,
+    );
 
     // ==========================================
     // 4. REPORT
     // ==========================================
-    const totalCommerce = await client.query('SELECT COUNT(*) as count FROM commerce');
+    const totalCommerce = await client.query(
+      'SELECT COUNT(*) as count FROM commerce',
+    );
     console.log(`Total commerce records: ${totalCommerce.rows[0].count}`);
     console.log('Migration completed successfully!');
   } catch (err) {

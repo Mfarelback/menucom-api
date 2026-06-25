@@ -57,12 +57,17 @@ export class CreateCommerceDto {
   })
   coverImage?: any;
 
-  @ApiPropertyOptional({ description: 'URL del logo (se asigna automáticamente al subir archivo)' })
+  @ApiPropertyOptional({
+    description: 'URL del logo (se asigna automáticamente al subir archivo)',
+  })
   @IsOptional()
   @IsString()
   logoUrl?: string;
 
-  @ApiPropertyOptional({ description: 'URL de imagen de portada (se asigna automáticamente al subir archivo)' })
+  @ApiPropertyOptional({
+    description:
+      'URL de imagen de portada (se asigna automáticamente al subir archivo)',
+  })
   @IsOptional()
   @IsString()
   coverImageUrl?: string;
@@ -82,7 +87,10 @@ export class CreateCommerceDto {
   @IsString()
   phone?: string;
 
-  @ApiPropertyOptional({ description: 'Si el negocio está activo', default: true })
+  @ApiPropertyOptional({
+    description: 'Si el negocio está activo',
+    default: true,
+  })
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;

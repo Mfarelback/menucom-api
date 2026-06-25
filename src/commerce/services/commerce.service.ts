@@ -28,7 +28,11 @@ export class CommerceService {
     private readonly membershipService: MembershipService,
   ) {}
 
-  async create(ownerId: string, dto: CreateCommerceDto, isAdmin = false): Promise<Commerce> {
+  async create(
+    ownerId: string,
+    dto: CreateCommerceDto,
+    isAdmin = false,
+  ): Promise<Commerce> {
     if (!isAdmin) {
       const limits = await this.membershipService.getPlanLimits(ownerId);
       const maxCommerces = limits.maxCommerces;
@@ -48,7 +52,9 @@ export class CommerceService {
       where: { slug: dto.slug },
     });
     if (existingSlug) {
-      throw new ConflictException(`Ya existe un comercio con el slug: ${dto.slug}`);
+      throw new ConflictException(
+        `Ya existe un comercio con el slug: ${dto.slug}`,
+      );
     }
 
     const commerce = this.commerceRepository.create({
@@ -69,9 +75,14 @@ export class CommerceService {
 
     const saved = await this.commerceRepository.save(commerce);
 
-    await this.userRoleService.assignRole(ownerId, RoleType.OWNER, dto.context, {
-      resourceId: saved.id,
-    });
+    await this.userRoleService.assignRole(
+      ownerId,
+      RoleType.OWNER,
+      dto.context,
+      {
+        resourceId: saved.id,
+      },
+    );
 
     return saved;
   }
@@ -109,9 +120,14 @@ export class CommerceService {
 
     if (!isAdmin) {
       if (commerce.ownerId !== userId) {
-        const hasAccess = await this.userRoleService.hasAccessToCommerce(userId, id);
+        const hasAccess = await this.userRoleService.hasAccessToCommerce(
+          userId,
+          id,
+        );
         if (!hasAccess) {
-          throw new ForbiddenException('No tienes permiso para modificar este comercio');
+          throw new ForbiddenException(
+            'No tienes permiso para modificar este comercio',
+          );
         }
       }
     }
@@ -121,7 +137,9 @@ export class CommerceService {
         where: { slug: dto.slug },
       });
       if (existingSlug) {
-        throw new ConflictException(`Ya existe un comercio con el slug: ${dto.slug}`);
+        throw new ConflictException(
+          `Ya existe un comercio con el slug: ${dto.slug}`,
+        );
       }
     }
 
@@ -134,9 +152,14 @@ export class CommerceService {
 
     if (!isAdmin) {
       if (commerce.ownerId !== userId) {
-        const hasAccess = await this.userRoleService.hasAccessToCommerce(userId, id);
+        const hasAccess = await this.userRoleService.hasAccessToCommerce(
+          userId,
+          id,
+        );
         if (!hasAccess) {
-          throw new ForbiddenException('No tienes permiso para desactivar este comercio');
+          throw new ForbiddenException(
+            'No tienes permiso para desactivar este comercio',
+          );
         }
       }
     }
@@ -145,13 +168,27 @@ export class CommerceService {
     await this.commerceRepository.save(commerce);
   }
 
-  async getUserContexts(userId: string): Promise<Commerce[]> {
-    return this.commerceRepository
+  async getUserContexts(
+    userId: string,
+  ): Promise<{ commerce: Commerce; role: string }[]> {
+    const qb = this.commerceRepository
       .createQueryBuilder('commerce')
-      .innerJoin(UserRole, 'ur', 'ur.resourceId = CAST(commerce.id AS varchar) AND ur.userId = :userId', { userId })
+      .innerJoin(
+        UserRole,
+        'ur',
+        'ur.resourceId = CAST(commerce.id AS varchar) AND ur.userId = :userId AND ur.isActive = true',
+        { userId },
+      )
+      .addSelect('ur.role', 'userRole')
       .where('commerce.isActive = :active', { active: true })
       .orderBy('commerce.createdAt', 'DESC')
-      .distinct(true)
-      .getMany();
+      .distinct(true);
+
+    const { entities, raw } = await qb.getRawAndEntities();
+
+    return entities.map((commerce, i) => ({
+      commerce,
+      role: raw[i]?.userRole ?? 'owner',
+    }));
   }
 }

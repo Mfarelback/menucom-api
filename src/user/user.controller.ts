@@ -182,7 +182,10 @@ export class UserController {
     try {
       const userId = req['user']['userId'];
       const { fcmToken } = updateFcmTokenDto;
-      const user = await this.userProfileService.updateFcmToken(userId, fcmToken);
+      const user = await this.userProfileService.updateFcmToken(
+        userId,
+        fcmToken,
+      );
       // Sanitizar: excluir datos sensibles
       const {
         password,

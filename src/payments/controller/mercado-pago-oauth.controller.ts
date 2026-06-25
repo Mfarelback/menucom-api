@@ -21,6 +21,9 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
+import { PermissionsGuard } from '../../auth/guards/permissions.guard';
+import { RequirePermissions } from '../../auth/decorators/permissions.decorator';
+import { Permission } from '../../auth/models/permissions.model';
 import { MercadoPagoOAuthService } from '../services/mercado-pago-oauth.service';
 import { InitiateOAuthDto, TokenExchangeDto } from '../dto/oauth.dto';
 import { MercadoPagoAccount } from '../entities/mercado-pago-account.entity';
@@ -35,7 +38,12 @@ export class MercadoPagoOAuthController {
     private readonly configService: ConfigService,
   ) {}
 
-  @UseGuards(JwtAuthGuard)
+  private resolveCommerceId(req: any): string | null {
+    return req.tenantId || req.user?.commerceId || null;
+  }
+
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_PAYMENTS)
   @ApiBearerAuth('JWT-auth')
   @Post('initiate')
   @ApiOperation({
@@ -66,25 +74,33 @@ export class MercadoPagoOAuthController {
     @Body() initiateOAuthDto: InitiateOAuthDto,
   ) {
     const userId = req.user.userId;
+    const commerceId = this.resolveCommerceId(req);
 
-    // Generar state correcto para el callback GET
-    const actualState =
-      initiateOAuthDto.state || `user_${userId}_${Date.now()}`;
+    const coreState = commerceId
+      ? `user_${userId}_commerce_${commerceId}_${Date.now()}`
+      : `user_${userId}_${Date.now()}`;
+
+    const redirectUri = initiateOAuthDto.redirectUri;
+    const redirectB64 = Buffer.from(redirectUri).toString('base64url');
+    const state = `${coreState}___${redirectB64}`;
+
+    const actualState = initiateOAuthDto.state || state;
 
     const authorizationUrl = this.mpOAuthService.generateAuthorizationUrl(
       userId,
-      initiateOAuthDto.redirectUri,
+      redirectUri,
       actualState,
+      commerceId || undefined,
     );
 
     return {
       authorizationUrl,
-      state: actualState, // Devolver el state que realmente se usa
+      state: actualState,
       vinculation_id: userId,
+      ...(commerceId && { commerceId }),
     };
   }
 
-  // @UseGuards(JwtAuthGuard)
   @Post('callback')
   @ApiOperation({
     summary: 'Manejar callback de autorización OAuth',
@@ -124,6 +140,7 @@ export class MercadoPagoOAuthController {
       userId,
       tokenExchangeDto.authorizationCode,
       tokenExchangeDto.redirectUri,
+      tokenExchangeDto.commerceId,
     );
   }
 
@@ -152,13 +169,14 @@ export class MercadoPagoOAuthController {
     };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_PAYMENTS)
   @ApiBearerAuth('JWT-auth')
   @Get('status')
   @ApiOperation({
     summary: 'Obtener estado de vinculación de Mercado Pago',
     description:
-      'Verifica si el usuario tiene una cuenta de Mercado Pago vinculada',
+      'Verifica si el commerce tiene una cuenta de Mercado Pago vinculada',
   })
   @ApiResponse({
     status: 200,
@@ -168,7 +186,7 @@ export class MercadoPagoOAuthController {
       properties: {
         isLinked: {
           type: 'boolean',
-          description: 'Indica si el usuario tiene una cuenta vinculada',
+          description: 'Indica si el commerce tiene una cuenta vinculada',
         },
         account: {
           type: 'object',
@@ -179,8 +197,21 @@ export class MercadoPagoOAuthController {
     },
   })
   async getOAuthStatus(@Req() req: any) {
+    const commerceId = this.resolveCommerceId(req);
     const userId = req.user.userId;
-    const account = await this.mpOAuthService.getUserMercadoPagoAccount(userId);
+
+    let account: MercadoPagoAccount | null = null;
+
+    if (commerceId) {
+      account = await this.mpOAuthService.getUserMercadoPagoAccount(
+        commerceId,
+        true,
+      );
+    }
+
+    if (!account) {
+      account = await this.mpOAuthService.getUserMercadoPagoAccount(userId);
+    }
 
     return {
       isLinked: !!account,
@@ -193,18 +224,18 @@ export class MercadoPagoOAuthController {
             country: account.country,
             status: account.status,
             createdAt: account.createdAt,
-            // No incluir tokens por seguridad
           }
         : null,
     };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_PAYMENTS)
   @ApiBearerAuth('JWT-auth')
   @Post('unlink')
   @ApiOperation({
     summary: 'Desvincular cuenta de Mercado Pago',
-    description: 'Desvincula la cuenta de Mercado Pago del usuario',
+    description: 'Desvincula la cuenta de Mercado Pago del commerce',
   })
   @ApiResponse({
     status: 200,
@@ -224,15 +255,21 @@ export class MercadoPagoOAuthController {
     description: 'No se encontró una cuenta vinculada',
   })
   async unlinkAccount(@Req() req: any) {
-    const userId = req.user.userId;
-    await this.mpOAuthService.unlinkAccount(userId);
+    const commerceId = this.resolveCommerceId(req);
+
+    if (commerceId) {
+      await this.mpOAuthService.unlinkAccount(commerceId, true);
+    } else {
+      await this.mpOAuthService.unlinkAccount(req.user.userId);
+    }
 
     return {
       message: 'Cuenta de Mercado Pago desvinculada exitosamente',
     };
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.MANAGE_PAYMENTS)
   @ApiBearerAuth('JWT-auth')
   @Post('refresh-token')
   @ApiOperation({
@@ -263,8 +300,11 @@ export class MercadoPagoOAuthController {
     description: 'No se encontró una cuenta vinculada',
   })
   async refreshToken(@Req() req: any) {
-    const userId = req.user.userId;
-    const updatedAccount = await this.mpOAuthService.refreshAccessToken(userId);
+    const commerceId = this.resolveCommerceId(req);
+
+    const updatedAccount = commerceId
+      ? await this.mpOAuthService.refreshAccessToken(commerceId, true)
+      : await this.mpOAuthService.refreshAccessToken(req.user.userId);
 
     return {
       message: 'Token refrescado exitosamente',
@@ -272,10 +312,6 @@ export class MercadoPagoOAuthController {
     };
   }
 
-  /**
-   * Endpoint público para manejar el callback de OAuth directamente desde MP
-   * (opcional, para casos donde el frontend no puede manejar el callback)
-   */
   @Get('callback')
   @ApiOperation({
     summary: 'Callback directo de Mercado Pago (público)',
@@ -288,7 +324,7 @@ export class MercadoPagoOAuthController {
   })
   @ApiQuery({
     name: 'state',
-    description: 'Estado para identificar al usuario',
+    description: 'Estado para identificar al usuario y commerce',
   })
   @ApiResponse({
     status: 200,
@@ -322,31 +358,53 @@ export class MercadoPagoOAuthController {
     }
 
     try {
-      this.logger.log('Extrayendo userId del state');
-
       let userId: string;
+      let commerceId: string | undefined;
+      let redirectUri: string;
 
-      const userStateMatch = state.match(/^user_([^_]+)_/);
-      if (userStateMatch) {
-        userId = userStateMatch[1];
-        this.logger.log('UserId extraído del state');
+      const stateParts = state.split('___');
+      const coreState = stateParts[0];
+      const redirectB64 = stateParts[1];
+
+      if (redirectB64) {
+        redirectUri = Buffer.from(redirectB64, 'base64url').toString();
+        this.logger.log('redirectUri extraído del state');
       } else {
-        throw new BadRequestException(
-          `Invalid state format: ${state}. Expected format: user_{userId}_{timestamp}`,
-        );
+        redirectUri =
+          this.configService.get('MERCADO_PAGO_REDIRECT_URI') ||
+          this.configService.get('MP_REDIRECT_URI') ||
+          'https://menucom-api.onrender.com/payments/oauth/callback';
+        this.logger.log('redirectUri obtenido de configuración (legacy)');
       }
 
-      this.logger.log(`Vinculando cuenta OAuth para userId: ${userId}`);
+      // Nuevo formato: user_{userId}_commerce_{commerceId}_{timestamp}
+      const newMatch = coreState.match(/^user_([^_]+)_commerce_([^_]+)_/);
+      if (newMatch) {
+        userId = newMatch[1];
+        commerceId = newMatch[2];
+        this.logger.log('UserId y CommerceId extraídos del state (formato nuevo)');
+      } else {
+        // Fallback a formato legacy: user_{userId}_{timestamp}
+        const legacyMatch = coreState.match(/^user_([^_]+)_/);
+        if (legacyMatch) {
+          userId = legacyMatch[1];
+          this.logger.log('UserId extraído del state (formato legacy)');
+        } else {
+          throw new BadRequestException(
+            `Invalid state format: ${state}. Expected format: user_{userId}_{timestamp} o user_{userId}_commerce_{commerceId}_{timestamp}`,
+          );
+        }
+      }
 
-      const redirectUri =
-        this.configService.get('MERCADO_PAGO_REDIRECT_URI') ||
-        this.configService.get('MP_REDIRECT_URI') ||
-        'https://menucom-api.onrender.com/payments/oauth/callback';
+      this.logger.log(
+        `Vinculando cuenta OAuth para userId: ${userId}, commerceId: ${commerceId || 'none'}`,
+      );
 
       const account = await this.mpOAuthService.linkAccount(
         userId,
         code,
         redirectUri,
+        commerceId,
       );
 
       this.logger.log(`Cuenta vinculada exitosamente: ${account.id}`);

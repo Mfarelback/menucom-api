@@ -126,6 +126,21 @@ export class UserRoleService {
   }
 
   /**
+   * Busca un rol por su ID
+   */
+  async findRoleById(roleId: string): Promise<UserRole> {
+    const userRole = await this.userRoleRepository.findOne({
+      where: { id: roleId },
+    });
+
+    if (!userRole) {
+      throw new NotFoundException('Rol no encontrado');
+    }
+
+    return userRole;
+  }
+
+  /**
    * Actualiza un rol existente por su ID
    */
   async updateRole(
@@ -556,5 +571,88 @@ export class UserRoleService {
       },
       relations: ['user'],
     });
+  }
+
+  /**
+   * Obtiene todos los usuarios con roles (activos e inactivos) en un commerce específico
+   * Útil para el endpoint my-team: listar el equipo que tiene acceso a un comercio
+   */
+  async getTeamByCommerce(commerceId: string): Promise<UserRole[]> {
+    return await this.userRoleRepository.find({
+      where: {
+        resourceId: commerceId,
+      },
+      relations: ['user'],
+      order: {
+        grantedAt: 'DESC',
+      },
+    });
+  }
+
+  /**
+   * Verifica si un usuario (OWNER o ADMIN) puede gestionar el equipo de un comercio
+   * - ADMIN/OPERATOR con manage_users en GENERAL: acceso total
+   * - OWNER del comercio: solo puede asignar MANAGER/OPERATOR a su propio comercio
+   * - OWNER no puede eliminarse ni desactivarse a sí mismo
+   */
+  async authorizeTeamManagement(
+    callerUserId: string,
+    targetRole: RoleType,
+    targetContext: BusinessContext,
+    targetResourceId?: string,
+    targetUserId?: string,
+  ): Promise<void> {
+    // 1. ADMIN u OPERATOR con manage_users en GENERAL: acceso total
+    const generalPermissions = await this.getUserPermissions(
+      callerUserId,
+      BusinessContext.GENERAL,
+    );
+    if (generalPermissions.includes(Permission.MANAGE_USERS)) {
+      return;
+    }
+
+    // 2. OWNER debe especificar el commerce al que asigna
+    if (!targetResourceId) {
+      throw new ConflictException(
+        'Debes especificar el resourceId (commerceId) para asignar un rol a tu equipo.',
+      );
+    }
+
+    // 3. Verificar que el caller es OWNER del commerce
+    const hasAccess = await this.hasAccessToCommerce(
+      callerUserId,
+      targetResourceId,
+    );
+    if (!hasAccess) {
+      throw new ConflictException(
+        'No tienes acceso a este comercio para gestionar su equipo.',
+      );
+    }
+
+    // 4. Validar que el contexto coincide con el tipo de comercio
+    const commerce = await this.commerceRepository.findOne({
+      where: { id: targetResourceId },
+      select: ['context'],
+    });
+    if (commerce && commerce.context !== targetContext) {
+      throw new ConflictException(
+        `El contexto '${targetContext}' no coincide con el tipo de comercio (${commerce.context}).`,
+      );
+    }
+
+    // 5. OWNER solo puede asignar MANAGER u OPERATOR (no ADMIN ni OWNER)
+    const forbiddenRoles: RoleType[] = [RoleType.ADMIN, RoleType.OWNER];
+    if (forbiddenRoles.includes(targetRole)) {
+      throw new ConflictException(
+        'Solo los administradores del sistema pueden gestionar roles de ADMIN u OWNER.',
+      );
+    }
+
+    // 6. OWNER no puede eliminarse ni desactivarse a sí mismo
+    if (targetUserId && targetUserId === callerUserId) {
+      throw new ConflictException(
+        'No puedes modificar tu propio rol. Pide a otro administrador que lo haga.',
+      );
+    }
   }
 }

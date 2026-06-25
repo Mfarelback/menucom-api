@@ -54,6 +54,7 @@ export class PaymentIntentService {
    *   1000,
    *   'Pizza Margarita',
    *   'owner-uuid',
+   *   'commerce-uuid',
    *   null,
    *   'order-uuid',
    *   100 // 10% fee
@@ -65,6 +66,7 @@ export class PaymentIntentService {
     amount: number,
     description?: string,
     ownerId?: string,
+    commerceId?: string,
     anonymousId?: string,
     orderId?: string,
     marketplaceFeeAmount?: number,
@@ -79,7 +81,7 @@ export class PaymentIntentService {
       }
 
       this.logger.log(
-        `Creando pago - Phone: ${phone}, Amount: ${amount}, Owner: ${ownerId || 'none'}`,
+        `Creando pago - Phone: ${phone}, Amount: ${amount}, Owner: ${ownerId || 'none'}, Commerce: ${commerceId || 'none'}`,
       );
 
       const paymentCreated = new PaymentIntent();
@@ -100,20 +102,32 @@ export class PaymentIntentService {
         },
       ];
 
-      // Buscar collector_id si se proporciona ownerId
+      // Resolver cuenta MP: priorizar commerceId, fallback a ownerId
       let accountData: {
         collectorId: number;
         accessToken: string;
       } | null = null;
 
-      if (ownerId) {
+      if (commerceId) {
+        try {
+          accountData =
+            await this.mercadoPagoOAuthService.getAccountDataForPreferenceByCommerce(
+              commerceId,
+            );
+        } catch (error) {
+          this.logger.warn(
+            `No se pudo obtener account data para commerce ${commerceId}: ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
+
+      if (!accountData && ownerId) {
         try {
           accountData =
             await this.mercadoPagoOAuthService.getAccountDataForPreference(
               ownerId,
             );
         } catch (error) {
-          // Log el error pero continúa sin collector_id para compatibilidad
           this.logger.warn(
             `No se pudo obtener account data para owner ${ownerId}: ${error instanceof Error ? error.message : String(error)}`,
           );
@@ -125,6 +139,7 @@ export class PaymentIntentService {
         payment_id: paymentCreated.id,
         ...(orderId && { order_id: orderId }),
         ...(ownerId && { owner_id: ownerId }),
+        ...(commerceId && { commerce_id: commerceId }),
         ...(anonymousId && { anonymous_id: anonymousId }),
         created_at: new Date().toISOString(),
         environment: process.env.NODE_ENV || 'development',

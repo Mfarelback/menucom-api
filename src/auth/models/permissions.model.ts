@@ -84,9 +84,7 @@ export const ROLE_PERMISSIONS_BY_CONTEXT: Record<
     ],
     [RoleType.ADMIN]: Object.values(Permission), // Todos los permisos
     [RoleType.OPERATOR]: [
-      Permission.MANAGE_USERS,
       Permission.VIEW_ANALYTICS,
-      Permission.MANAGE_ROLES,
     ],
   },
 
@@ -104,6 +102,8 @@ export const ROLE_PERMISSIONS_BY_CONTEXT: Record<
       Permission.UPDATE_ORDER,
       Permission.VIEW_ANALYTICS,
       Permission.MANAGE_PAYMENTS,
+      Permission.MANAGE_USERS,
+      Permission.MANAGE_ROLES,
     ],
     [RoleType.MANAGER]: [
       Permission.READ_CATALOG,
@@ -114,6 +114,7 @@ export const ROLE_PERMISSIONS_BY_CONTEXT: Record<
       Permission.DELETE_ITEM,
       Permission.READ_ORDER,
       Permission.UPDATE_ORDER,
+      Permission.MANAGE_PAYMENTS,
     ],
     [RoleType.CUSTOMER]: [
       Permission.READ_CATALOG,
@@ -134,6 +135,9 @@ export const ROLE_PERMISSIONS_BY_CONTEXT: Record<
       Permission.UPDATE_ITEM,
       Permission.DELETE_ITEM,
       Permission.VIEW_ANALYTICS,
+      Permission.MANAGE_PAYMENTS,
+      Permission.MANAGE_USERS,
+      Permission.MANAGE_ROLES,
     ],
     [RoleType.MANAGER]: [
       Permission.READ_CATALOG,
@@ -142,6 +146,7 @@ export const ROLE_PERMISSIONS_BY_CONTEXT: Record<
       Permission.READ_ITEM,
       Permission.UPDATE_ITEM,
       Permission.DELETE_ITEM,
+      Permission.MANAGE_PAYMENTS,
     ],
     [RoleType.CUSTOMER]: [Permission.READ_CATALOG, Permission.READ_ITEM],
   },
@@ -158,6 +163,19 @@ export const ROLE_PERMISSIONS_BY_CONTEXT: Record<
       Permission.DELETE_ITEM,
       Permission.MANAGE_PAYMENTS,
       Permission.VIEW_ANALYTICS,
+      Permission.MANAGE_USERS,
+      Permission.MANAGE_ROLES,
+    ],
+    [RoleType.MANAGER]: [
+      Permission.READ_CATALOG,
+      Permission.UPDATE_CATALOG,
+      Permission.CREATE_ITEM,
+      Permission.READ_ITEM,
+      Permission.UPDATE_ITEM,
+      Permission.DELETE_ITEM,
+      Permission.READ_ORDER,
+      Permission.UPDATE_ORDER,
+      Permission.MANAGE_PAYMENTS,
     ],
     [RoleType.CUSTOMER]: [
       Permission.READ_CATALOG,
@@ -182,6 +200,8 @@ export const ROLE_PERMISSIONS_BY_CONTEXT: Record<
       Permission.UPDATE_ORDER,
       Permission.VIEW_ANALYTICS,
       Permission.MANAGE_PAYMENTS,
+      Permission.MANAGE_USERS,
+      Permission.MANAGE_ROLES,
     ],
     [RoleType.MANAGER]: [
       Permission.READ_CATALOG,
@@ -192,6 +212,7 @@ export const ROLE_PERMISSIONS_BY_CONTEXT: Record<
       Permission.DELETE_ITEM,
       Permission.READ_ORDER,
       Permission.UPDATE_ORDER,
+      Permission.MANAGE_PAYMENTS,
     ],
     [RoleType.CUSTOMER]: [
       Permission.READ_CATALOG,
@@ -204,7 +225,6 @@ export const ROLE_PERMISSIONS_BY_CONTEXT: Record<
 
   [BusinessContext.EVENTS]: {
     [RoleType.OWNER]: [
-      // NUEVO: Dueño de negocio de eventos (organizador)
       Permission.CREATE_EVENT,
       Permission.READ_EVENT,
       Permission.UPDATE_EVENT,
@@ -213,6 +233,8 @@ export const ROLE_PERMISSIONS_BY_CONTEXT: Record<
       Permission.VALIDATE_TICKETS,
       Permission.VIEW_ANALYTICS,
       Permission.MANAGE_PAYMENTS,
+      Permission.MANAGE_USERS,
+      Permission.MANAGE_ROLES,
     ],
     [RoleType.EVENT_ORGANIZER]: [
       // Mantener por backward compatibility
@@ -328,22 +350,22 @@ export const BUSINESS_TYPE_MAPPING: Record<string, BusinessTypeConfig> = {
   },
   pharmacy: {
     role: RoleType.OWNER,
-    context: BusinessContext.GENERAL,
+    context: BusinessContext.RETAIL,
     needsCustomerRole: true,
   },
   beauty: {
     role: RoleType.OWNER,
-    context: BusinessContext.GENERAL,
+    context: BusinessContext.RETAIL,
     needsCustomerRole: true,
   },
   construction: {
     role: RoleType.OWNER,
-    context: BusinessContext.GENERAL,
+    context: BusinessContext.RETAIL,
     needsCustomerRole: true,
   },
   automotive: {
     role: RoleType.OWNER,
-    context: BusinessContext.GENERAL,
+    context: BusinessContext.RETAIL,
     needsCustomerRole: true,
   },
   pets: {
