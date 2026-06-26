@@ -120,7 +120,9 @@ export class TicketsController {
   }
 
   @Post('validate/:code')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @InBusinessContext(BusinessContext.EVENTS)
+  @RequirePermissions(Permission.VALIDATE_TICKETS, Permission.MANAGE_TICKETS)
   @ApiBearerAuth()
   @ApiOperation({
     summary: 'Validar y consumir un ticket por su código QR (Fase 4)',

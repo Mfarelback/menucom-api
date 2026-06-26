@@ -60,7 +60,7 @@ export class CatalogController {
     schema: {
       type: 'object',
       properties: {
-        catalogType: { type: 'string', enum: ['MENU', 'WARDROBE'] },
+        catalogType: { type: 'string', enum: ['MENU', 'RESTAURANT', 'WARDROBE'] },
         name: { type: 'string' },
         description: { type: 'string' },
         isPublic: { type: 'boolean' },

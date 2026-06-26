@@ -3,7 +3,8 @@
  * Cada tipo representa un dominio de negocio diferente
  */
 export enum CatalogType {
-  MENU = 'menu', // Menús de restaurantes
+  MENU = 'menu', // Deprecated — usar RESTAURANT
+  RESTAURANT = 'restaurant', // Menús de restaurantes
   WARDROBE = 'wardrobe', // Guardarropas/tiendas de ropa
   PRODUCT_LIST = 'product_list', // Lista de productos genérica
   SERVICE_LIST = 'service_list', // Lista de servicios

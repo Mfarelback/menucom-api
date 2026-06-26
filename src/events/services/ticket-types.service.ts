@@ -70,16 +70,7 @@ export class TicketTypesService {
       throw new NotFoundException('Ticket type not found');
     }
 
-    if (
-      tenant.commerceId &&
-      ticketType.event.commerceId &&
-      ticketType.event.commerceId !== tenant.commerceId
-    ) {
-      throw new NotFoundException('Ticket type not found or unauthorized');
-    }
-    if (!tenant.commerceId && ticketType.event.tenantId !== tenant.userId) {
-      throw new NotFoundException('Ticket type not found or unauthorized');
-    }
+    this.validateTicketTypeTenant(ticketType, tenant);
 
     const updatedTicketType = this.ticketTypeRepo.merge(ticketType, updateDto);
     return this.ticketTypeRepo.save(updatedTicketType);
@@ -104,14 +95,17 @@ export class TicketTypesService {
     ticketType: TicketType,
     tenant: TenantContext,
   ): void {
-    if (
-      tenant.commerceId &&
-      ticketType.event.commerceId &&
-      ticketType.event.commerceId !== tenant.commerceId
-    ) {
+    if (!ticketType.event) {
       throw new NotFoundException('Ticket type not found or unauthorized');
     }
-    if (!tenant.commerceId && ticketType.event.tenantId !== tenant.userId) {
+
+    const filter = TenantResolutionService.buildTenantFilter<any>(tenant);
+
+    if (filter.commerceId !== undefined) {
+      if (ticketType.event.commerceId !== filter.commerceId) {
+        throw new NotFoundException('Ticket type not found or unauthorized');
+      }
+    } else if (ticketType.event.tenantId !== tenant.userId) {
       throw new NotFoundException('Ticket type not found or unauthorized');
     }
   }

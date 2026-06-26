@@ -84,6 +84,17 @@ export class CommerceService {
       },
     );
 
+    try {
+      await this.userRoleService.deactivateRole(
+        ownerId,
+        RoleType.OWNER,
+        dto.context,
+        undefined,
+      );
+    } catch {
+      // No existía rol previo sin resourceId, todo bien
+    }
+
     return saved;
   }
 

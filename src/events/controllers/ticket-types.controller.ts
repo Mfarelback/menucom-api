@@ -11,17 +11,28 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
+import { PermissionsGuard } from '../../auth/guards/permissions.guard';
+import {
+  RequirePermissions,
+  InBusinessContext,
+} from '../../auth/decorators/permissions.decorator';
+import {
+  Permission,
+  BusinessContext,
+} from '../../auth/models/permissions.model';
 import { TicketTypesService } from '../services/ticket-types.service';
 import { CreateTicketTypeDto, UpdateTicketTypeDto } from '../dto/event.dto';
 import { AuthenticatedRequest } from '../../auth/types/request.types';
 
 @ApiTags('Ticket Types')
 @Controller('ticket-types')
+@InBusinessContext(BusinessContext.EVENTS)
 export class TicketTypesController {
   constructor(private readonly ticketTypesService: TicketTypesService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.CREATE_EVENT, Permission.MANAGE_TICKETS)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Crear un tipo de ticket para un evento' })
   async create(
@@ -36,7 +47,8 @@ export class TicketTypesController {
   }
 
   @Get('event/:eventId')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.READ_EVENT, Permission.MANAGE_TICKETS)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Listar tipos de tickets por evento' })
   async findByEvent(
@@ -51,7 +63,8 @@ export class TicketTypesController {
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.UPDATE_EVENT, Permission.MANAGE_TICKETS)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Actualizar un tipo de ticket' })
   async update(
@@ -67,7 +80,8 @@ export class TicketTypesController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.DELETE_EVENT, Permission.MANAGE_TICKETS)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Eliminar un tipo de ticket' })
   async remove(@Request() req: AuthenticatedRequest, @Param('id') id: string) {

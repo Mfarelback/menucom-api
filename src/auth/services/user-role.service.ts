@@ -495,10 +495,20 @@ export class UserRoleService {
 
   /**
    * Identifica si un usuario es organizador de eventos
-   * Un organizador es un OWNER en el contexto EVENTS
+   * Verifica tanto el rol OWNER (nuevo) como EVENT_ORGANIZER (legacy) en contexto EVENTS
    */
   async isEventOrganizer(userId: string): Promise<boolean> {
-    return await this.hasRole(userId, RoleType.OWNER, BusinessContext.EVENTS);
+    const isOwner = await this.hasRole(
+      userId,
+      RoleType.OWNER,
+      BusinessContext.EVENTS,
+    );
+    const isLegacyOrganizer = await this.hasRole(
+      userId,
+      RoleType.EVENT_ORGANIZER,
+      BusinessContext.EVENTS,
+    );
+    return isOwner || isLegacyOrganizer;
   }
 
   /**
@@ -561,14 +571,14 @@ export class UserRoleService {
 
   /**
    * Obtiene todos los usuarios que son organizadores de eventos
+   * Incluye tanto OWNER como EVENT_ORGANIZER (legacy) en contexto EVENTS
    */
   async getEventOrganizers(): Promise<UserRole[]> {
     return await this.userRoleRepository.find({
-      where: {
-        role: RoleType.OWNER,
-        context: BusinessContext.EVENTS,
-        isActive: true,
-      },
+      where: [
+        { role: RoleType.OWNER, context: BusinessContext.EVENTS, isActive: true },
+        { role: RoleType.EVENT_ORGANIZER, context: BusinessContext.EVENTS, isActive: true },
+      ],
       relations: ['user'],
     });
   }

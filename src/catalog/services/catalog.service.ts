@@ -1,6 +1,6 @@
 import { Injectable, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, IsNull } from 'typeorm';
+import { Repository, FindOptionsWhere } from 'typeorm';
 import { Catalog } from '../entities/catalog.entity';
 import { CatalogItem } from '../entities/catalog-item.entity';
 import {
@@ -170,14 +170,18 @@ export class CatalogService {
 
     this.logger.log(`getMyCatalogsGrouped: linked=${linked.length} catalogs`);
 
-    const unlinked = await this.catalogRepository.find({
-      where: {
-        ...baseWhere,
-        ownerId,
-        commerceId: IsNull(),
-      },
-      order: { createdAt: 'DESC' },
-    });
+    const unlinked = await this.catalogRepository
+      .createQueryBuilder('catalog')
+      .where('catalog.ownerId = :ownerId', { ownerId })
+      .andWhere('catalog.status = :status', { status: CatalogStatus.ACTIVE })
+      .andWhere(
+        catalogType
+          ? 'catalog.catalogType = :catalogType AND (catalog.commerceId IS NULL OR catalog.commerceId NOT IN (SELECT id FROM commerce WHERE "ownerId" = :ownerId))'
+          : '(catalog.commerceId IS NULL OR catalog.commerceId NOT IN (SELECT id FROM commerce WHERE "ownerId" = :ownerId))',
+        catalogType ? { catalogType, ownerId } : { ownerId },
+      )
+      .orderBy('catalog.createdAt', 'DESC')
+      .getMany();
 
     this.logger.log(`getMyCatalogsGrouped: unlinked=${unlinked.length} catalogs`);
 
@@ -791,7 +795,7 @@ export class CatalogService {
     catalogType?: CatalogType,
     tags?: string[],
     limit: number = 20,
-  ): Promise<Catalog[]> {
+  ): Promise<any> {
     const queryBuilder = this.catalogRepository
       .createQueryBuilder('catalog')
       .leftJoinAndSelect('catalog.owner', 'owner')
@@ -808,10 +812,28 @@ export class CatalogService {
       queryBuilder.andWhere('catalog.tags && :tags', { tags });
     }
 
-    return await queryBuilder
+    const catalogs = await queryBuilder
       .orderBy('catalog.viewCount', 'DESC')
       .take(limit)
       .getMany();
+
+    return catalogs.map((catalog) => ({
+      id: catalog.id,
+      type: catalog.catalogType,
+      name: catalog.name,
+      description: catalog.description,
+      coverImageUrl: catalog.coverImageUrl,
+      tags: catalog.tags,
+      slug: catalog.slug,
+      metadata: catalog.metadata,
+      owner: {
+        id: catalog.owner.id,
+        name: catalog.owner.name,
+        photoURL: catalog.owner.photoURL,
+      },
+      viewCount: catalog.viewCount,
+      createdAt: catalog.createdAt,
+    }));
   }
 
   /**

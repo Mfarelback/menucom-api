@@ -21,6 +21,15 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
+import { PermissionsGuard } from '../../auth/guards/permissions.guard';
+import {
+  RequirePermissions,
+  InBusinessContext,
+} from '../../auth/decorators/permissions.decorator';
+import {
+  Permission,
+  BusinessContext,
+} from '../../auth/models/permissions.model';
 import { EventsService } from '../services/events.service';
 import {
   CreateEventDto,
@@ -32,11 +41,13 @@ import { AuthenticatedRequest } from '../../auth/types/request.types';
 
 @ApiTags('Events')
 @Controller('events')
+@InBusinessContext(BusinessContext.EVENTS)
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.CREATE_EVENT)
   @UseInterceptors(FileInterceptor('image'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Crear un nuevo evento' })
@@ -64,7 +75,8 @@ export class EventsController {
   }
 
   @Get()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.READ_EVENT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Listar todos los eventos del tenant' })
   async findAll(@Request() req: AuthenticatedRequest) {
@@ -76,7 +88,8 @@ export class EventsController {
   }
 
   @Get(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.READ_EVENT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Obtener un evento por ID' })
   async findOne(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
@@ -88,7 +101,8 @@ export class EventsController {
   }
 
   @Put(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.UPDATE_EVENT)
   @UseInterceptors(FileInterceptor('image'))
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Actualizar un evento' })
@@ -116,7 +130,8 @@ export class EventsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions(Permission.DELETE_EVENT)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Eliminar un evento' })
   async remove(@Request() req: AuthenticatedRequest, @Param('id') id: string) {
