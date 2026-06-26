@@ -361,10 +361,10 @@ export class NotificationsService {
         placeholderCount: this.extractPlaceholders(t.title, t.body, t.deepLink)
           .length,
       })),
+      total,
+      page: query.page,
+      limit: query.limit,
       meta: {
-        total,
-        page: query.page,
-        limit: query.limit,
         totalPages: Math.ceil(total / query.limit),
       },
     };
@@ -538,7 +538,10 @@ export class NotificationsService {
         email: u.email,
         hasFcmToken: true,
       })),
-      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      total,
+      page,
+      limit,
+      meta: { totalPages: Math.ceil(total / limit) },
     };
   }
 }

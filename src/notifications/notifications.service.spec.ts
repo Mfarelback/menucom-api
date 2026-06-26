@@ -265,7 +265,7 @@ describe('NotificationsService — Admin Templates', () => {
       const res = await service.listTemplates({ page: 1, limit: 10 });
       expect(qb.skip).toHaveBeenCalledWith(0);
       expect(qb.take).toHaveBeenCalledWith(10);
-      expect(res.meta.total).toBe(1);
+      expect(res.total).toBe(1);
     });
 
     it('2: filtra por isActive: true', async () => {
@@ -306,7 +306,7 @@ describe('NotificationsService — Admin Templates', () => {
       buildQbMock([], 0);
       const res = await service.listTemplates({ page: 1, limit: 10 });
       expect(res.data).toEqual([]);
-      expect(res.meta.total).toBe(0);
+      expect(res.total).toBe(0);
     });
 
     it('7: calcula placeholderCount en cada template', async () => {
@@ -647,7 +647,7 @@ describe('NotificationsService — Admin Templates', () => {
       buildUserQb([], 0);
       const res = await service.getUsersWithTokens(1, 20);
       expect(res.data).toEqual([]);
-      expect(res.meta.total).toBe(0);
+      expect(res.total).toBe(0);
     });
 
     it('4: respeta paginación en primera página', async () => {

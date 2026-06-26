@@ -252,11 +252,14 @@ describe('NotificationsController — Admin Endpoints', () => {
     it('16: retorna lista vacía (data: [], total: 0)', async () => {
       mockNotificationsService.getUsersWithTokens.mockResolvedValue({
         data: [],
-        meta: { total: 0, page: 1, limit: 20, totalPages: 0 },
+        total: 0,
+        page: 1,
+        limit: 20,
+        meta: { totalPages: 0 },
       });
       const res = await controller.getUsersWithTokens({} as any);
       expect(res.data).toEqual([]);
-      expect(res.meta.total).toBe(0);
+      expect(res.total).toBe(0);
     });
   });
 });
