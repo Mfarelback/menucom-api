@@ -51,6 +51,7 @@ export class MerchantListItem {
   catalogTypes: CatalogType[];
   catalogCount: number;
   totalItems: number;
+  commerceCount: number;
   tags: string[];
   viewCount: number;
   createdAt: Date;

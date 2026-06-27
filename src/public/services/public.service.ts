@@ -6,6 +6,7 @@ import { UserRole } from '../../auth/entities/user-role.entity';
 import { Catalog } from '../../catalog/entities/catalog.entity';
 import { CatalogItem } from '../../catalog/entities/catalog-item.entity';
 import { Order } from '../../orders/entities/order.entity';
+import { Commerce } from '../../commerce/entities/commerce.entity';
 import { RoleType } from '../../auth/models/permissions.model';
 import {
   CatalogType,
@@ -45,6 +46,8 @@ export class PublicService {
     private readonly catalogItemRepository: Repository<CatalogItem>,
     @InjectRepository(Order)
     private readonly orderRepository: Repository<Order>,
+    @InjectRepository(Commerce)
+    private readonly commerceRepository: Repository<Commerce>,
   ) {}
 
   async getMerchants(
@@ -361,24 +364,15 @@ export class PublicService {
 
       if (catalogs.length === 0) continue;
 
-      const catalogTypes = [
-        ...new Set(catalogs.map((c) => c.catalogType)),
-      ] as CatalogType[];
+      const commerceCount = await this.commerceRepository.count({
+        where: { ownerId: id, isActive: true },
+      });
+
       const allTags = [...new Set(catalogs.flatMap((c) => c.tags || []))];
       const totalViews = catalogs.reduce(
         (sum, c) => sum + (c.viewCount || 0),
         0,
       );
-
-      const itemsResult = await this.catalogItemRepository
-        .createQueryBuilder('item')
-        .innerJoin('item.catalog', 'ct')
-        .where('ct.ownerId = :ownerId', { ownerId: id })
-        .andWhere('ct.status = :status', { status: CatalogStatus.ACTIVE })
-        .andWhere('ct.isPublic = :isPublic', { isPublic: true })
-        .andWhere('item.isAvailable = :available', { available: true })
-        .select('COUNT(item.id)', 'count')
-        .getRawOne();
 
       results.push({
         id: user.id,
@@ -387,9 +381,10 @@ export class PublicService {
         description: user.businessDescription || undefined,
         photoURL: user.photoURL,
         coverImageUrl: user.coverImageUrl || undefined,
-        catalogTypes,
+        catalogTypes: [],
         catalogCount: catalogs.length,
-        totalItems: parseInt(itemsResult?.count || '0', 10),
+        totalItems: 0,
+        commerceCount,
         tags: allTags,
         viewCount: totalViews,
         createdAt: user.createdAt,
@@ -558,7 +553,7 @@ export class PublicService {
 
     let catalogsQuery = this.catalogRepository
       .createQueryBuilder('catalog')
-      .leftJoinAndSelect('catalog.owner', 'owner')
+      .leftJoinAndSelect('catalog.commerce', 'commerce')
       .where('catalog.status = :status', { status: CatalogStatus.ACTIVE })
       .andWhere('catalog.isPublic = :isPublic', { isPublic: true });
 
@@ -582,7 +577,7 @@ export class PublicService {
     let itemsQuery = this.catalogItemRepository
       .createQueryBuilder('item')
       .innerJoinAndSelect('item.catalog', 'ct')
-      .leftJoinAndSelect('ct.owner', 'itemOwner')
+      .leftJoinAndSelect('ct.commerce', 'itemCommerce')
       .where('ct.status = :status', { status: CatalogStatus.ACTIVE })
       .andWhere('ct.isPublic = :isPublic', { isPublic: true })
       .andWhere('item.isAvailable = :available', { available: true });
@@ -638,8 +633,13 @@ export class PublicService {
         type: c.catalogType,
         description: c.description,
         coverImageUrl: c.coverImageUrl,
-        owner: c.owner
-          ? { id: c.owner.id, name: c.owner.name, photoURL: c.owner.photoURL }
+        owner: c.commerce
+          ? {
+              id: c.commerce.id,
+              name: c.commerce.businessName,
+              photoURL: c.commerce.logoUrl,
+              slug: c.commerce.slug,
+            }
           : undefined,
         itemCount: c.items?.length || 0,
       })),
@@ -680,7 +680,7 @@ export class PublicService {
 
     const trendingCatalogs = await this.catalogRepository
       .createQueryBuilder('catalog')
-      .leftJoinAndSelect('catalog.owner', 'owner')
+      .leftJoinAndSelect('catalog.commerce', 'commerce')
       .where('catalog.status = :status', { status: CatalogStatus.ACTIVE })
       .andWhere('catalog.isPublic = :isPublic', { isPublic: true })
       .andWhere('catalog.lastViewedAt >= :dateFrom', { dateFrom })
@@ -701,8 +701,13 @@ export class PublicService {
         type: c.catalogType,
         coverImageUrl: c.coverImageUrl,
         viewCount: c.viewCount,
-        owner: c.owner
-          ? { id: c.owner.id, name: c.owner.name, photoURL: c.owner.photoURL }
+        owner: c.commerce
+          ? {
+              id: c.commerce.id,
+              name: c.commerce.businessName,
+              photoURL: c.commerce.logoUrl,
+              slug: c.commerce.slug,
+            }
           : undefined,
       })),
     };
@@ -718,7 +723,7 @@ export class PublicService {
 
     const catalogs = await this.catalogRepository.find({
       where: { ownerId: user.id, status: CatalogStatus.ACTIVE, isPublic: true },
-      relations: ['owner'],
+      relations: ['commerce'],
       order: { createdAt: 'DESC' },
     });
 
@@ -743,11 +748,14 @@ export class PublicService {
           tags: catalog.tags || [],
           itemCount: items.length,
           viewCount: catalog.viewCount || 0,
-          owner: {
-            id: catalog.owner.id,
-            name: catalog.owner.name,
-            photoURL: catalog.owner.photoURL,
-          },
+          owner: catalog.commerce
+            ? {
+                id: catalog.commerce.id,
+                name: catalog.commerce.businessName,
+                photoURL: catalog.commerce.logoUrl,
+                slug: catalog.commerce.slug,
+              }
+            : null,
           items: items.map((item) => ({
             id: item.id,
             name: item.name,

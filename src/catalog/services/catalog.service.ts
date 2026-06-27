@@ -1,4 +1,9 @@
-import { Injectable, ConflictException, ForbiddenException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  ForbiddenException,
+  Logger,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, FindOptionsWhere } from 'typeorm';
 import { Catalog } from '../entities/catalog.entity';
@@ -16,7 +21,10 @@ import {
 } from '../dto/catalog-item.dto';
 import { ResourceLimitService } from '../../membership/services/resource-limit.service';
 import { UserRoleService } from '../../auth/services/user-role.service';
-import { Permission, BusinessContext } from '../../auth/models/permissions.model';
+import {
+  Permission,
+  BusinessContext,
+} from '../../auth/models/permissions.model';
 import { Commerce } from '../../commerce/entities/commerce.entity';
 import {
   CatalogNotFoundException,
@@ -49,7 +57,11 @@ export class CatalogService {
   ): Promise<Catalog> {
     try {
       if (commerceId) {
-        await this.validateCatalogPermission(ownerId, commerceId, Permission.CREATE_CATALOG);
+        await this.validateCatalogPermission(
+          ownerId,
+          commerceId,
+          Permission.CREATE_CATALOG,
+        );
       }
 
       await this.resourceLimitService.validateResourceCreation(
@@ -183,7 +195,9 @@ export class CatalogService {
       .orderBy('catalog.createdAt', 'DESC')
       .getMany();
 
-    this.logger.log(`getMyCatalogsGrouped: unlinked=${unlinked.length} catalogs`);
+    this.logger.log(
+      `getMyCatalogsGrouped: unlinked=${unlinked.length} catalogs`,
+    );
 
     return { linked, unlinked };
   }
@@ -266,7 +280,7 @@ export class CatalogService {
     slug: string,
     includeItems: boolean = true,
   ): Promise<any> {
-    const relations = includeItems ? ['items', 'owner'] : ['owner'];
+    const relations = includeItems ? ['items', 'commerce'] : ['commerce'];
     const catalog = await this.catalogRepository.findOne({
       where: { slug, status: CatalogStatus.ACTIVE },
       relations,
@@ -296,11 +310,14 @@ export class CatalogService {
       tags: catalog.tags,
       slug: catalog.slug,
       metadata: catalog.metadata,
-      owner: {
-        id: catalog.owner.id,
-        name: catalog.owner.name,
-        photoURL: catalog.owner.photoURL,
-      },
+      owner: catalog.commerce
+        ? {
+            id: catalog.commerce.id,
+            name: catalog.commerce.businessName,
+            photoURL: catalog.commerce.logoUrl,
+            slug: catalog.commerce.slug,
+          }
+        : null,
       items: availableItems,
       itemCount: availableItems.length,
       viewCount: catalog.viewCount,
@@ -422,7 +439,11 @@ export class CatalogService {
     commerceId?: string,
   ): Promise<CatalogItem> {
     if (commerceId) {
-      await this.validateCatalogPermission(ownerId, commerceId, Permission.CREATE_ITEM);
+      await this.validateCatalogPermission(
+        ownerId,
+        commerceId,
+        Permission.CREATE_ITEM,
+      );
     }
 
     await this.resourceLimitService.validateResourceCreation(
@@ -535,7 +556,11 @@ export class CatalogService {
 
     const resolvedCommerceId = commerceId || item.catalog.commerceId;
     if (resolvedCommerceId) {
-      await this.validateCatalogPermission(catalogOwnerId, resolvedCommerceId, Permission.UPDATE_ITEM);
+      await this.validateCatalogPermission(
+        catalogOwnerId,
+        resolvedCommerceId,
+        Permission.UPDATE_ITEM,
+      );
     }
 
     Object.assign(item, {
@@ -589,7 +614,11 @@ export class CatalogService {
 
     const resolvedCommerceId = commerceId || item.catalog.commerceId;
     if (resolvedCommerceId) {
-      await this.validateCatalogPermission(catalogOwnerId, resolvedCommerceId, Permission.DELETE_ITEM);
+      await this.validateCatalogPermission(
+        catalogOwnerId,
+        resolvedCommerceId,
+        Permission.DELETE_ITEM,
+      );
     }
 
     await this.catalogItemRepository.remove(item);
@@ -603,7 +632,7 @@ export class CatalogService {
   async getPublicCatalog(catalogId: string): Promise<any> {
     const catalog = await this.catalogRepository.findOne({
       where: { id: catalogId, status: CatalogStatus.ACTIVE, isPublic: true },
-      relations: ['items', 'owner'],
+      relations: ['items', 'commerce'],
     });
 
     if (!catalog) {
@@ -633,11 +662,14 @@ export class CatalogService {
       tags: catalog.tags,
       slug: catalog.slug,
       metadata: catalog.metadata,
-      owner: {
-        id: catalog.owner.id,
-        name: catalog.owner.name,
-        photoURL: catalog.owner.photoURL,
-      },
+      owner: catalog.commerce
+        ? {
+            id: catalog.commerce.id,
+            name: catalog.commerce.businessName,
+            photoURL: catalog.commerce.logoUrl,
+            slug: catalog.commerce.slug,
+          }
+        : null,
       items: availableItems,
       itemCount: availableItems.length,
       viewCount: catalog.viewCount,
@@ -651,7 +683,7 @@ export class CatalogService {
   async getPublicCatalogById(catalogId: string): Promise<any> {
     const catalog = await this.catalogRepository.findOne({
       where: { id: catalogId, status: CatalogStatus.ACTIVE, isPublic: true },
-      relations: ['items', 'owner'],
+      relations: ['items', 'commerce'],
     });
 
     if (!catalog) {
@@ -681,11 +713,14 @@ export class CatalogService {
       tags: catalog.tags,
       slug: catalog.slug,
       metadata: catalog.metadata,
-      owner: {
-        id: catalog.owner.id,
-        name: catalog.owner.name,
-        photoURL: catalog.owner.photoURL,
-      },
+      owner: catalog.commerce
+        ? {
+            id: catalog.commerce.id,
+            name: catalog.commerce.businessName,
+            photoURL: catalog.commerce.logoUrl,
+            slug: catalog.commerce.slug,
+          }
+        : null,
       items: availableItems,
       itemCount: availableItems.length,
       viewCount: catalog.viewCount,
@@ -699,7 +734,7 @@ export class CatalogService {
   async getPublicCatalogsByOwnerId(ownerId: string): Promise<any> {
     const catalogs = await this.catalogRepository.find({
       where: { ownerId, status: CatalogStatus.ACTIVE, isPublic: true },
-      relations: ['items', 'owner'],
+      relations: ['items', 'commerce'],
       order: { createdAt: 'DESC' },
     });
 
@@ -727,11 +762,14 @@ export class CatalogService {
         tags: catalog.tags,
         slug: catalog.slug,
         metadata: catalog.metadata,
-        owner: {
-          id: catalog.owner.id,
-          name: catalog.owner.name,
-          photoURL: catalog.owner.photoURL,
-        },
+        owner: catalog.commerce
+          ? {
+              id: catalog.commerce.id,
+              name: catalog.commerce.businessName,
+              photoURL: catalog.commerce.logoUrl,
+              slug: catalog.commerce.slug,
+            }
+          : null,
         items: availableItems,
         itemCount: availableItems.length,
         viewCount: catalog.viewCount,
@@ -799,14 +837,11 @@ export class CatalogService {
         slug: catalog.slug,
         commerceId: commerce.id,
         metadata: catalog.metadata,
-        commerce: {
+        owner: {
           id: commerce.id,
           name: commerce.businessName,
+          photoURL: commerce.logoUrl,
           slug: commerce.slug,
-          logoUrl: commerce.logoUrl,
-          description: commerce.description,
-          address: commerce.address,
-          phone: commerce.phone,
         },
         items: availableItems,
         itemCount: availableItems.length,
@@ -826,7 +861,7 @@ export class CatalogService {
   ): Promise<any> {
     const queryBuilder = this.catalogRepository
       .createQueryBuilder('catalog')
-      .leftJoinAndSelect('catalog.owner', 'owner')
+      .leftJoinAndSelect('catalog.commerce', 'commerce')
       .leftJoin(
         'catalog.items',
         'item',
@@ -837,7 +872,7 @@ export class CatalogService {
       .where('catalog.status = :status', { status: CatalogStatus.ACTIVE })
       .andWhere('catalog.isPublic = :isPublic', { isPublic: true })
       .groupBy('catalog.id')
-      .addGroupBy('owner.id');
+      .addGroupBy('commerce.id');
 
     if (catalogType) {
       queryBuilder.andWhere('catalog.catalogType = :catalogType', {
@@ -863,11 +898,14 @@ export class CatalogService {
       tags: catalog.tags,
       slug: catalog.slug,
       metadata: catalog.metadata,
-      owner: {
-        id: catalog.owner.id,
-        name: catalog.owner.name,
-        photoURL: catalog.owner.photoURL,
-      },
+      owner: catalog.commerce
+        ? {
+            id: catalog.commerce.id,
+            name: catalog.commerce.businessName,
+            photoURL: catalog.commerce.logoUrl,
+            slug: catalog.commerce.slug,
+          }
+        : null,
       itemCount: parseInt(catalogs.raw[index]?.itemCount || '0', 10),
       viewCount: catalog.viewCount,
       createdAt: catalog.createdAt,
@@ -898,7 +936,8 @@ export class CatalogService {
       select: ['context'],
     });
 
-    const context = commerce?.context as BusinessContext || BusinessContext.GENERAL;
+    const context =
+      (commerce?.context as BusinessContext) || BusinessContext.GENERAL;
 
     const hasPermission = await this.userRoleService.userHasPermission(
       userId,

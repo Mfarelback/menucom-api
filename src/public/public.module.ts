@@ -5,12 +5,20 @@ import { UserRole } from '../auth/entities/user-role.entity';
 import { Catalog } from '../catalog/entities/catalog.entity';
 import { CatalogItem } from '../catalog/entities/catalog-item.entity';
 import { Order } from '../orders/entities/order.entity';
+import { Commerce } from '../commerce/entities/commerce.entity';
 import { PublicController } from './controllers/public.controller';
 import { PublicService } from './services/public.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([User, UserRole, Catalog, CatalogItem, Order]),
+    TypeOrmModule.forFeature([
+      User,
+      UserRole,
+      Catalog,
+      CatalogItem,
+      Order,
+      Commerce,
+    ]),
   ],
   controllers: [PublicController],
   providers: [PublicService],
