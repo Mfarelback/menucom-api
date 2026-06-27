@@ -170,10 +170,6 @@ export class PublicService {
           },
         });
 
-        const catalogTypes = [
-          ...new Set(catalogs.map((c) => c.catalogType)),
-        ] as CatalogType[];
-
         const allTags = [...new Set(catalogs.flatMap((c) => c.tags || []))];
 
         const totalViews = catalogs.reduce(
@@ -181,15 +177,9 @@ export class PublicService {
           0,
         );
 
-        const itemsResult = await this.catalogItemRepository
-          .createQueryBuilder('item')
-          .innerJoin('item.catalog', 'ct')
-          .where('ct.ownerId = :ownerId', { ownerId: row.user_id })
-          .andWhere('ct.status = :status', { status: CatalogStatus.ACTIVE })
-          .andWhere('ct.isPublic = :isPublic', { isPublic: true })
-          .andWhere('item.isAvailable = :available', { available: true })
-          .select('COUNT(item.id)', 'count')
-          .getRawOne();
+        const commerceCount = await this.commerceRepository.count({
+          where: { ownerId: row.user_id, isActive: true },
+        });
 
         return {
           id: row.user_id,
@@ -198,9 +188,10 @@ export class PublicService {
           description: user?.businessDescription || undefined,
           photoURL: user?.photoURL || '',
           coverImageUrl: user?.coverImageUrl || undefined,
-          catalogTypes,
+          catalogTypes: [],
           catalogCount: catalogs.length,
-          totalItems: parseInt(itemsResult?.count || '0', 10),
+          totalItems: 0,
+          commerceCount,
           tags: allTags,
           viewCount: totalViews,
           createdAt: user?.createdAt || new Date(),
