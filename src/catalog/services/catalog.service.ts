@@ -265,8 +265,8 @@ export class CatalogService {
   async getCatalogBySlug(
     slug: string,
     includeItems: boolean = true,
-  ): Promise<Catalog> {
-    const relations = includeItems ? ['items'] : [];
+  ): Promise<any> {
+    const relations = includeItems ? ['items', 'owner'] : ['owner'];
     const catalog = await this.catalogRepository.findOne({
       where: { slug, status: CatalogStatus.ACTIVE },
       relations,
@@ -276,11 +276,36 @@ export class CatalogService {
       throw new CatalogNotFoundException(slug, { searchType: 'slug' });
     }
 
+    const availableItems = catalog.items
+      ? catalog.items.filter(
+          (item) =>
+            item.isAvailable && item.status === CatalogItemStatus.AVAILABLE,
+        )
+      : [];
+
     catalog.viewCount += 1;
     catalog.lastViewedAt = new Date();
     await this.catalogRepository.save(catalog);
 
-    return catalog;
+    return {
+      id: catalog.id,
+      type: catalog.catalogType,
+      name: catalog.name,
+      description: catalog.description,
+      coverImageUrl: catalog.coverImageUrl,
+      tags: catalog.tags,
+      slug: catalog.slug,
+      metadata: catalog.metadata,
+      owner: {
+        id: catalog.owner.id,
+        name: catalog.owner.name,
+        photoURL: catalog.owner.photoURL,
+      },
+      items: availableItems,
+      itemCount: availableItems.length,
+      viewCount: catalog.viewCount,
+      createdAt: catalog.createdAt,
+    };
   }
 
   /**
@@ -606,6 +631,7 @@ export class CatalogService {
       description: catalog.description,
       coverImageUrl: catalog.coverImageUrl,
       tags: catalog.tags,
+      slug: catalog.slug,
       metadata: catalog.metadata,
       owner: {
         id: catalog.owner.id,
@@ -613,6 +639,7 @@ export class CatalogService {
         photoURL: catalog.owner.photoURL,
       },
       items: availableItems,
+      itemCount: availableItems.length,
       viewCount: catalog.viewCount,
       createdAt: catalog.createdAt,
     };
@@ -660,6 +687,7 @@ export class CatalogService {
         photoURL: catalog.owner.photoURL,
       },
       items: availableItems,
+      itemCount: availableItems.length,
       viewCount: catalog.viewCount,
       createdAt: catalog.createdAt,
     };
@@ -799,8 +827,17 @@ export class CatalogService {
     const queryBuilder = this.catalogRepository
       .createQueryBuilder('catalog')
       .leftJoinAndSelect('catalog.owner', 'owner')
+      .leftJoin(
+        'catalog.items',
+        'item',
+        'item.isAvailable = :itemAvailable AND item.status = :itemStatus',
+        { itemAvailable: true, itemStatus: CatalogItemStatus.AVAILABLE },
+      )
+      .addSelect('COUNT(item.id)', 'itemCount')
       .where('catalog.status = :status', { status: CatalogStatus.ACTIVE })
-      .andWhere('catalog.isPublic = :isPublic', { isPublic: true });
+      .andWhere('catalog.isPublic = :isPublic', { isPublic: true })
+      .groupBy('catalog.id')
+      .addGroupBy('owner.id');
 
     if (catalogType) {
       queryBuilder.andWhere('catalog.catalogType = :catalogType', {
@@ -815,9 +852,9 @@ export class CatalogService {
     const catalogs = await queryBuilder
       .orderBy('catalog.viewCount', 'DESC')
       .take(limit)
-      .getMany();
+      .getRawAndEntities();
 
-    return catalogs.map((catalog) => ({
+    return catalogs.entities.map((catalog, index) => ({
       id: catalog.id,
       type: catalog.catalogType,
       name: catalog.name,
@@ -831,6 +868,7 @@ export class CatalogService {
         name: catalog.owner.name,
         photoURL: catalog.owner.photoURL,
       },
+      itemCount: parseInt(catalogs.raw[index]?.itemCount || '0', 10),
       viewCount: catalog.viewCount,
       createdAt: catalog.createdAt,
     }));

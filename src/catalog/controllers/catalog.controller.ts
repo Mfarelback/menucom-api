@@ -527,7 +527,7 @@ export class CatalogController {
   @ApiResponse({ status: 200, description: 'Catálogo encontrado' })
   @ApiResponse({ status: 404, description: 'Catálogo no encontrado' })
   async getPublicCatalog(@Param('slug') slug: string) {
-    return await this.catalogService.getPublicCatalog(slug);
+    return await this.catalogService.getCatalogBySlug(slug);
   }
 
   /**

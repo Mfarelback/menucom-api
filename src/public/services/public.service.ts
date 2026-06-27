@@ -718,6 +718,7 @@ export class PublicService {
 
     const catalogs = await this.catalogRepository.find({
       where: { ownerId: user.id, status: CatalogStatus.ACTIVE, isPublic: true },
+      relations: ['owner'],
       order: { createdAt: 'DESC' },
     });
 
@@ -742,6 +743,11 @@ export class PublicService {
           tags: catalog.tags || [],
           itemCount: items.length,
           viewCount: catalog.viewCount || 0,
+          owner: {
+            id: catalog.owner.id,
+            name: catalog.owner.name,
+            photoURL: catalog.owner.photoURL,
+          },
           items: items.map((item) => ({
             id: item.id,
             name: item.name,
