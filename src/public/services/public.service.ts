@@ -211,25 +211,29 @@ export class PublicService {
   }
 
   async getMerchantBySlug(slug: string): Promise<MerchantDetail> {
-    const user = await this.userRepository.findOne({
-      where: { slug },
-      relations: ['membership'],
-    });
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        slug,
+      );
 
-    if (!user) {
+    const commerce = isUUID
+      ? await this.commerceRepository.findOne({
+          where: { id: slug, isActive: true },
+        })
+      : await this.commerceRepository.findOne({
+          where: { slug, isActive: true },
+        });
+
+    if (!commerce) {
       throw new NotFoundException(
-        `Comerciante con slug "${slug}" no encontrado`,
+        `Comercio con identificador "${slug}" no encontrado`,
       );
     }
 
     const catalogs = await this.catalogRepository.find({
-      where: { ownerId: user.id, status: CatalogStatus.ACTIVE, isPublic: true },
+      where: { commerceId: commerce.id, status: CatalogStatus.ACTIVE, isPublic: true },
       order: { createdAt: 'DESC' },
     });
-
-    const catalogTypes = [
-      ...new Set(catalogs.map((c) => c.catalogType)),
-    ] as CatalogType[];
 
     let totalViews = 0;
     let totalItems = 0;
@@ -273,27 +277,26 @@ export class PublicService {
     );
 
     return {
-      id: user.id,
-      slug: user.slug || undefined,
-      businessName: user.businessName || user.name,
-      description: user.businessDescription || undefined,
-      photoURL: user.photoURL,
-      coverImageUrl: user.coverImageUrl || undefined,
+      id: commerce.id,
+      slug: commerce.slug || undefined,
+      businessName: commerce.businessName,
+      description: commerce.description || undefined,
+      photoURL: commerce.logoUrl || undefined,
+      coverImageUrl: commerce.coverImageUrl || undefined,
       contactInfo: {
-        email: user.email || undefined,
-        phone: user.businessPhone || undefined,
+        phone: commerce.phone || undefined,
       },
-      catalogTypes,
+      catalogTypes: [],
       catalogs: catalogDetails,
       stats: {
         totalCatalogs: catalogs.length,
         totalItems,
         totalViews,
-        memberSince: user.createdAt,
+        memberSince: commerce.createdAt,
       },
       membership: {
-        plan: user.membership?.plan || 'free',
-        features: user.membership?.features || [],
+        plan: 'free',
+        features: [],
       },
     };
   }
