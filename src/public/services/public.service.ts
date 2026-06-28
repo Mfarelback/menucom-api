@@ -705,15 +705,27 @@ export class PublicService {
   }
 
   async getMerchantCatalogs(slug: string): Promise<any[]> {
-    const user = await this.userRepository.findOne({ where: { slug } });
-    if (!user) {
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        slug,
+      );
+
+    const commerce = isUUID
+      ? await this.commerceRepository.findOne({
+          where: { id: slug, isActive: true },
+        })
+      : await this.commerceRepository.findOne({
+          where: { slug, isActive: true },
+        });
+
+    if (!commerce) {
       throw new NotFoundException(
-        `Comerciante con slug "${slug}" no encontrado`,
+        `Comercio con identificador "${slug}" no encontrado`,
       );
     }
 
     const catalogs = await this.catalogRepository.find({
-      where: { ownerId: user.id, status: CatalogStatus.ACTIVE, isPublic: true },
+      where: { commerceId: commerce.id, status: CatalogStatus.ACTIVE, isPublic: true },
       relations: ['commerce'],
       order: { createdAt: 'DESC' },
     });
