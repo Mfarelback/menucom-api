@@ -852,6 +852,153 @@ export class CatalogService {
   }
 
   /**
+   * Obtiene datos OG (Open Graph) para un comercio por slug o UUID
+   */
+  async getCommerceOGData(identifier: string): Promise<any> {
+    const catalogs = await this.getPublicCatalogsForCommerce(identifier);
+
+    const first = catalogs?.[0];
+    const owner = first?.owner;
+    const title = owner?.name || first?.name || 'MenuCom';
+    const imageUrl = this.extractOriginalUrl(owner?.photoURL)
+      || this.extractOriginalUrl(first?.coverImageUrl)
+      || '';
+    const description = catalogs
+      ?.map((c: any) => c.name)
+      .filter(Boolean)
+      .join(', ')
+      || 'Consulta nuestro catálogo de productos y servicios';
+
+    return { title, description, imageUrl, siteName: 'MenuCom' };
+  }
+
+  /**
+   * Obtiene un PWA Web App Manifest para un comercio por slug o UUID
+   */
+  async getCommerceManifest(identifier: string): Promise<any> {
+    const DEFAULT_MANIFEST = {
+      id: '/',
+      name: 'Menucom Catalogo',
+      short_name: 'Menucom',
+      description: 'Catalogo para clientes CSM',
+      start_url: '/',
+      scope: '/',
+      display: 'standalone',
+      background_color: '#FFFFFF',
+      theme_color: '#CEDDFE',
+      orientation: 'portrait-primary',
+      prefer_related_applications: false,
+      categories: ['business', 'shopping'],
+      icons: [
+        { src: '/icons/menucom-192.png', sizes: '192x192', type: 'image/png' },
+        { src: '/icons/menucom-512.png', sizes: '512x512', type: 'image/png' },
+        { src: '/icons/menucom-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+        { src: '/icons/menucom-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      ],
+    };
+
+    let catalogs: any[];
+    try {
+      catalogs = await this.getPublicCatalogsForCommerce(identifier);
+    } catch {
+      return DEFAULT_MANIFEST;
+    }
+
+    if (!catalogs || catalogs.length === 0) {
+      return DEFAULT_MANIFEST;
+    }
+
+    const first = catalogs[0];
+    const owner = first?.owner;
+    const name = owner?.name || first?.name || 'Menucom Catalogo';
+    const imageUrl = this.extractOriginalUrl(owner?.photoURL)
+      || this.extractOriginalUrl(first?.coverImageUrl);
+    const description = catalogs
+      .map((c: any) => c.name)
+      .filter(Boolean)
+      .join(', ')
+      || 'Catalogo para clientes CSM';
+
+    const settings = first?.settings || {};
+    const themeColor = settings.themeColor || settings.primaryColor || '#CEDDFE';
+    const backgroundColor = settings.backgroundColor || '#FFFFFF';
+
+    return {
+      id: '/' + identifier,
+      name,
+      short_name: name.length > 12 ? name.substring(0, 12) : name,
+      description,
+      start_url: '/' + identifier,
+      scope: '/' + identifier,
+      display: 'standalone',
+      background_color: backgroundColor,
+      theme_color: themeColor,
+      orientation: 'portrait-primary',
+      prefer_related_applications: false,
+      categories: ['business', 'shopping'],
+      icons: this.buildManifestIcons(imageUrl),
+    };
+  }
+
+  private buildManifestIcons(coverImageUrl: string | null): any[] {
+    if (!coverImageUrl) {
+      return [
+        { src: '/icons/menucom-192.png', sizes: '192x192', type: 'image/png' },
+        { src: '/icons/menucom-512.png', sizes: '512x512', type: 'image/png' },
+        { src: '/icons/menucom-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+        { src: '/icons/menucom-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      ];
+    }
+
+    if (coverImageUrl.includes('res.cloudinary.com')) {
+      return [
+        { src: coverImageUrl.replace('/upload/', `/upload/c_fill,w_192,h_192,q_auto,f_png/`), sizes: '192x192', type: 'image/png', purpose: 'any' },
+        { src: coverImageUrl.replace('/upload/', `/upload/c_fill,w_512,h_512,q_auto,f_png/`), sizes: '512x512', type: 'image/png', purpose: 'any' },
+        { src: coverImageUrl.replace('/upload/', `/upload/c_fill,w_192,h_192,q_auto,f_png/`), sizes: '192x192', type: 'image/png', purpose: 'maskable' },
+        { src: coverImageUrl.replace('/upload/', `/upload/c_fill,w_512,h_512,q_auto,f_png/`), sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      ];
+    }
+
+    return [
+      { src: coverImageUrl, sizes: '192x192', type: 'image/png', purpose: 'any' },
+      { src: coverImageUrl, sizes: '512x512', type: 'image/png', purpose: 'any' },
+    ];
+  }
+
+  /**
+   * Extrae URL original de un proxy URL (Cloudinary /image/upload con param url)
+   */
+  private extractOriginalUrl(proxyUrl: string | null | undefined): string | null {
+    if (!proxyUrl || typeof proxyUrl !== 'string') return null;
+    try {
+      const urlObj = new URL(proxyUrl);
+      if (urlObj.searchParams.has('url')) {
+        return decodeURIComponent(urlObj.searchParams.get('url')!).replace(/^http:\/\//i, 'https://');
+      }
+    } catch { }
+    return proxyUrl.replace(/^http:\/\//i, 'https://');
+  }
+
+  /**
+   * Obtiene catálogos públicos de un comercio (helper interno, no lanza 404)
+   */
+  private async getPublicCatalogsForCommerce(identifier: string): Promise<any[]> {
+    const isUUID =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
+
+    const commerce = isUUID
+      ? await this.commerceRepository.findOne({ where: { id: identifier, isActive: true } })
+      : await this.commerceRepository.findOne({ where: { slug: identifier, isActive: true } });
+
+    if (!commerce) return [];
+
+    return await this.catalogRepository.find({
+      where: { commerceId: commerce.id, status: CatalogStatus.ACTIVE, isPublic: true },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  /**
    * Busca catálogos públicos por tipo y/o tags
    */
   async searchPublicCatalogs(

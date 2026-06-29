@@ -520,6 +520,30 @@ export class CatalogController {
   }
 
   /**
+   * Obtener datos OG (Open Graph) para social preview de un comercio
+   */
+  @Get('public/commerce/:identifier/og')
+  @ApiOperation({ summary: 'Obtener datos OG para social preview de un comercio' })
+  @ApiResponse({ status: 200, description: 'Datos OG encontrados' })
+  async getCommerceOGData(
+    @Param('identifier') identifier: string,
+  ) {
+    return await this.catalogService.getCommerceOGData(identifier);
+  }
+
+  /**
+   * Obtener PWA Web App Manifest para un comercio
+   */
+  @Get('public/commerce/:identifier/manifest')
+  @ApiOperation({ summary: 'Obtener PWA Manifest de un comercio' })
+  @ApiResponse({ status: 200, description: 'Manifest generado' })
+  async getCommerceManifest(
+    @Param('identifier') identifier: string,
+  ) {
+    return await this.catalogService.getCommerceManifest(identifier);
+  }
+
+  /**
    * Obtener catálogo público por slug
    */
   @Get('public/:slug')
