@@ -855,12 +855,11 @@ export class CatalogService {
    * Obtiene datos OG (Open Graph) para un comercio por slug o UUID
    */
   async getCommerceOGData(identifier: string): Promise<any> {
-    const catalogs = await this.getPublicCatalogsForCommerce(identifier);
+    const { catalogs, commerce } = await this.getPublicCatalogsForCommerce(identifier);
 
+    const commerceName = commerce?.businessName || commerce?.name || 'MenuCom';
     const first = catalogs?.[0];
-    const owner = first?.owner;
-    const title = owner?.name || first?.name || 'MenuCom';
-    const imageUrl = this.extractOriginalUrl(owner?.photoURL)
+    const imageUrl = this.extractOriginalUrl(commerce?.logoUrl)
       || this.extractOriginalUrl(first?.coverImageUrl)
       || '';
     const description = catalogs
@@ -869,7 +868,7 @@ export class CatalogService {
       .join(', ')
       || 'Consulta nuestro catálogo de productos y servicios';
 
-    return { title, description, imageUrl, siteName: 'MenuCom' };
+    return { title: commerceName, description, imageUrl, siteName: 'MenuCom' };
   }
 
   /**
@@ -897,21 +896,22 @@ export class CatalogService {
       ],
     };
 
-    let catalogs: any[];
+    let result: { catalogs: any[]; commerce: any };
     try {
-      catalogs = await this.getPublicCatalogsForCommerce(identifier);
+      result = await this.getPublicCatalogsForCommerce(identifier);
     } catch {
       return DEFAULT_MANIFEST;
     }
+
+    const { catalogs, commerce } = result;
 
     if (!catalogs || catalogs.length === 0) {
       return DEFAULT_MANIFEST;
     }
 
     const first = catalogs[0];
-    const owner = first?.owner;
-    const name = owner?.name || first?.name || 'Menucom Catalogo';
-    const imageUrl = this.extractOriginalUrl(owner?.photoURL)
+    const commerceName = commerce?.businessName || commerce?.name || 'Menucom Catalogo';
+    const imageUrl = this.extractOriginalUrl(commerce?.logoUrl)
       || this.extractOriginalUrl(first?.coverImageUrl);
     const description = catalogs
       .map((c: any) => c.name)
@@ -925,8 +925,8 @@ export class CatalogService {
 
     return {
       id: '/' + identifier,
-      name,
-      short_name: name.length > 12 ? name.substring(0, 12) : name,
+      name: commerceName,
+      short_name: commerceName.length > 12 ? commerceName.substring(0, 12) : commerceName,
       description,
       start_url: '/' + identifier,
       scope: '/' + identifier,
@@ -982,7 +982,7 @@ export class CatalogService {
   /**
    * Obtiene catálogos públicos de un comercio (helper interno, no lanza 404)
    */
-  private async getPublicCatalogsForCommerce(identifier: string): Promise<any[]> {
+  private async getPublicCatalogsForCommerce(identifier: string): Promise<{ catalogs: any[]; commerce: any }> {
     const isUUID =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
 
@@ -990,12 +990,14 @@ export class CatalogService {
       ? await this.commerceRepository.findOne({ where: { id: identifier, isActive: true } })
       : await this.commerceRepository.findOne({ where: { slug: identifier, isActive: true } });
 
-    if (!commerce) return [];
+    if (!commerce) return { catalogs: [], commerce: null };
 
-    return await this.catalogRepository.find({
+    const catalogs = await this.catalogRepository.find({
       where: { commerceId: commerce.id, status: CatalogStatus.ACTIVE, isPublic: true },
       order: { createdAt: 'DESC' },
     });
+
+    return { catalogs, commerce };
   }
 
   /**
