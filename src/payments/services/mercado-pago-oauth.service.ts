@@ -262,9 +262,7 @@ export class MercadoPagoOAuthService {
     );
 
     if (!account || !account.refreshToken) {
-      throw new NotFoundException(
-        'No active Mercado Pago account found',
-      );
+      throw new NotFoundException('No active Mercado Pago account found');
     }
 
     try {
@@ -333,9 +331,7 @@ export class MercadoPagoOAuthService {
     const account = await this.mpAccountRepository.findOne({ where });
 
     if (!account) {
-      throw new NotFoundException(
-        'No active Mercado Pago account found',
-      );
+      throw new NotFoundException('No active Mercado Pago account found');
     }
 
     account.isActive = false;
@@ -385,9 +381,7 @@ export class MercadoPagoOAuthService {
     );
 
     if (!account) {
-      throw new NotFoundException(
-        'No Mercado Pago account linked',
-      );
+      throw new NotFoundException('No Mercado Pago account linked');
     }
 
     if (await this.isTokenExpiringSoon(identifier, 30, byCommerceId)) {

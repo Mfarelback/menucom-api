@@ -40,6 +40,32 @@ import {
 } from '../../auth/models/permissions.model';
 import { AuthenticatedRequest } from '../../auth/types/request.types';
 
+/** Campos financieros que nunca deben exponerse a compradores */
+const BUYER_SENSITIVE_FIELDS = [
+  'marketplaceFeePercentage',
+  'marketplaceFeeAmount',
+  'mpProcessingFee',
+  'netAmount',
+] as const;
+
+function sanitizeForBuyer(order: Order): Order {
+  for (const field of BUYER_SENSITIVE_FIELDS) {
+    delete (order as any)[field];
+  }
+  return order;
+}
+
+function sanitizeListForBuyer(orders: Order[]): Order[] {
+  return orders.map(sanitizeForBuyer);
+}
+
+function sanitizePaginatedForBuyer(
+  result: PaginatedResult<Order>,
+): PaginatedResult<Order> {
+  result.data = sanitizeListForBuyer(result.data);
+  return result;
+}
+
 @ApiTags('orders')
 @ApiBearerAuth('JWT-auth')
 @ApiExtraModels(OrderForBuyerDto, OrderForSellerDto, OrderResponseDto)
@@ -59,7 +85,8 @@ export class OrdersController {
     const userId = req.user.userId;
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
-    return this.orderService.findByUserId(userId, page, limit);
+    const result = await this.orderService.findByUserId(userId, page, limit);
+    return sanitizePaginatedForBuyer(result);
   }
 
   @Get('byAnonymous')
@@ -73,7 +100,8 @@ export class OrdersController {
     if (!anonymousId) {
       throw new BadRequestException('x-anonymous-id header is required');
     }
-    return this.orderService.findByCreator(anonymousId);
+    const orders = await this.orderService.findByCreator(anonymousId);
+    return sanitizeListForBuyer(orders);
   }
 
   @Get('byBusinessOwner/:ownerId')
@@ -110,7 +138,11 @@ export class OrdersController {
       createdBy: userId || anonymousId,
     };
 
-    return this.orderService.create(orderWithCreator, req?.tenantId);
+    const order = await this.orderService.create(
+      orderWithCreator,
+      req?.tenantId,
+    );
+    return sanitizeForBuyer(order);
   }
 
   @Put(':id')
@@ -140,7 +172,8 @@ export class OrdersController {
   @ApiOperation({ summary: 'Obtener los detalles de una orden por su ID' })
   @ApiOkResponse({ type: OrderForBuyerDto })
   async findOne(@Param('id') id: string): Promise<Order> {
-    return this.orderService.findOne(id);
+    const order = await this.orderService.findOne(id);
+    return sanitizeForBuyer(order);
   }
 
   @Delete(':id')

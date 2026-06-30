@@ -231,7 +231,11 @@ export class PublicService {
     }
 
     const catalogs = await this.catalogRepository.find({
-      where: { commerceId: commerce.id, status: CatalogStatus.ACTIVE, isPublic: true },
+      where: {
+        commerceId: commerce.id,
+        status: CatalogStatus.ACTIVE,
+        isPublic: true,
+      },
       order: { createdAt: 'DESC' },
     });
 
@@ -728,7 +732,11 @@ export class PublicService {
     }
 
     const catalogs = await this.catalogRepository.find({
-      where: { commerceId: commerce.id, status: CatalogStatus.ACTIVE, isPublic: true },
+      where: {
+        commerceId: commerce.id,
+        status: CatalogStatus.ACTIVE,
+        isPublic: true,
+      },
       relations: ['commerce'],
       order: { createdAt: 'DESC' },
     });

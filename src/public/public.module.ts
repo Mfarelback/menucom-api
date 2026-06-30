@@ -8,6 +8,7 @@ import { Order } from '../orders/entities/order.entity';
 import { Commerce } from '../commerce/entities/commerce.entity';
 import { PublicController } from './controllers/public.controller';
 import { PublicService } from './services/public.service';
+import { MembershipModule } from '../membership/membership.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { PublicService } from './services/public.service';
       Order,
       Commerce,
     ]),
+    MembershipModule,
   ],
   controllers: [PublicController],
   providers: [PublicService],

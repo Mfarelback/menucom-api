@@ -83,9 +83,7 @@ export const ROLE_PERMISSIONS_BY_CONTEXT: Record<
       Permission.CANCEL_ORDER,
     ],
     [RoleType.ADMIN]: Object.values(Permission), // Todos los permisos
-    [RoleType.OPERATOR]: [
-      Permission.VIEW_ANALYTICS,
-    ],
+    [RoleType.OPERATOR]: [Permission.VIEW_ANALYTICS],
   },
 
   [BusinessContext.RESTAURANT]: {

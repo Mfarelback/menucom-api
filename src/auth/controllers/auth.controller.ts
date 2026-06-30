@@ -307,7 +307,8 @@ export class AuthController {
           businessType: { type: 'string' },
           role: {
             type: 'string',
-            description: 'Rol del usuario en este comercio (owner, manager, operator)',
+            description:
+              'Rol del usuario en este comercio (owner, manager, operator)',
           },
           logoUrl: { type: 'string', nullable: true },
           coverImageUrl: { type: 'string', nullable: true },

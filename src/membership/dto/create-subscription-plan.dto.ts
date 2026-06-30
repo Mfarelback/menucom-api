@@ -207,6 +207,17 @@ export class CreateSubscriptionPlanDto {
   @IsString()
   billingCycle?: string = 'monthly';
 
+  @ApiPropertyOptional({
+    description:
+      'Porcentaje de fee por transacción para comercios en este plan (ej: 7.0 = 7%). Nulo = usar fee global.',
+    example: 7.0,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  @Max(100)
+  transactionFee?: number;
+
   @ApiProperty({ enum: MembershipFeature, isArray: true })
   @IsArray()
   @IsEnum(MembershipFeature, { each: true })

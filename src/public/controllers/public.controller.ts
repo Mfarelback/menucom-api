@@ -5,11 +5,15 @@ import { PublicService } from '../services/public.service';
 import { MerchantListQueryDto } from '../dto/merchant-list-query.dto';
 import { FeaturedQueryDto } from '../dto/merchant-featured-query.dto';
 import { SearchQueryDto } from '../dto/search-query.dto';
+import { SubscriptionPlanService } from '../../membership/services/subscription-plan.service';
 
 @ApiTags('Public - Landing Page')
 @Controller('public')
 export class PublicController {
-  constructor(private readonly publicService: PublicService) {}
+  constructor(
+    private readonly publicService: PublicService,
+    private readonly subscriptionPlanService: SubscriptionPlanService,
+  ) {}
 
   @Get('merchants')
   @Public()
@@ -81,5 +85,34 @@ export class PublicController {
       period || '24h',
       parseInt(limit || '10', 10),
     );
+  }
+
+  @Get('pricing')
+  @Public()
+  @ApiOperation({ summary: 'Información de planes y pricing (7/5/3)' })
+  @ApiResponse({ status: 200, description: 'Planes con fees y features' })
+  async getPricing() {
+    const plans = await this.subscriptionPlanService.getActivePlans();
+    return {
+      feeDisclaimer:
+        'Todos los planes incluyen la comisión de MercadoPago (~3-5% según país y medio de pago). Nuestro fee se suma al costo de MP.',
+      feeTiers: {
+        free: { totalFee: '7%', mpFee: '~4%', menucomFee: '~3%' },
+        premium: {
+          totalFee: '5%',
+          mpFee: '~4%',
+          menucomFee: '~1%',
+          subscription: '$15/mes',
+        },
+        enterprise: {
+          totalFee: '3%',
+          mpFee: '~4%',
+          menucomFee: '-1%*',
+          subscription: '$45/mes',
+          note: '*Subsidiado por suscripción',
+        },
+      },
+      plans,
+    };
   }
 }

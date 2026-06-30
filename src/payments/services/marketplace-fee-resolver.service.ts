@@ -5,6 +5,7 @@ import { MerchantConfig } from '../entities/merchant-config.entity';
 import { AppDataService } from '../../app-data/services/app-data.service';
 import { User } from '../../user/entities/user.entity';
 import { Commerce } from '../../commerce/entities/commerce.entity';
+import { Membership } from '../../membership/entities/membership.entity';
 
 /**
  * Fee Resolution Result
@@ -29,14 +30,7 @@ export interface FeeResolutionResult {
 @Injectable()
 export class MarketplaceFeeResolverService {
   private readonly logger = new Logger(MarketplaceFeeResolverService.name);
-  private readonly DEFAULT_FEE_PERCENTAGE = 5.0;
-
-  // Fee por tipo de membresía (según documentación)
-  private readonly MEMBERSHIP_FEE_RATES: Record<string, number> = {
-    ENTERPRISE: 3.0, // 3% para plan Enterprise
-    PREMIUM: 5.0, // 5% para plan Premium
-    FREE: 7.0, // 7% para plan Free
-  };
+  private readonly DEFAULT_FEE_PERCENTAGE = 0.0;
 
   constructor(
     @InjectRepository(MerchantConfig)
@@ -45,6 +39,8 @@ export class MarketplaceFeeResolverService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(Commerce)
     private readonly commerceRepo: Repository<Commerce>,
+    @InjectRepository(Membership)
+    private readonly membershipRepo: Repository<Membership>,
     private readonly appDataService: AppDataService,
   ) {}
 
@@ -184,8 +180,10 @@ export class MarketplaceFeeResolverService {
   }
 
   /**
-   * Nivel 2: Obtiene el fee basado en el tipo de membresía del usuario
-   * Soporta lookup por commerceId (resolviendo el owner) o por tenantId directo
+   * Nivel 2: Obtiene el fee basado en el plan de membresía del usuario
+   *
+   * Lee el campo transactionFee del SubscriptionPlan asociado a la membresía activa del usuario.
+   * Si el plan no tiene transactionFee configurado (null), devuelve null para caer al nivel 3 (global).
    */
   private async getMembershipFee(
     tenantId: string,
@@ -194,7 +192,6 @@ export class MarketplaceFeeResolverService {
     try {
       let userId = tenantId;
 
-      // If we have a commerceId, resolve the owner
       if (commerceId) {
         const commerce = await this.commerceRepo.findOne({
           where: { id: commerceId },
@@ -204,23 +201,23 @@ export class MarketplaceFeeResolverService {
         }
       }
 
-      const user = await this.userRepo.findOne({
-        where: { id: userId },
-        relations: ['membership'],
+      const membership = await this.membershipRepo.findOne({
+        where: { userId, isActive: true },
+        relations: ['subscriptionPlan'],
       });
 
-      if (user?.membership?.plan) {
-        const planFee =
-          this.MEMBERSHIP_FEE_RATES[user.membership.plan.toUpperCase()];
-        if (planFee !== undefined) {
-          return planFee;
-        }
+      if (membership?.subscriptionPlan?.transactionFee != null) {
+        const fee = Number(membership.subscriptionPlan.transactionFee);
+        this.logger.log(
+          `Resolved membership fee from plan "${membership.subscriptionPlan.name}": ${fee}%`,
+        );
+        return fee;
       }
 
       return null;
-    } catch (error) {
+    } catch (error: any) {
       this.logger.warn(
-        `Error fetching membership fee for tenant ${tenantId}: ${error.message}`,
+        `Error fetching membership fee for tenant ${tenantId}: ${error?.message}`,
       );
       return null;
     }

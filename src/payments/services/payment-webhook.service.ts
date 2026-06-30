@@ -17,6 +17,9 @@ import { LoggerService } from '../../core/logger/logger.service';
 import { PaymentStatusService } from './payment-status.service';
 import { OrderStatus } from '../../orders/enums/order-status.enum';
 import { EventPaymentService } from '../../events/services/event-payment.service';
+import { NotificationsService } from '../../notifications/notifications.service';
+import { ActivityLogService } from '../../commerce/services/activity-log.service';
+import { ActivityAction } from '../../commerce/entities/activity-log.entity';
 
 /**
  * Servicio especializado en procesamiento de webhooks de MercadoPago
@@ -45,6 +48,8 @@ export class PaymentWebhookService {
     @Inject(forwardRef(() => EventPaymentService))
     private readonly eventPaymentService: EventPaymentService,
     private readonly logger: LoggerService,
+    private readonly notificationsService: NotificationsService,
+    private readonly activityLogService: ActivityLogService,
   ) {
     this.logger.setContext('PaymentWebhookService');
   }
@@ -187,6 +192,56 @@ export class PaymentWebhookService {
               this.logger.log(
                 `Order actualizada: ${order.id} → ${updatedOrder.status}`,
               );
+
+              // 0.5: Contracargo — notificar, registrar, y marcar la orden
+              if (paymentStatus === 'charged_back') {
+                this.logger.warn(
+                  `CONTRACARGO detectado en orden ${order.id} (MP payment: ${paymentId}). ` +
+                    `Menucom pierde el marketplaceFee ($ ${order.marketplaceFeeAmount}) ` +
+                    `y el mpProcessingFee no es reembolsado por MP.`,
+                );
+
+                if (order.commerceId) {
+                  await this.activityLogService
+                    .log({
+                      commerceId: order.commerceId,
+                      userId: order.ownerId || 'system',
+                      userRole: 'SYSTEM',
+                      action: ActivityAction.CHARGEBACK,
+                      entityType: 'Order',
+                      entityId: order.id,
+                      summary: `Contracargo por $${(order.marketplaceFeeAmount ?? 0).toString()}. Fee MP no reembolsado: $${(order.mpProcessingFee ?? 0).toString()}`,
+                    })
+                    .catch(() => {});
+                }
+
+                try {
+                  await this.ordersService.markChargebackProcessed(order.id);
+                } catch (err: any) {
+                  this.logger.warn(
+                    `Error marcando chargeback en orden ${order.id}: ${err?.message}`,
+                  );
+                }
+
+                try {
+                  if (order.ownerId) {
+                    await this.notificationsService.sendNotificationToUser(
+                      order.ownerId,
+                      'Contracargo detectado',
+                      `Un cliente inició un contracargo en la orden por $${Number(order.total).toFixed(2)}. ` +
+                        `La orden fue cancelada. Contactá a soporte si necesitás ayuda.`,
+                      {
+                        orderId: order.id,
+                        type: 'chargeback',
+                      },
+                    );
+                  }
+                } catch (notifyErr: any) {
+                  this.logger.warn(
+                    `No se pudo notificar contracargo al owner: ${notifyErr?.message}`,
+                  );
+                }
+              }
 
               // Extraer datos de comisiones de MP de la respuesta del pago
               const feeDetails: any[] = paymentInfo.fee_details;

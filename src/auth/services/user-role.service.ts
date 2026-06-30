@@ -576,8 +576,16 @@ export class UserRoleService {
   async getEventOrganizers(): Promise<UserRole[]> {
     return await this.userRoleRepository.find({
       where: [
-        { role: RoleType.OWNER, context: BusinessContext.EVENTS, isActive: true },
-        { role: RoleType.EVENT_ORGANIZER, context: BusinessContext.EVENTS, isActive: true },
+        {
+          role: RoleType.OWNER,
+          context: BusinessContext.EVENTS,
+          isActive: true,
+        },
+        {
+          role: RoleType.EVENT_ORGANIZER,
+          context: BusinessContext.EVENTS,
+          isActive: true,
+        },
       ],
       relations: ['user'],
     });

@@ -59,6 +59,7 @@ export class SubscriptionPlanService {
           icon: 'free',
           popular: false,
         },
+        transactionFee: 7.0,
       },
       {
         name: MembershipPlan.PREMIUM,
@@ -90,6 +91,7 @@ export class SubscriptionPlanService {
             days: 14,
           },
         },
+        transactionFee: 5.0,
       },
       {
         name: MembershipPlan.ENTERPRISE,
@@ -123,6 +125,7 @@ export class SubscriptionPlanService {
             prioritySupport: true,
           },
         },
+        transactionFee: 3.0,
       },
     ];
 
@@ -135,6 +138,13 @@ export class SubscriptionPlanService {
         const plan = this.subscriptionPlanRepository.create(planData);
         await this.subscriptionPlanRepository.save(plan);
         this.logger.log(`Created standard plan: ${planData.name}`);
+      } else if (existingPlan.transactionFee == null) {
+        // Backfill transactionFee para planes existentes
+        existingPlan.transactionFee = planData.transactionFee;
+        await this.subscriptionPlanRepository.save(existingPlan);
+        this.logger.log(
+          `Backfilled transactionFee for plan ${planData.name}: ${planData.transactionFee}%`,
+        );
       }
     }
   }

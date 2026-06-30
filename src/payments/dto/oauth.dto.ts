@@ -58,7 +58,8 @@ export class TokenExchangeDto {
   vinculation_id: string;
 
   @ApiProperty({
-    description: 'ID del comercio para multi-tenant (recibido en initiateOAuth)',
+    description:
+      'ID del comercio para multi-tenant (recibido en initiateOAuth)',
     example: 'commerce-uuid-456',
     required: false,
   })

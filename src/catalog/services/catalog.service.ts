@@ -24,6 +24,7 @@ import { UserRoleService } from '../../auth/services/user-role.service';
 import {
   Permission,
   BusinessContext,
+  RoleType,
 } from '../../auth/models/permissions.model';
 import { Commerce } from '../../commerce/entities/commerce.entity';
 import {
@@ -32,6 +33,7 @@ import {
   CatalogUnauthorizedException,
   InvalidCatalogDataException,
 } from '../../core/exceptions';
+import { NotificationsService } from '../../notifications/notifications.service';
 @Injectable()
 export class CatalogService {
   private readonly logger = new Logger(CatalogService.name);
@@ -45,7 +47,38 @@ export class CatalogService {
     private readonly commerceRepository: Repository<Commerce>,
     private readonly resourceLimitService: ResourceLimitService,
     private readonly userRoleService: UserRoleService,
+    private readonly notificationsService: NotificationsService,
   ) {}
+
+  private async notifyOwnerOnManagerAction(
+    commerceId: string,
+    userId: string,
+    message: string,
+    data?: Record<string, string>,
+  ): Promise<void> {
+    try {
+      if (!commerceId || !userId) return;
+      const commerce = await this.commerceRepository.findOne({
+        where: { id: commerceId },
+      });
+      if (!commerce || commerce.ownerId === userId) return;
+
+      const roles = await this.userRoleService.getUserRolesFiltered(userId, {
+        resourceId: commerceId,
+      });
+      const isManager = roles.some((r) => r.role === RoleType.MANAGER);
+      if (!isManager) return;
+
+      await this.notificationsService.sendNotificationToUser(
+        commerce.ownerId,
+        'Actividad de MANAGER',
+        message,
+        { commerceId, type: 'manager_action', ...data },
+      );
+    } catch (err: any) {
+      this.logger.warn(`Error notificando MANAGER action: ${err?.message}`);
+    }
+  }
 
   /**
    * Crea un nuevo catálogo
@@ -494,6 +527,15 @@ export class CatalogService {
 
     this.logger.log(`Item creado: ${savedItem.id} en catálogo ${catalog.id}`);
 
+    if (commerceId || catalog.commerceId) {
+      await this.notifyOwnerOnManagerAction(
+        commerceId || catalog.commerceId,
+        ownerId,
+        `Se agregó el producto "${item.name}" al catálogo`,
+        { itemId: savedItem.id, catalogId: catalog.id },
+      );
+    }
+
     return savedItem;
   }
 
@@ -563,6 +605,7 @@ export class CatalogService {
       );
     }
 
+    const oldPrice = Number(item.price);
     Object.assign(item, {
       ...updateItemDto,
       updatedAt: new Date(),
@@ -571,6 +614,26 @@ export class CatalogService {
     const updatedItem = await this.catalogItemRepository.save(item);
 
     this.logger.log(`Item actualizado: ${itemId}`);
+
+    if (resolvedCommerceId) {
+      const newPrice = Number(updateItemDto.price);
+      if (updateItemDto.price !== undefined && oldPrice > 0) {
+        const percentChange = Math.abs((newPrice - oldPrice) / oldPrice) * 100;
+        if (percentChange > 20) {
+          await this.notifyOwnerOnManagerAction(
+            resolvedCommerceId,
+            catalogOwnerId,
+            `Precio de "${item.name}" cambió ${percentChange.toFixed(0)}%: $${oldPrice.toFixed(2)} → $${newPrice.toFixed(2)}`,
+            {
+              itemId,
+              catalogId: item.catalog.id,
+              oldPrice: String(oldPrice),
+              newPrice: String(newPrice),
+            },
+          );
+        }
+      }
+    }
 
     return updatedItem;
   }
@@ -624,6 +687,15 @@ export class CatalogService {
     await this.catalogItemRepository.remove(item);
 
     this.logger.log(`Item eliminado: ${itemId}`);
+
+    if (resolvedCommerceId) {
+      await this.notifyOwnerOnManagerAction(
+        resolvedCommerceId,
+        catalogOwnerId,
+        `Se eliminó el producto "${item.name}" del catálogo`,
+        { itemId, catalogId: item.catalog.id },
+      );
+    }
   }
 
   /**
@@ -855,18 +927,20 @@ export class CatalogService {
    * Obtiene datos OG (Open Graph) para un comercio por slug o UUID
    */
   async getCommerceOGData(identifier: string): Promise<any> {
-    const { catalogs, commerce } = await this.getPublicCatalogsForCommerce(identifier);
+    const { catalogs, commerce } =
+      await this.getPublicCatalogsForCommerce(identifier);
 
     const commerceName = commerce?.businessName || commerce?.name || 'MenuCom';
     const first = catalogs?.[0];
-    const imageUrl = this.extractOriginalUrl(commerce?.logoUrl)
-      || this.extractOriginalUrl(first?.coverImageUrl)
-      || '';
-    const description = catalogs
-      ?.map((c: any) => c.name)
-      .filter(Boolean)
-      .join(', ')
-      || 'Consulta nuestro catálogo de productos y servicios';
+    const imageUrl =
+      this.extractOriginalUrl(commerce?.logoUrl) ||
+      this.extractOriginalUrl(first?.coverImageUrl) ||
+      '';
+    const description =
+      catalogs
+        ?.map((c: any) => c.name)
+        .filter(Boolean)
+        .join(', ') || 'Consulta nuestro catálogo de productos y servicios';
 
     return { title: commerceName, description, imageUrl, siteName: 'MenuCom' };
   }
@@ -891,8 +965,18 @@ export class CatalogService {
       icons: [
         { src: '/icons/menucom-192.png', sizes: '192x192', type: 'image/png' },
         { src: '/icons/menucom-512.png', sizes: '512x512', type: 'image/png' },
-        { src: '/icons/menucom-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-        { src: '/icons/menucom-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        {
+          src: '/icons/menucom-maskable-192.png',
+          sizes: '192x192',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
+        {
+          src: '/icons/menucom-maskable-512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
       ],
     };
 
@@ -910,23 +994,27 @@ export class CatalogService {
     }
 
     const first = catalogs[0];
-    const commerceName = commerce?.businessName || commerce?.name || 'Menucom Catalogo';
-    const imageUrl = this.extractOriginalUrl(commerce?.logoUrl)
-      || this.extractOriginalUrl(first?.coverImageUrl);
-    const description = catalogs
-      .map((c: any) => c.name)
-      .filter(Boolean)
-      .join(', ')
-      || 'Catalogo para clientes CSM';
+    const commerceName =
+      commerce?.businessName || commerce?.name || 'Menucom Catalogo';
+    const imageUrl =
+      this.extractOriginalUrl(commerce?.logoUrl) ||
+      this.extractOriginalUrl(first?.coverImageUrl);
+    const description =
+      catalogs
+        .map((c: any) => c.name)
+        .filter(Boolean)
+        .join(', ') || 'Catalogo para clientes CSM';
 
     const settings = first?.settings || {};
-    const themeColor = settings.themeColor || settings.primaryColor || '#CEDDFE';
+    const themeColor =
+      settings.themeColor || settings.primaryColor || '#CEDDFE';
     const backgroundColor = settings.backgroundColor || '#FFFFFF';
 
     return {
       id: '/' + identifier,
       name: commerceName,
-      short_name: commerceName.length > 12 ? commerceName.substring(0, 12) : commerceName,
+      short_name:
+        commerceName.length > 12 ? commerceName.substring(0, 12) : commerceName,
       description,
       start_url: '/' + identifier,
       scope: '/' + identifier,
@@ -945,55 +1033,124 @@ export class CatalogService {
       return [
         { src: '/icons/menucom-192.png', sizes: '192x192', type: 'image/png' },
         { src: '/icons/menucom-512.png', sizes: '512x512', type: 'image/png' },
-        { src: '/icons/menucom-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-        { src: '/icons/menucom-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        {
+          src: '/icons/menucom-maskable-192.png',
+          sizes: '192x192',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
+        {
+          src: '/icons/menucom-maskable-512.png',
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
       ];
     }
 
     if (coverImageUrl.includes('res.cloudinary.com')) {
       return [
-        { src: coverImageUrl.replace('/upload/', `/upload/c_fill,w_192,h_192,q_auto,f_png/`), sizes: '192x192', type: 'image/png', purpose: 'any' },
-        { src: coverImageUrl.replace('/upload/', `/upload/c_fill,w_512,h_512,q_auto,f_png/`), sizes: '512x512', type: 'image/png', purpose: 'any' },
-        { src: coverImageUrl.replace('/upload/', `/upload/c_fill,w_192,h_192,q_auto,f_png/`), sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-        { src: coverImageUrl.replace('/upload/', `/upload/c_fill,w_512,h_512,q_auto,f_png/`), sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        {
+          src: coverImageUrl.replace(
+            '/upload/',
+            `/upload/c_fill,w_192,h_192,q_auto,f_png/`,
+          ),
+          sizes: '192x192',
+          type: 'image/png',
+          purpose: 'any',
+        },
+        {
+          src: coverImageUrl.replace(
+            '/upload/',
+            `/upload/c_fill,w_512,h_512,q_auto,f_png/`,
+          ),
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'any',
+        },
+        {
+          src: coverImageUrl.replace(
+            '/upload/',
+            `/upload/c_fill,w_192,h_192,q_auto,f_png/`,
+          ),
+          sizes: '192x192',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
+        {
+          src: coverImageUrl.replace(
+            '/upload/',
+            `/upload/c_fill,w_512,h_512,q_auto,f_png/`,
+          ),
+          sizes: '512x512',
+          type: 'image/png',
+          purpose: 'maskable',
+        },
       ];
     }
 
     return [
-      { src: coverImageUrl, sizes: '192x192', type: 'image/png', purpose: 'any' },
-      { src: coverImageUrl, sizes: '512x512', type: 'image/png', purpose: 'any' },
+      {
+        src: coverImageUrl,
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'any',
+      },
+      {
+        src: coverImageUrl,
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any',
+      },
     ];
   }
 
   /**
    * Extrae URL original de un proxy URL (Cloudinary /image/upload con param url)
    */
-  private extractOriginalUrl(proxyUrl: string | null | undefined): string | null {
+  private extractOriginalUrl(
+    proxyUrl: string | null | undefined,
+  ): string | null {
     if (!proxyUrl || typeof proxyUrl !== 'string') return null;
     try {
       const urlObj = new URL(proxyUrl);
       if (urlObj.searchParams.has('url')) {
-        return decodeURIComponent(urlObj.searchParams.get('url')!).replace(/^http:\/\//i, 'https://');
+        return decodeURIComponent(urlObj.searchParams.get('url')!).replace(
+          /^http:\/\//i,
+          'https://',
+        );
       }
-    } catch { }
+    } catch {}
     return proxyUrl.replace(/^http:\/\//i, 'https://');
   }
 
   /**
    * Obtiene catálogos públicos de un comercio (helper interno, no lanza 404)
    */
-  private async getPublicCatalogsForCommerce(identifier: string): Promise<{ catalogs: any[]; commerce: any }> {
+  private async getPublicCatalogsForCommerce(
+    identifier: string,
+  ): Promise<{ catalogs: any[]; commerce: any }> {
     const isUUID =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(identifier);
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        identifier,
+      );
 
     const commerce = isUUID
-      ? await this.commerceRepository.findOne({ where: { id: identifier, isActive: true } })
-      : await this.commerceRepository.findOne({ where: { slug: identifier, isActive: true } });
+      ? await this.commerceRepository.findOne({
+          where: { id: identifier, isActive: true },
+        })
+      : await this.commerceRepository.findOne({
+          where: { slug: identifier, isActive: true },
+        });
 
     if (!commerce) return { catalogs: [], commerce: null };
 
     const catalogs = await this.catalogRepository.find({
-      where: { commerceId: commerce.id, status: CatalogStatus.ACTIVE, isPublic: true },
+      where: {
+        commerceId: commerce.id,
+        status: CatalogStatus.ACTIVE,
+        isPublic: true,
+      },
       order: { createdAt: 'DESC' },
     });
 

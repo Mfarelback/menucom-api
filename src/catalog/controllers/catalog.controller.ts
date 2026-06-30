@@ -22,6 +22,7 @@ import {
   ApiBody,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { Throttle } from '@nestjs/throttler';
 import { JwtAuthGuard } from '../../auth/guards/jwt.auth.gards';
 import { CatalogService } from '../services/catalog.service';
 import { CloudinaryService } from '../../cloudinary/services/cloudinary.service';
@@ -60,7 +61,10 @@ export class CatalogController {
     schema: {
       type: 'object',
       properties: {
-        catalogType: { type: 'string', enum: ['MENU', 'RESTAURANT', 'WARDROBE'] },
+        catalogType: {
+          type: 'string',
+          enum: ['MENU', 'RESTAURANT', 'WARDROBE'],
+        },
         name: { type: 'string' },
         description: { type: 'string' },
         isPublic: { type: 'boolean' },
@@ -251,6 +255,7 @@ export class CatalogController {
    */
   @Delete(':catalogId')
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 5, ttl: 300000 } })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Eliminar catálogo' })
   @ApiResponse({ status: 200, description: 'Catálogo eliminado' })
@@ -467,6 +472,7 @@ export class CatalogController {
    */
   @Delete(':catalogId/items/:itemId')
   @UseGuards(JwtAuthGuard)
+  @Throttle({ default: { limit: 10, ttl: 300000 } })
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Eliminar item' })
   @ApiResponse({ status: 200, description: 'Item eliminado' })
@@ -513,9 +519,7 @@ export class CatalogController {
   @ApiOperation({ summary: 'Obtener catálogos públicos de un comercio' })
   @ApiResponse({ status: 200, description: 'Catálogos encontrados' })
   @ApiResponse({ status: 404, description: 'No se encontraron catálogos' })
-  async getPublicCatalogsByCommerce(
-    @Param('identifier') identifier: string,
-  ) {
+  async getPublicCatalogsByCommerce(@Param('identifier') identifier: string) {
     return await this.catalogService.getPublicCatalogsByCommerce(identifier);
   }
 
@@ -523,11 +527,11 @@ export class CatalogController {
    * Obtener datos OG (Open Graph) para social preview de un comercio
    */
   @Get('public/commerce/:identifier/og')
-  @ApiOperation({ summary: 'Obtener datos OG para social preview de un comercio' })
+  @ApiOperation({
+    summary: 'Obtener datos OG para social preview de un comercio',
+  })
   @ApiResponse({ status: 200, description: 'Datos OG encontrados' })
-  async getCommerceOGData(
-    @Param('identifier') identifier: string,
-  ) {
+  async getCommerceOGData(@Param('identifier') identifier: string) {
     return await this.catalogService.getCommerceOGData(identifier);
   }
 
@@ -537,9 +541,7 @@ export class CatalogController {
   @Get('public/commerce/:identifier/manifest')
   @ApiOperation({ summary: 'Obtener PWA Manifest de un comercio' })
   @ApiResponse({ status: 200, description: 'Manifest generado' })
-  async getCommerceManifest(
-    @Param('identifier') identifier: string,
-  ) {
+  async getCommerceManifest(@Param('identifier') identifier: string) {
     return await this.catalogService.getCommerceManifest(identifier);
   }
 

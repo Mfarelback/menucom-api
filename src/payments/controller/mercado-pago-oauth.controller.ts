@@ -382,7 +382,9 @@ export class MercadoPagoOAuthController {
       if (newMatch) {
         userId = newMatch[1];
         commerceId = newMatch[2];
-        this.logger.log('UserId y CommerceId extraídos del state (formato nuevo)');
+        this.logger.log(
+          'UserId y CommerceId extraídos del state (formato nuevo)',
+        );
       } else {
         // Fallback a formato legacy: user_{userId}_{timestamp}
         const legacyMatch = coreState.match(/^user_([^_]+)_/);

@@ -90,6 +90,7 @@ export class PaymentStatusService {
    * - rejected: Pago rechazado
    * - cancelled: Pago cancelado por el usuario
    * - refunded: Pago reembolsado
+   * - charged_back: Contracargo iniciado por el titular de la tarjeta
    */
   private mapMercadoPagoStatusToPaymentStatus(mpPaymentStatus: string): string {
     switch (mpPaymentStatus) {
@@ -103,6 +104,8 @@ export class PaymentStatusService {
         return PaymentStatusType.REJECTED;
       case 'refunded':
         return PaymentStatusType.REFUNDED;
+      case 'charged_back':
+        return PaymentStatusType.CHARGED_BACK;
       default:
         this.logger.warn(
           `Estado de MercadoPago desconocido: ${mpPaymentStatus}, usando PENDING por defecto`,
@@ -120,7 +123,7 @@ export class PaymentStatusService {
    * Mapeo de estados:
    * - approved → confirmed (orden confirmada)
    * - pending/in_process → pending (orden pendiente)
-   * - rejected/cancelled/refunded → cancelled (orden cancelada)
+   * - rejected/cancelled/refunded/charged_back → cancelled (orden cancelada)
    */
   mapPaymentStatusToOrderStatus(mpPaymentStatus: string): OrderStatus {
     switch (mpPaymentStatus) {
@@ -132,6 +135,7 @@ export class PaymentStatusService {
       case 'rejected':
       case 'cancelled':
       case 'refunded':
+      case 'charged_back':
         return OrderStatus.CANCELLED;
       default:
         this.logger.warn(

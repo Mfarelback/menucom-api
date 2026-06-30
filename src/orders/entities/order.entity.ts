@@ -131,6 +131,9 @@ export class Order {
   })
   paymentStatus: string;
 
+  @Column({ type: 'timestamp', nullable: true })
+  chargebackProcessedAt: Date;
+
   @CreateDateColumn()
   createdAt: Date;
 

@@ -13,6 +13,7 @@ import { PaymentsService } from '../../payments/services/payments.service';
 import { UserService } from '../../user/user.service';
 import { AppConfigService } from '../../app-data';
 import { AppDataService } from '../../app-data/services/app-data.service';
+import { MarketplaceFeeResolverService } from '../../payments/services/marketplace-fee-resolver.service';
 import { Catalog } from '../../catalog/entities/catalog.entity';
 import { CatalogItem } from '../../catalog/entities/catalog-item.entity';
 import { LoggerService } from '../../core/logger';
@@ -45,6 +46,7 @@ export class OrdersService {
     private userService: UserService,
     private readonly appConfig: AppConfigService,
     private readonly appDataService: AppDataService,
+    private readonly feeResolver: MarketplaceFeeResolverService,
     private readonly logger: LoggerService,
     private readonly dataSource: DataSource,
     private readonly notificationsService: NotificationsService,
@@ -119,9 +121,12 @@ export class OrdersService {
 
   /**
    * Calcula los montos de la orden basándose en los precios REALES de la base de datos
+   * y usando el MarketplaceFeeResolverService para aplicar el fee correcto por plan de membresía.
    */
   private async calculateSecureOrderAmounts(
     items: CreateOrderDto['items'],
+    ownerId: string,
+    commerceId: string | null,
   ): Promise<{
     subtotal: number;
     marketplaceFeePercentage: number;
@@ -153,9 +158,15 @@ export class OrdersService {
       });
     }
 
-    const marketplaceFeePercentage =
-      await this.appDataService.getMarketplaceFeePercentage();
-    const marketplaceFeeAmount = (subtotal * marketplaceFeePercentage) / 100;
+    // 0.3: Usar MarketplaceFeeResolverService con jerarquía de 3 niveles
+    // (custom → membership 7/5/3 → global) en lugar del fee global plano.
+    const feeResolution = await this.feeResolver.resolveFeePercentage(
+      ownerId,
+      commerceId ?? undefined,
+    );
+    const marketplaceFeePercentage = feeResolution.percentage;
+    const marketplaceFeeAmount =
+      Math.round(subtotal * marketplaceFeePercentage) / 100;
     const total = subtotal + marketplaceFeeAmount;
 
     return {
@@ -189,9 +200,11 @@ export class OrdersService {
       );
     }
 
-    // 5. Calcular montos seguros (precios de servidor)
+    // 5. Calcular montos seguros (precios de servidor) con fee dinámico
     const secureAmounts = await this.calculateSecureOrderAmounts(
       createOrderDto.items,
+      ownerId,
+      commerceId,
     );
 
     // 6. Preparar datos del cliente
@@ -694,6 +707,12 @@ export class OrdersService {
         `Error al actualizar fees de pago: ${error.message}`,
       );
     }
+  }
+
+  async markChargebackProcessed(orderId: string): Promise<void> {
+    await this.orderRepository.update(orderId, {
+      chargebackProcessedAt: new Date(),
+    });
   }
 
   /**

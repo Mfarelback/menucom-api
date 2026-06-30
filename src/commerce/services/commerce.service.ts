@@ -16,6 +16,9 @@ import { UserRoleService } from '../../auth/services/user-role.service';
 import { UserRole } from '../../auth/entities/user-role.entity';
 import { RoleType } from '../../auth/models/permissions.model';
 import { MembershipService } from '../../membership/membership.service';
+import { ActivityLogService } from './activity-log.service';
+import { ActivityAction } from '../entities/activity-log.entity';
+import { NotificationsService } from '../../notifications/notifications.service';
 
 @Injectable()
 export class CommerceService {
@@ -26,6 +29,8 @@ export class CommerceService {
     private readonly commerceRepository: Repository<Commerce>,
     private readonly userRoleService: UserRoleService,
     private readonly membershipService: MembershipService,
+    private readonly activityLogService: ActivityLogService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(
@@ -95,6 +100,16 @@ export class CommerceService {
       // No existía rol previo sin resourceId, todo bien
     }
 
+    await this.activityLogService.log({
+      commerceId: saved.id,
+      userId: ownerId,
+      userRole: 'OWNER',
+      action: ActivityAction.CREATE,
+      entityType: 'Commerce',
+      entityId: saved.id,
+      summary: `Comercio "${saved.businessName}" creado`,
+    });
+
     return saved;
   }
 
@@ -129,8 +144,10 @@ export class CommerceService {
   ): Promise<Commerce> {
     const commerce = await this.findById(id);
 
+    const isOwner = commerce.ownerId === userId;
+
     if (!isAdmin) {
-      if (commerce.ownerId !== userId) {
+      if (!isOwner) {
         const hasAccess = await this.userRoleService.hasAccessToCommerce(
           userId,
           id,
@@ -140,6 +157,24 @@ export class CommerceService {
             'No tienes permiso para modificar este comercio',
           );
         }
+      }
+    }
+
+    // 0.2: Solo OWNER o ADMIN pueden modificar campos sensibles de identidad
+    if (!isAdmin && !isOwner) {
+      const forbiddenFields: (keyof UpdateCommerceDto)[] = [
+        'businessName',
+        'slug',
+        'businessType',
+        'context',
+      ];
+      const attempted = forbiddenFields.filter(
+        (field) => dto[field] !== undefined,
+      );
+      if (attempted.length > 0) {
+        throw new ForbiddenException(
+          `Solo el propietario puede modificar: ${attempted.join(', ')}`,
+        );
       }
     }
 
@@ -154,29 +189,77 @@ export class CommerceService {
       }
     }
 
+    const oldValues: Record<string, any> = {};
+    const trackedFields = [
+      'businessName',
+      'slug',
+      'description',
+      'address',
+      'phone',
+      'businessType',
+      'context',
+    ];
+    for (const field of trackedFields) {
+      if (dto[field] !== undefined && dto[field] !== commerce[field]) {
+        oldValues[field] = { from: commerce[field], to: dto[field] };
+      }
+    }
+
     Object.assign(commerce, dto);
-    return this.commerceRepository.save(commerce);
+    const updated = await this.commerceRepository.save(commerce);
+
+    const userRoleName = isAdmin ? 'ADMIN' : isOwner ? 'OWNER' : 'MANAGER';
+
+    if (Object.keys(oldValues).length > 0) {
+      await this.activityLogService.log({
+        commerceId: id,
+        userId,
+        userRole: userRoleName,
+        action: ActivityAction.UPDATE,
+        entityType: 'Commerce',
+        entityId: id,
+        changes: oldValues,
+        summary: `Comercio actualizado: ${Object.keys(oldValues).join(', ')}`,
+      });
+    }
+
+    if (!isAdmin && !isOwner) {
+      await this.notificationsService
+        .sendNotificationToUser(
+          commerce.ownerId,
+          'Cambios en tu comercio',
+          `Un MANAGER modificó el comercio "${commerce.businessName}"`,
+          { commerceId: id, type: 'commerce_updated', updatedBy: userId },
+        )
+        .catch(() => {});
+    }
+
+    return updated;
   }
 
   async deactivate(id: string, userId: string, isAdmin = false): Promise<void> {
     const commerce = await this.findById(id);
 
-    if (!isAdmin) {
-      if (commerce.ownerId !== userId) {
-        const hasAccess = await this.userRoleService.hasAccessToCommerce(
-          userId,
-          id,
-        );
-        if (!hasAccess) {
-          throw new ForbiddenException(
-            'No tienes permiso para desactivar este comercio',
-          );
-        }
-      }
+    // 0.1: Solo OWNER o ADMIN pueden desactivar el comercio
+    if (!isAdmin && commerce.ownerId !== userId) {
+      throw new ForbiddenException(
+        'Solo el propietario del comercio puede desactivarlo.',
+      );
     }
 
     commerce.isActive = false;
     await this.commerceRepository.save(commerce);
+
+    const userRoleName = isAdmin ? 'ADMIN' : 'OWNER';
+    await this.activityLogService.log({
+      commerceId: id,
+      userId,
+      userRole: userRoleName,
+      action: ActivityAction.DEACTIVATE,
+      entityType: 'Commerce',
+      entityId: id,
+      summary: `Comercio "${commerce.businessName}" desactivado`,
+    });
   }
 
   async getUserContexts(

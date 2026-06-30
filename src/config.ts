@@ -43,4 +43,5 @@ export enum PaymentStatusType {
   REJECTED = 'rejected',
   REFUNDED = 'refunded',
   CANCELLED = 'cancelled',
+  CHARGED_BACK = 'charged_back',
 }

@@ -58,6 +58,17 @@ export class SubscriptionPlan {
   @Column({ type: 'varchar', default: 'monthly' }) // monthly, yearly, lifetime
   billingCycle: string;
 
+  // Marketplace transaction fee applied to orders from this plan's members
+  @Column({
+    type: 'decimal',
+    precision: 5,
+    scale: 2,
+    nullable: true,
+    comment:
+      'Porcentaje de fee por transacción para miembros de este plan (ej: 7.00 = 7%)',
+  })
+  transactionFee: number | null;
+
   // Features
   @Column({ type: 'simple-array', nullable: true })
   features: MembershipFeature[];
