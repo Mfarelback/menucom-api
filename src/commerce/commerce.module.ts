@@ -16,7 +16,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     CloudinaryModule,
     forwardRef(() => AuthModule),
     forwardRef(() => MembershipModule),
-    NotificationsModule,
+    forwardRef(() => NotificationsModule),
   ],
   controllers: [CommerceController],
   providers: [CommerceService, ActivityLogService],
