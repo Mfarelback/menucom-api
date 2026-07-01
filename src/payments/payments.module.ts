@@ -23,6 +23,7 @@ import { OrdersModule } from '../orders/orders.module';
 import { EventsModule } from '../events/events.module';
 import { AppDataModule } from '../app-data/app-data.module';
 import { CommerceModule } from '../commerce/commerce.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { User } from '../user/entities/user.entity';
 import { Membership } from '../membership/entities/membership.entity';
 import { Commerce } from '../commerce/entities/commerce.entity';
@@ -42,6 +43,7 @@ import { Commerce } from '../commerce/entities/commerce.entity';
     AppDataModule,
     AuthModule,
     CommerceModule,
+    forwardRef(() => NotificationsModule),
   ],
   controllers: [PaymentsController, MercadoPagoOAuthController],
   providers: [
