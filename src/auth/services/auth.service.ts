@@ -39,57 +39,21 @@ export class AuthService {
     return context ? `${role} | ${context}` : role;
   }
 
-  private async resolveInitialCommerceId(
+  private async resolveExistingCommerce(
     userId: string,
   ): Promise<{ commerceId: string; commerceContext?: string } | undefined> {
     try {
       const commerces = await this.commerceService.getUserContexts(userId);
-      if (commerces.length === 1) {
+      if (commerces.length >= 1) {
         return {
           commerceId: commerces[0].commerce.id,
           commerceContext: commerces[0].commerce.context,
         };
       }
-      if (commerces.length === 0) {
-        const user = await this.usersService.findOne(userId);
-        if (!user) {
-          this.logger.warn(
-            `Usuario ${userId} no encontrado al resolver commerceId`,
-          );
-          return undefined;
-        }
-
-        const typeKey = user.role || 'customer';
-        const mapping =
-          BUSINESS_TYPE_MAPPING[typeKey] || BUSINESS_TYPE_MAPPING['customer'];
-
-        try {
-          const commerce = await this.commerceService.create(userId, {
-            businessName:
-              user.businessName ||
-              user.name ||
-              user.email?.split('@')[0] ||
-              'Mi Negocio',
-            slug: user.slug || `${typeKey}-${userId.substring(0, 8)}`,
-            businessType: typeKey,
-            context: mapping.context as BusinessContext,
-          });
-
-          this.logger.log(
-            `Commerce auto-creado para usuario legacy ${userId}: ${commerce.id}`,
-          );
-          return { commerceId: commerce.id, commerceContext: commerce.context };
-        } catch (createError) {
-          this.logger.error(
-            `Error creando commerce automático para usuario legacy ${userId}: ${createError instanceof Error ? createError.message : String(createError)}`,
-          );
-          return undefined;
-        }
-      }
       return undefined;
     } catch (error) {
       this.logger.error(
-        `Error resolviendo commerceId inicial para usuario ${userId}: ${error instanceof Error ? error.message : String(error)}`,
+        `Error resolviendo commerceId para usuario ${userId}: ${error instanceof Error ? error.message : String(error)}`,
       );
       return undefined;
     }
@@ -118,7 +82,7 @@ export class AuthService {
 
   async login(user: any) {
     const userId = user['user']['id'];
-    const resolved = await this.resolveInitialCommerceId(userId);
+    const resolved = await this.resolveExistingCommerce(userId);
     const legacyRole = user['user']['role'];
     const mapping =
       BUSINESS_TYPE_MAPPING[legacyRole] || BUSINESS_TYPE_MAPPING['customer'];
@@ -222,45 +186,15 @@ export class AuthService {
         }
       }
 
-      let commerceId: string | undefined;
-
-      if (mapping.role === RoleType.OWNER) {
-        try {
-          const slugBase = (userData.businessType || 'general').replace(
-            /[^a-zA-Z0-9]/g,
-            '-',
-          );
-          const commerce = await this.commerceService.create(userRegister.id, {
-            businessName:
-              userRegister.name ||
-              userRegister.email?.split('@')[0] ||
-              'Mi Negocio',
-            slug: `${slugBase}-${userRegister.id.substring(0, 8)}`,
-            businessType: userData.businessType || 'general',
-            context: mapping.context as BusinessContext,
-          });
-          commerceId = commerce.id;
-          this.logger.log(
-            `✅ Commerce creado con ID: ${commerce.id} para usuario ${userRegister.id}`,
-          );
-        } catch (commerceError) {
-          this.logger.warn(
-            `No se pudo crear Commerce para ${userRegister.id}: ${commerceError instanceof Error ? commerceError.message : String(commerceError)}`,
-          );
-        }
-      }
-
       const tokenPayload: JwtPayload = {
         sub: userRegister.id,
         username: this.buildVisualUsername(userRegister.role, mapping.context),
         role: mapping.role,
-        ...(commerceId && { commerceId }),
       };
 
       return {
         access_token: this.jwtService.sign(tokenPayload),
         needToChangePassword: userRegister.needToChangepassword,
-        ...(commerceId && { commerceId }),
       };
     } catch (error) {
       this.logger.error(
@@ -359,7 +293,7 @@ export class AuthService {
       }
 
       // Generar JWT
-      const resolved = await this.resolveInitialCommerceId(user.id);
+      const resolved = await this.resolveExistingCommerce(user.id);
       const legacyRole = user.role;
       const mapping =
         BUSINESS_TYPE_MAPPING[legacyRole] || BUSINESS_TYPE_MAPPING['customer'];
@@ -478,7 +412,7 @@ export class AuthService {
       throw new UnauthorizedException('Usuario no encontrado');
     }
 
-    const resolved = await this.resolveInitialCommerceId(user.id);
+    const resolved = await this.resolveExistingCommerce(user.id);
     const legacyRole = user.role;
     const mapping =
       BUSINESS_TYPE_MAPPING[legacyRole] || BUSINESS_TYPE_MAPPING['customer'];
@@ -611,29 +545,6 @@ export class AuthService {
         }
       }
 
-      // Crear Commerce si es OWNER (misma lógica que registerUser)
-      if (mapping.role === RoleType.OWNER) {
-        try {
-          const slugBase = (businessType || 'general').replace(
-            /[^a-zA-Z0-9]/g,
-            '-',
-          );
-          await this.commerceService.create(userRegister.id, {
-            businessName:
-              userRegister.name ||
-              userRegister.email?.split('@')[0] ||
-              'Mi Negocio',
-            slug: `${slugBase}-${userRegister.id.substring(0, 8)}`,
-            businessType: businessType || 'general',
-            context: mapping.context as BusinessContext,
-          });
-        } catch (commerceError) {
-          this.logger.warn(
-            `No se pudo crear Commerce para usuario social ${userRegister.id}: ${commerceError instanceof Error ? commerceError.message : String(commerceError)}`,
-          );
-        }
-      }
-
       return userRegister;
     } catch (error) {
       this.logger.error(
@@ -736,41 +647,16 @@ export class AuthService {
         }
       }
 
-      // Crear Commerce si es OWNER
-      let commerceId: string | undefined;
-      if (mapping.role === RoleType.OWNER) {
-        try {
-          const slugBase = (typeKey || 'general').replace(/[^a-zA-Z0-9]/g, '-');
-          const commerce = await this.commerceService.create(userRegister.id, {
-            businessName:
-              userRegister.name ||
-              userRegister.email?.split('@')[0] ||
-              'Mi Negocio',
-            slug: `${slugBase}-${userRegister.id.substring(0, 8)}`,
-            businessType: typeKey || 'general',
-            context: mapping.context as BusinessContext,
-          });
-          commerceId = commerce.id;
-          this.logger.log(`✅ Commerce creado con ID: ${commerce.id}`);
-        } catch (commerceError) {
-          this.logger.warn(
-            `No se pudo crear Commerce: ${commerceError instanceof Error ? commerceError.message : String(commerceError)}`,
-          );
-        }
-      }
-
       const payload: JwtPayload = {
         username: this.buildVisualUsername(userRegister.role, mapping.context),
         sub: userRegister.id,
         role: mapping.role,
-        ...(commerceId && { commerceId }),
       };
 
       const response = {
         access_token: this.jwtService.sign(payload),
         needToChangePassword: userRegister.needToChangepassword || false,
         user: userRegister,
-        ...(commerceId && { commerceId }),
       };
 
       this.logger.log(

@@ -26,6 +26,10 @@ export class Catalog {
   @PrimaryColumn({ type: 'varchar' })
   id: string;
 
+  /**
+   * @deprecated Usar `commerceId` como campo canónico para multi-tenant.
+   * Se mantiene como alias legacy para backward compatibility.
+   */
   @Column({ type: 'varchar' })
   ownerId: string;
 

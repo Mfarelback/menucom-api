@@ -40,6 +40,10 @@ export class Order {
   @Column({ nullable: true })
   createdBy: string; // ID del creador de la orden (x-anonymous-id)
 
+  /**
+   * @deprecated Usar `commerceId` como campo canónico para multi-tenant.
+   * Se mantiene como alias legacy para backward compatibility.
+   */
   @Column({ nullable: true })
   ownerId: string;
 

@@ -36,10 +36,13 @@ export class CreateOrderDto {
   @IsString()
   createdBy?: string;
 
+  /**
+   * @deprecated Usar commerceId en su lugar. Se resuelve automáticamente desde los items.
+   */
   @ApiProperty({
     example: 'owner-uuid-123',
-    description: 'ID del propietario del menú/wardrobe',
-    required: true,
+    description: '[DEPRECADO] ID del propietario. Usar commerceId.',
+    required: false,
   })
   @IsOptional()
   @IsString()

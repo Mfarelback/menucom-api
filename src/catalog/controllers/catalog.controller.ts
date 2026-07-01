@@ -183,14 +183,23 @@ export class CatalogController {
   async getCatalogById(
     @Request() req: AuthenticatedRequest,
     @Param('catalogId') catalogId: string,
+    @Query('offset') offset?: string,
+    @Query('limit') limit?: string,
+    @Query('inStock') inStock?: string,
   ) {
     const ownerId = req.user.userId;
     const commerceId = req.tenantId;
+    const off = offset ? parseInt(offset, 10) : undefined;
+    const lim = limit ? parseInt(limit, 10) : undefined;
+    const stockFilter = inStock !== undefined ? inStock === 'true' : true;
     return await this.catalogService.getCatalogById(
       catalogId,
       ownerId,
       true,
       commerceId,
+      off,
+      lim,
+      stockFilter,
     );
   }
 
@@ -495,10 +504,19 @@ export class CatalogController {
   async searchPublic(
     @Query('type') typeStr?: string,
     @Query('tags') tags?: string,
+    @Query('offset') offset?: string,
+    @Query('limit') limit?: string,
   ) {
     const type = typeStr ? (typeStr as CatalogType) : undefined;
     const tagsArray = tags ? tags.split(',') : undefined;
-    return await this.catalogService.searchPublicCatalogs(type, tagsArray, 20);
+    const off = offset ? parseInt(offset, 10) : 0;
+    const lim = limit ? parseInt(limit, 10) : 20;
+    return await this.catalogService.searchPublicCatalogs(
+      type,
+      tagsArray,
+      lim,
+      off,
+    );
   }
 
   /**
@@ -508,8 +526,12 @@ export class CatalogController {
   @ApiOperation({ summary: 'Obtener catálogo público por ID' })
   @ApiResponse({ status: 200, description: 'Catálogo encontrado' })
   @ApiResponse({ status: 404, description: 'Catálogo no encontrado' })
-  async getPublicCatalogById(@Param('catalogId') catalogId: string) {
-    return await this.catalogService.getPublicCatalogById(catalogId);
+  async getPublicCatalogById(
+    @Param('catalogId') catalogId: string,
+    @Query('inStock') inStock?: string,
+  ) {
+    const stockFilter = inStock !== undefined ? inStock === 'true' : true;
+    return await this.catalogService.getPublicCatalogById(catalogId, stockFilter);
   }
 
   /**
@@ -519,8 +541,21 @@ export class CatalogController {
   @ApiOperation({ summary: 'Obtener catálogos públicos de un comercio' })
   @ApiResponse({ status: 200, description: 'Catálogos encontrados' })
   @ApiResponse({ status: 404, description: 'No se encontraron catálogos' })
-  async getPublicCatalogsByCommerce(@Param('identifier') identifier: string) {
-    return await this.catalogService.getPublicCatalogsByCommerce(identifier);
+  async getPublicCatalogsByCommerce(
+    @Param('identifier') identifier: string,
+    @Query('offset') offset?: string,
+    @Query('limit') limit?: string,
+    @Query('inStock') inStock?: string,
+  ) {
+    const off = offset ? parseInt(offset, 10) : 0;
+    const lim = limit ? parseInt(limit, 10) : 50;
+    const stockFilter = inStock !== undefined ? inStock === 'true' : true;
+    return await this.catalogService.getPublicCatalogsByCommerce(
+      identifier,
+      off,
+      lim,
+      stockFilter,
+    );
   }
 
   /**
@@ -552,8 +587,12 @@ export class CatalogController {
   @ApiOperation({ summary: 'Obtener catálogo público por slug' })
   @ApiResponse({ status: 200, description: 'Catálogo encontrado' })
   @ApiResponse({ status: 404, description: 'Catálogo no encontrado' })
-  async getPublicCatalog(@Param('slug') slug: string) {
-    return await this.catalogService.getCatalogBySlug(slug);
+  async getPublicCatalog(
+    @Param('slug') slug: string,
+    @Query('inStock') inStock?: string,
+  ) {
+    const stockFilter = inStock !== undefined ? inStock === 'true' : true;
+    return await this.catalogService.getCatalogBySlug(slug, true, stockFilter);
   }
 
   /**

@@ -281,8 +281,11 @@ export class CatalogService {
     ownerId?: string,
     includeItems: boolean = true,
     commerceId?: string,
-  ): Promise<Catalog> {
-    const relations = includeItems ? ['items'] : [];
+    offset?: number,
+    limit?: number,
+    inStock: boolean = true,
+  ): Promise<Catalog | any> {
+    const relations = includeItems && offset === undefined ? ['items'] : [];
     const catalog = await this.catalogRepository.findOne({
       where: { id: catalogId },
       relations,
@@ -303,7 +306,39 @@ export class CatalogService {
       throw new CatalogUnauthorizedException(catalogId, ownerId);
     }
 
-    return catalog;
+    if (!includeItems) {
+      return catalog;
+    }
+
+    if (offset === undefined) {
+      const fullCatalog = await this.catalogRepository.findOne({
+        where: { id: catalog.id },
+        relations: ['items'],
+      });
+      return fullCatalog;
+    }
+
+    const where: any = { catalogId: catalog.id };
+    if (inStock) {
+      where.isAvailable = true;
+      where.status = CatalogItemStatus.AVAILABLE;
+    }
+
+    const [items, total] = await this.catalogItemRepository.findAndCount({
+      where,
+      skip: offset,
+      take: limit,
+      order: { displayOrder: 'ASC', createdAt: 'DESC' },
+    });
+
+    return {
+      ...catalog,
+      items,
+      total,
+      offset,
+      limit,
+      hasMore: offset + limit < total,
+    };
   }
 
   /**
@@ -312,6 +347,7 @@ export class CatalogService {
   async getCatalogBySlug(
     slug: string,
     includeItems: boolean = true,
+    inStock: boolean = true,
   ): Promise<any> {
     const relations = includeItems ? ['items', 'commerce'] : ['commerce'];
     const catalog = await this.catalogRepository.findOne({
@@ -324,10 +360,12 @@ export class CatalogService {
     }
 
     const availableItems = catalog.items
-      ? catalog.items.filter(
-          (item) =>
-            item.isAvailable && item.status === CatalogItemStatus.AVAILABLE,
-        )
+      ? catalog.items.filter((item) => {
+          if (!inStock) return true;
+          return (
+            item.isAvailable && item.status === CatalogItemStatus.AVAILABLE
+          );
+        })
       : [];
 
     catalog.viewCount += 1;
@@ -752,7 +790,10 @@ export class CatalogService {
   /**
    * Obtiene catálogo público por ID (sin validación de ownership)
    */
-  async getPublicCatalogById(catalogId: string): Promise<any> {
+  async getPublicCatalogById(
+    catalogId: string,
+    inStock: boolean = true,
+  ): Promise<any> {
     const catalog = await this.catalogRepository.findOne({
       where: { id: catalogId, status: CatalogStatus.ACTIVE, isPublic: true },
       relations: ['items', 'commerce'],
@@ -766,10 +807,12 @@ export class CatalogService {
     }
 
     const availableItems = catalog.items
-      ? catalog.items.filter(
-          (item) =>
-            item.isAvailable && item.status === CatalogItemStatus.AVAILABLE,
-        )
+      ? catalog.items.filter((item) => {
+          if (!inStock) return true;
+          return (
+            item.isAvailable && item.status === CatalogItemStatus.AVAILABLE
+          );
+        })
       : [];
 
     catalog.viewCount += 1;
@@ -853,7 +896,12 @@ export class CatalogService {
   /**
    * Obtiene catálogos públicos de un comercio por slug o UUID
    */
-  async getPublicCatalogsByCommerce(identifier: string): Promise<any> {
+  async getPublicCatalogsByCommerce(
+    identifier: string,
+    offset: number = 0,
+    limit: number = 50,
+    inStock: boolean = true,
+  ): Promise<any> {
     const isUUID =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
         identifier,
@@ -874,7 +922,7 @@ export class CatalogService {
       });
     }
 
-    const catalogs = await this.catalogRepository.find({
+    const [catalogs, total] = await this.catalogRepository.findAndCount({
       where: {
         commerceId: commerce.id,
         status: CatalogStatus.ACTIVE,
@@ -882,6 +930,8 @@ export class CatalogService {
       },
       relations: ['items'],
       order: { createdAt: 'DESC' },
+      skip: offset,
+      take: limit,
     });
 
     if (!catalogs || catalogs.length === 0) {
@@ -891,12 +941,14 @@ export class CatalogService {
       });
     }
 
-    return catalogs.map((catalog) => {
+    const items = catalogs.map((catalog) => {
       const availableItems = catalog.items
-        ? catalog.items.filter(
-            (item) =>
-              item.isAvailable && item.status === CatalogItemStatus.AVAILABLE,
-          )
+        ? catalog.items.filter((item) => {
+            if (!inStock) return true;
+            return (
+              item.isAvailable && item.status === CatalogItemStatus.AVAILABLE
+            );
+          })
         : [];
 
       return {
@@ -921,6 +973,16 @@ export class CatalogService {
         createdAt: catalog.createdAt,
       };
     });
+
+    return {
+      items,
+      pagination: {
+        total,
+        offset,
+        limit,
+        hasMore: offset + limit < total,
+      },
+    };
   }
 
   /**
@@ -1164,7 +1226,25 @@ export class CatalogService {
     catalogType?: CatalogType,
     tags?: string[],
     limit: number = 20,
+    offset: number = 0,
   ): Promise<any> {
+    const countQueryBuilder = this.catalogRepository
+      .createQueryBuilder('catalog')
+      .where('catalog.status = :status', { status: CatalogStatus.ACTIVE })
+      .andWhere('catalog.isPublic = :isPublic', { isPublic: true });
+
+    if (catalogType) {
+      countQueryBuilder.andWhere('catalog.catalogType = :catalogType', {
+        catalogType,
+      });
+    }
+
+    if (tags && tags.length > 0) {
+      countQueryBuilder.andWhere('catalog.tags && :tags', { tags });
+    }
+
+    const total = await countQueryBuilder.getCount();
+
     const queryBuilder = this.catalogRepository
       .createQueryBuilder('catalog')
       .leftJoinAndSelect('catalog.commerce', 'commerce')
@@ -1192,10 +1272,11 @@ export class CatalogService {
 
     const catalogs = await queryBuilder
       .orderBy('catalog.viewCount', 'DESC')
+      .skip(offset)
       .take(limit)
       .getRawAndEntities();
 
-    return catalogs.entities.map((catalog, index) => ({
+    const items = catalogs.entities.map((catalog, index) => ({
       id: catalog.id,
       type: catalog.catalogType,
       name: catalog.name,
@@ -1216,6 +1297,16 @@ export class CatalogService {
       viewCount: catalog.viewCount,
       createdAt: catalog.createdAt,
     }));
+
+    return {
+      items,
+      pagination: {
+        total,
+        offset,
+        limit,
+        hasMore: offset + limit < total,
+      },
+    };
   }
 
   /**

@@ -19,6 +19,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { EventsModule } from './events/events.module';
 import { PublicModule } from './public/public.module';
 import { CommerceModule } from './commerce/commerce.module';
+import { BusinessProfileModule } from './business-profile/business-profile.module';
 import { TenantInterceptor } from './auth/interceptors/tenant.interceptor';
 // import { MigrationModule } from './scripts/migration.module'; // Módulo temporal de migraciones
 import { LoggerModule } from './core/logger';
@@ -53,6 +54,7 @@ import { RootController } from './core/controllers/root.controller';
     EventsModule,
     PublicModule,
     CommerceModule,
+    BusinessProfileModule,
     // MigrationModule, // Módulo temporal - deshabilitado
   ],
   controllers: [RootController],

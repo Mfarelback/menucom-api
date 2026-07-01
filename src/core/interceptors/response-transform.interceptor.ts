@@ -16,18 +16,37 @@ export interface PaginatedResult<T> {
   limit: number;
 }
 
+export interface OffsetPaginatedResult<T> {
+  items: T[];
+  pagination: {
+    total: number;
+    offset: number;
+    limit: number;
+    hasMore: boolean;
+  };
+}
+
+export type PaginationInfo =
+  | {
+      page: number;
+      limit: number;
+      total: number;
+      totalPages: number;
+      hasNext: boolean;
+      hasPrev: boolean;
+    }
+  | {
+      total: number;
+      offset: number;
+      limit: number;
+      hasMore: boolean;
+    };
+
 export interface WrappedResponse<T> {
   statusCode: number;
   message: string;
   data: T;
-  pagination?: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNext: boolean;
-    hasPrev: boolean;
-  };
+  pagination?: PaginationInfo;
 }
 
 @Injectable()
@@ -72,6 +91,16 @@ export class ResponseTransformInterceptor<T>
           };
         }
 
+        if (this.isOffsetPaginatedResult(responseData)) {
+          const { items, pagination } = responseData;
+          return {
+            statusCode,
+            message: 'OK',
+            data: items,
+            pagination,
+          };
+        }
+
         return {
           statusCode,
           message: 'OK',
@@ -89,6 +118,22 @@ export class ResponseTransformInterceptor<T>
       typeof value.total === 'number' &&
       typeof value.page === 'number' &&
       typeof value.limit === 'number'
+    );
+  }
+
+  private isOffsetPaginatedResult(
+    value: any,
+  ): value is OffsetPaginatedResult<unknown> {
+    if (!value || typeof value !== 'object') return false;
+    if (!Array.isArray(value.items)) return false;
+    const p = value.pagination;
+    return (
+      p &&
+      typeof p === 'object' &&
+      typeof p.total === 'number' &&
+      typeof p.offset === 'number' &&
+      typeof p.limit === 'number' &&
+      typeof p.hasMore === 'boolean'
     );
   }
 }

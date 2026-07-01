@@ -321,7 +321,7 @@ export class OrdersService {
     try {
       const order = await this.orderRepository.findOne({
         where: { id },
-        relations: ['items', 'owner'],
+        relations: ['items', 'owner', 'commerce'],
       });
       if (!order) {
         throw new NotFoundException(`Orden con id ${id} no encontrada`);
@@ -347,7 +347,7 @@ export class OrdersService {
       }
       const [data, total] = await this.orderRepository.findAndCount({
         where,
-        relations: ['items', 'owner'],
+        relations: ['items', 'owner', 'commerce'],
         skip,
         take: limit,
         order: { createdAt: 'DESC' },
@@ -364,7 +364,7 @@ export class OrdersService {
     try {
       const orders = await this.orderRepository.find({
         where: { customerEmail },
-        relations: ['items', 'owner'],
+        relations: ['items', 'owner', 'commerce'],
         order: { createdAt: 'DESC' },
       });
       return orders.map(this.mapOrderStoreInfo);
@@ -376,11 +376,27 @@ export class OrdersService {
   }
 
   private mapOrderStoreInfo(order: Order): any {
-    if (!order.owner) {
-      const { owner, ...rest } = order;
+    const { owner, commerce, ...rest } = order;
+
+    if (commerce) {
+      return {
+        ...rest,
+        commerceId: commerce.id,
+        store: {
+          id: commerce.id,
+          businessName: commerce.businessName,
+          slug: commerce.slug,
+          coverImageUrl: commerce.logoUrl,
+          businessPhone: commerce.phone,
+          businessAddress: commerce.address,
+        },
+      };
+    }
+
+    if (!owner) {
       return { ...rest, store: null };
     }
-    const { owner, ...rest } = order;
+
     return {
       ...rest,
       store: {
@@ -409,7 +425,7 @@ export class OrdersService {
       const skip = (page - 1) * limit;
       const [data, total] = await this.orderRepository.findAndCount({
         where: { customerEmail: user.email },
-        relations: ['items', 'owner'],
+        relations: ['items', 'owner', 'commerce'],
         order: { createdAt: 'DESC' },
         skip,
         take: limit,
@@ -427,7 +443,7 @@ export class OrdersService {
     try {
       const orders = await this.orderRepository.find({
         where: { createdBy },
-        relations: ['items', 'owner'],
+        relations: ['items', 'owner', 'commerce'],
         order: { createdAt: 'DESC' },
       });
       return orders.map(this.mapOrderStoreInfo);
@@ -468,7 +484,7 @@ export class OrdersService {
 
       const [data, total] = await this.orderRepository.findAndCount({
         where,
-        relations: ['items', 'owner'],
+        relations: ['items', 'owner', 'commerce'],
         order: { createdAt: 'DESC' },
         skip,
         take: limit,
@@ -518,7 +534,7 @@ export class OrdersService {
       return this.mapOrderStoreInfo(
         await this.orderRepository.findOne({
           where: { id },
-          relations: ['items', 'owner'],
+          relations: ['items', 'owner', 'commerce'],
         }),
       );
     } catch (error) {
@@ -553,7 +569,7 @@ export class OrdersService {
     try {
       const order = await this.orderRepository.findOne({
         where: { id: orderId },
-        relations: ['items', 'owner'],
+        relations: ['items', 'owner', 'commerce'],
       });
 
       if (!order) {
@@ -586,7 +602,7 @@ export class OrdersService {
       const updatedOrder = this.mapOrderStoreInfo(
         await this.orderRepository.findOne({
           where: { id: orderId },
-          relations: ['items', 'owner'],
+          relations: ['items', 'owner', 'commerce'],
         }),
       );
 
@@ -650,7 +666,7 @@ export class OrdersService {
       const updatedOrder = this.mapOrderStoreInfo(
         await this.orderRepository.findOne({
           where: { id: orderId },
-          relations: ['items', 'owner'],
+          relations: ['items', 'owner', 'commerce'],
         }),
       );
 
@@ -698,7 +714,7 @@ export class OrdersService {
       return this.mapOrderStoreInfo(
         await this.orderRepository.findOne({
           where: { id: orderId },
-          relations: ['items', 'owner'],
+          relations: ['items', 'owner', 'commerce'],
         }),
       );
     } catch (error) {
@@ -722,7 +738,7 @@ export class OrdersService {
     try {
       const order = await this.orderRepository.findOne({
         where: { operationID: operationId },
-        relations: ['items', 'owner'],
+        relations: ['items', 'owner', 'commerce'],
       });
       if (!order) return null;
       return this.mapOrderStoreInfo(order);

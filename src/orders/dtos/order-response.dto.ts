@@ -43,9 +43,12 @@ export class OrderResponseDto {
   @ApiProperty({ example: 'anonymous-user-123', required: false })
   createdBy?: string;
 
+  /**
+   * @deprecated Usar store.id (commerceId) en su lugar.
+   */
   @ApiProperty({
     example: 'owner-uuid-123',
-    description: 'ID del propietario del menú/wardrobe',
+    description: '[DEPRECADO] ID del propietario. Usar store.id.',
     required: false,
   })
   ownerId?: string;
